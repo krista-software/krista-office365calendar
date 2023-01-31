@@ -54,8 +54,8 @@ public final class Office365CalendarExtension {
 
     @InvokerRequest(InvokerRequest.Type.VALIDATE_ATTRIBUTES)
     public void validateConnection(Map<String, Object> connectionAttributes) {
-        Office365CalendarAttributes office365CalendarAttributes = Office365CalendarAttributes.create(invoker, connectionAttributes);
-        validateAndTestConnection(office365CalendarAttributes);
+        Office365CalendarAttributes localOffice365CalendarAttributes = Office365CalendarAttributes.create(invoker, connectionAttributes);
+        validateAndTestConnection(localOffice365CalendarAttributes);
     }
 
     @InvokerRequest(InvokerRequest.Type.TEST_CONNECTION)

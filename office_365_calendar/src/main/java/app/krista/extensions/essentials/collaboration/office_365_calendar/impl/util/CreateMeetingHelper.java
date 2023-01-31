@@ -3,7 +3,6 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 import com.microsoft.graph.models.Event;
 import com.microsoft.graph.models.OnlineMeetingProviderType;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -14,6 +13,11 @@ import java.util.UUID;
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.getDateTimeTimeZone;
 
 public class CreateMeetingHelper {
+    public static final String DOES_NOT_REPEAT = "Does Not Repeat";
+    public static final String NEVER = "Never";
+
+    private CreateMeetingHelper() {
+    }
 
     public static void setEventReminder(String reminder, Event event) {
         if (reminder != null && !reminder.isBlank()) {
@@ -32,7 +36,7 @@ public class CreateMeetingHelper {
     }
 
     public static void setEventTransactionId(Boolean isCreateEvent, Event event) {
-        if (isCreateEvent) {
+        if (Boolean.TRUE.equals(isCreateEvent)) {
             event.transactionId = UUID.randomUUID().toString();
         }
     }
@@ -49,9 +53,15 @@ public class CreateMeetingHelper {
     }
 
     public static void setEventRecurrence(Long dateFrom, String recurrenceValue, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Event event) {
-        if (recurrenceValue != null && !recurrenceValue.isBlank() && !recurrenceValue.equalsIgnoreCase("Does Not Repeat") && !recurrenceValue.equalsIgnoreCase("Never")) {
+        if (isRecurringEvent(recurrenceValue)) {
             event.recurrence = MeetingDaoHelper.getRecurrence(recurrenceValue, recurrenceInterval, dateFrom, endRecurrence, endDate, numberedOccurrences, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth);
         }
+    }
+
+    private static boolean isRecurringEvent(String recurrenceValue) {
+        return recurrenceValue != null && !recurrenceValue.isBlank() &&
+                !recurrenceValue.equalsIgnoreCase(DOES_NOT_REPEAT) &&
+                !recurrenceValue.equalsIgnoreCase(NEVER);
     }
 
     public static void setEventAttendees(List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Event event) {
@@ -72,7 +82,7 @@ public class CreateMeetingHelper {
         }
     }
 
-    public static void setEventDateTime(Long dateFrom, Long dateTo, Boolean isAllDay, String timeZone, Boolean isCreateEvent, String clientTimeZone, Event event) throws ParseException, IOException {
+    public static void setEventDateTime(Long dateFrom, Long dateTo, Boolean isAllDay, String timeZone, Boolean isCreateEvent, String clientTimeZone, Event event) throws ParseException {
         timeZone = setTimezone(timeZone, clientTimeZone);
         if (isAllDay != null && isAllDay) {
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(Constants.YYYY_DD_MM);
@@ -81,7 +91,7 @@ public class CreateMeetingHelper {
             Date newDate = simpleDateFormat.parse(dateString);
             event.start = getDateTimeTimeZone(newDate.getTime(), timeZone, clientTimeZone);
             event.end = getDateTimeTimeZone(newDate.getTime() + 86400000, timeZone, clientTimeZone);
-        } else if (isCreateEvent) {
+        } else if (Boolean.TRUE.equals(isCreateEvent)) {
             event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
             event.end = getDateTimeTimeZone(dateTo != null ? dateTo : dateFrom + 1800000, timeZone, clientTimeZone);
         } else {
@@ -95,9 +105,6 @@ public class CreateMeetingHelper {
     }
 
     private static String setTimezone(String timeZone, String clientTimeZone) {
-        if (timeZone == null || timeZone.isBlank()) {
-            timeZone = clientTimeZone;
-        }
-        return timeZone;
+        return (timeZone == null || timeZone.isBlank()) ? clientTimeZone : timeZone;
     }
 }

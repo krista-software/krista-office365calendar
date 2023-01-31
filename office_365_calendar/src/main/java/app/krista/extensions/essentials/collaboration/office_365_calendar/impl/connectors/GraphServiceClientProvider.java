@@ -1,9 +1,9 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors;
 
 import app.krista.extension.authorization.MustAuthorizeException;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.RefreshTokenStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import app.krista.model.field.NamedValuedField;
@@ -11,6 +11,8 @@ import com.microsoft.aad.msal4j.*;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.requests.GraphServiceClient;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -26,6 +28,8 @@ public final class GraphServiceClientProvider {
     public static final String REQUIRED_SCOPE = Constants.REQUIRED_SCOPE;
     public static final String SCOPE_SEPARATOR = " ";
     public static final String AUTHORITY = "https://login.microsoftonline.com/";
+    public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
+    private static final Logger LOGGER = LoggerFactory.getLogger(GraphServiceClientProvider.class);
     private final RefreshTokenStore refreshTokenStore;
     private final Office365CalendarAttributes office365CalendarAttributes;
     private final RequestContext requestContext;
@@ -49,15 +53,15 @@ public final class GraphServiceClientProvider {
         return office365CalendarAttributes;
     }
 
-    public GraphServiceClient getGraphServiceClient() throws IOException {
+    public GraphServiceClient getGraphServiceClient() {
         return getGraphServiceClient(!requestContext.invokeAsUser());
     }
 
-    public GraphServiceClient getGraphServiceClientForAdmin() throws IOException {
+    public GraphServiceClient getGraphServiceClientForAdmin() {
         return getGraphServiceClient(true);
     }
 
-    private GraphServiceClient getGraphServiceClient(boolean useEmail) throws IOException {
+    private GraphServiceClient getGraphServiceClient(boolean useEmail) {
         try {
             String userId = getUserId(useEmail);
             String refreshToken = refreshTokenStore.get(userId);
@@ -65,10 +69,8 @@ public final class GraphServiceClientProvider {
                 throw createMustAuthorizationException(userId, false);
             }
             return getGraphServiceClient(userId, refreshToken);
-        } catch (IOException | RuntimeException cause) {
-            System.err.println("Failed to get graph client " + cause.getClass().getName());
-            cause.printStackTrace();
-            throw cause;
+        } catch (MustAuthorizeException cause) {
+            throw new IllegalStateException("Failed to get graph client " + cause.getClass().getName());
         }
     }
 
@@ -86,13 +88,16 @@ public final class GraphServiceClientProvider {
             return GraphServiceClient.builder()
                     .authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken()))
                     .buildClient();
-        } catch (IOException | ExecutionException | InterruptedException cause) {
+        } catch (IOException | ExecutionException cause) {
+            throw createMustAuthorizationException(userId, true);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
             throw createMustAuthorizationException(userId, true);
         }
     }
 
     private MustAuthorizeException createMustAuthorizationException(String userId, boolean reAuthentication) {
-        System.err.println(reAuthentication ? "Got error for Authentication. So sending for re authentication" : "Got error for Authentication. So sending for authentication");
+        LOGGER.debug(reAuthentication ? "Got error for Authentication. So sending for re authentication" : "Got error for Authentication. So sending for authentication");
         List<NamedValuedField> details = new ArrayList<>();
         NamedValuedField userIdField = new NamedValuedField("userId", "Text", userId, new HashMap<>(), new HashMap<>());
         details.add(userIdField);
@@ -100,15 +105,15 @@ public final class GraphServiceClientProvider {
             NamedValuedField contextIdField = new NamedValuedField("authContextId", "Text", authContextId, new HashMap<>(), new HashMap<>());
             details.add(contextIdField);
         }
-        return new MustAuthorizeException(reAuthentication ? "Refresh Token Expired. Please reauthorize yourself" : "You are not authorized. Please authorize yourself", details);
+        return new MustAuthorizeException(reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : "You are not authorized. Please authorize yourself", details);
     }
 
-    private String getUserId(boolean calledFromValidateAttributes) throws IOException {
+    private String getUserId(boolean calledFromValidateAttributes) {
         String userId = calledFromValidateAttributes || !requestContext.invokeAsUser()
                 ? office365CalendarAttributes.getEmail()
                 : authorizationContext.getAuthorizedAccount().getAccountId();
         if (userId == null) {
-            throw new IllegalStateException("Failed to get account");
+            throw new IllegalStateException(FAILED_TO_GET_ACCOUNT);
         }
         return userId;
     }
@@ -116,6 +121,7 @@ public final class GraphServiceClientProvider {
     public static class GraphServiceClientAuthenticationProvider implements IAuthenticationProvider {
 
         private final String accessToken;
+
         public GraphServiceClientAuthenticationProvider(String accessToken) {
             if (accessToken == null || accessToken.isEmpty() || accessToken.isBlank()) {
                 throw new IllegalArgumentException("Empty access token provided " + accessToken);

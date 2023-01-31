@@ -9,7 +9,6 @@ import app.krista.extensions.util.KeyValueStore;
 import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
-import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,7 +24,7 @@ public final class Office365CalendarAttributeStore {
         this.store = store;
     }
 
-    public Office365CalendarAttributes load(String authContextId) throws IOException {
+    public Office365CalendarAttributes load(String authContextId) {
         var attributes = Constants.GSON.fromJson(String.valueOf(store.get(authContextId)), Map.class);
         return new Office365CalendarAttributes(invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
                 (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
@@ -35,7 +34,7 @@ public final class Office365CalendarAttributeStore {
                 (String) attributes.get(Office365CalendarAttributes.TIMEZONE));
     }
 
-    public String save(Office365CalendarAttributes office365CalendarAttributes) throws IOException {
+    public String save(Office365CalendarAttributes office365CalendarAttributes) {
         String authContextId = UUID.randomUUID().toString();
         store.put(authContextId, Constants.GSON.toJson(Map.of(Office365CalendarAttributes.CLIENT_ID, office365CalendarAttributes.getClientId(),
                 Office365CalendarAttributes.CLIENT_SECRET, office365CalendarAttributes.getClientSecret(),

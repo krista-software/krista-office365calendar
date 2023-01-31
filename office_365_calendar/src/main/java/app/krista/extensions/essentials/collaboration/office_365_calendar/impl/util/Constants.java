@@ -6,22 +6,20 @@ import com.google.gson.GsonBuilder;
 public final class Constants {
 
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    //    public static final String MEDIA_URL = "http://platform:9991";
-    public static final String MEDIA_URL = "http://localhost:8081";
+    public static final String MEDIA_URL = "http://platform:9991";
     public static final String NEW_EVENT = "New Event";
     public static final String DONT_REMIND_ME = "Don't remind me";
+    public static final String NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0 = "Number of meetings should be greater than 0.";
     public static final String NONE = "None";
     public static final String INVALID_STATE_PARAMETERS = "Invalid state parameters!";
     public static final String PLEASE_PROVIDE_SUPPORTED_TIME_ZONE = "Please provide supported time zone.";
-    public static final String ERROR_DESCRIPTION = "error_description";
     public static final String ERROR_OCCURRED_DURING_AUTHORIZATION = "Error occurred during authorization ";
-    public static final String ERROR_OCCURRED_WHILE_READING_FILE_ = "Error occurred while reading file ";
-    public static final String ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT_ = "Error occurred while uploading attachment ";
+    public static final String ERROR_OCCURRED_WHILE_READING_FILE = "Error occurred while reading file ";
+    public static final String ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT = "Error occurred while uploading attachment ";
     public static final String MICROSOFT_GRAPH_FILE_ATTACHMENT = "#microsoft.graph.fileAttachment";
     public static final String APPLICATION_X_BINARY = "application/x-binary";
     public static final String THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE = " The To date must be greater than the From date.";
     public static final String FAILED_TO_UPDATE_EVENT = "Failed to update event ";
-    public static final String MEETING_I_D_IS_EMPTY_OR_NULL = "Meeting iD is empty or null";
     public static final String MEETING_ID = "meeting Id";
     public static final String FAILED_TO_ADD_ATTENDEES = "Failed to add attendees ";
     public static final String FAILED_TO_SCHEDULE_MEETING = "Failed to schedule Meeting ";
@@ -33,9 +31,7 @@ public final class Constants {
     public static final String YYYY_MM_DD_T_HH_MM_SS = "yyyy-MM-dd'T'HH:mm:ss";
     public static final String ATTENDEE = "Attendee";
     public static final String AVAILABILITY = "Availability";
-    public static final String FAILED_TO_GET_FREE_SLOTS = "Failed to get Free Slots ";
     public static final String PT = "PT";
-    public static final String FAILED_TO_GET_RESULTS_FOR_GIVEN_QUERY = "Failed to get results for given query ";
     public static final String SEARCH_RESPONSE_IS_EMPTY = "Search Response is Empty!";
     public static final String SCHEDULES = "Schedules";
     public static final String FAILED_TO_GET_SCHEDULES = "Failed to get schedules ";
@@ -52,6 +48,7 @@ public final class Constants {
             + OFFLINE_ACCESS + SPACE
             + CALENDARS_READWRITE + SPACE
             + USER_READ;
+
     private Constants() {
     }
 }

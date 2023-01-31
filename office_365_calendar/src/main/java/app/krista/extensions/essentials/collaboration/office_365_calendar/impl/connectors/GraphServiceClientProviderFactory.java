@@ -1,14 +1,13 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors;
 
-import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.RefreshTokenStore;
 import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
-import java.io.IOException;
 
 @Service
 public final class GraphServiceClientProviderFactory {
@@ -33,7 +32,7 @@ public final class GraphServiceClientProviderFactory {
         this.defaultClientProvider = defaultClientProvider;
     }
 
-    public GraphServiceClientProvider create(Office365CalendarAttributes office365CalendarAttributes) throws IOException {
+    public GraphServiceClientProvider create(Office365CalendarAttributes office365CalendarAttributes) {
         String authContextId = office365CalendarAttributeStore.save(office365CalendarAttributes);
         return new GraphServiceClientProvider(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, authContextId);
     }

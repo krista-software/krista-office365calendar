@@ -29,12 +29,6 @@ public final class Office365CalendarAttributes {
     private String timeZone;
     private OAuth20Service oAuth20Service;
 
-    public static Office365CalendarAttributes create(Invoker invoker, Map<String, Object> attributes) {
-        return new Office365CalendarAttributes(
-                invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
-                attributes);
-    }
-
     @Inject
     public Office365CalendarAttributes(Invoker invoker) {
         this(invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
@@ -58,9 +52,14 @@ public final class Office365CalendarAttributes {
         this.timeZone = timeZone;
     }
 
+    public static Office365CalendarAttributes create(Invoker invoker, Map<String, Object> attributes) {
+        return new Office365CalendarAttributes(
+                invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
+                attributes);
+    }
+
     /**
-     * @param newAttributes
-     * This function updates the attributes provided by user
+     * @param newAttributes This function updates the attributes provided by user
      */
     public void update(Map<String, Object> newAttributes) {
         clientId = InvokerAttributes.getStringOrNull(newAttributes, CLIENT_ID);
@@ -82,15 +81,16 @@ public final class Office365CalendarAttributes {
         return tenantId;
     }
 
-    public String getEmail() { return email; }
+    public String getEmail() {
+        return email;
+    }
 
     public String getTimeZone() {
         return timeZone;
     }
 
     public String getCallbackUrl() {
-//        return routingUrl + "/rest/calendar/callback";
-        return "http://localhost:8765/extension/api/QnEz1fIRGysvecLScUj5ZQ_e_e/rest/calendar/callback";
+        return routingUrl + "/rest/calendar/callback";
     }
 
     public synchronized OAuth20Service getOAuth20Service() {

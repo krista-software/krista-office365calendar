@@ -44,8 +44,8 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
             String state = String.valueOf(queryParameters.get("state").get(0));
             String[] parts = state.split("#");
             return parts[0];
-        } catch (IOException cause) {
-            throw new RuntimeException("Failed to authenticate user " + cause.getMessage(), cause.getCause());
+        } catch (IOException | RuntimeException cause) {
+            throw new IllegalStateException("Failed to authenticate user " + cause.getMessage(), cause.getCause());
         }
     }
 
@@ -94,8 +94,8 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
             String url = oAuth20Service.getAuthorizationUrl(state);
             String urlQueryParam = "&access_type=offline&approval_prompt=force";
             return new AuthorizationResponse(url + urlQueryParam, List.of());
-        } catch (IOException ioException) {
-            throw new RuntimeException("Failed to get authorize response", ioException);
+        } catch (RuntimeException exec) {
+            throw new IllegalStateException("Failed to get authorize response", exec);
         }
     }
 

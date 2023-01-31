@@ -1,7 +1,10 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores;
 
 import app.krista.extension.authorization.MustAuthorizeException;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.ClientBuilder;
@@ -19,18 +22,27 @@ import java.util.concurrent.TimeUnit;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM_TYPE;
 
-public class MediaClient {
+public final class MediaClient {
 
     public static final String TEMP_DIR = "/tmp/krista/extension/pdf/";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MediaClient.class);
+    private static MediaClient mediaClient;
     private final WebTarget webTarget;
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public MediaClient(String mediaUrl) {
+    private MediaClient(String mediaUrl) {
         webTarget = ClientBuilder.newBuilder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .register(MultiPartFeature.class).build()
                 .target(mediaUrl);
         new File(TEMP_DIR).mkdirs();
+    }
+
+    public static MediaClient getInstance() {
+        if (mediaClient == null) {
+            mediaClient = new MediaClient(Constants.MEDIA_URL);
+        }
+        return mediaClient;
     }
 
     public static String getMediaID(String key) {
@@ -51,7 +63,7 @@ public class MediaClient {
         if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL)
             return true;
         else if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-            System.err.println("Got error for Authentication. So sending for re authentication.");
+            LOGGER.debug("Got error for Authentication. So sending for re authentication.");
             throw new MustAuthorizeException("AuthException : responseStatus:" + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         } else {
             throw new ClientErrorException("ClientError: responseStatus:" + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase(), response.getStatus());
@@ -75,8 +87,8 @@ public class MediaClient {
 
     public File download(String url, String fileName) throws IOException {
         Response response = webTarget.path(url).request(MediaType.APPLICATION_OCTET_STREAM).get();
-        boolean result = handleResponse(response);
-        return result ? handleFileDownload(response, fileName) : null;
+        assert response != null;
+        return handleFileDownload(response, fileName);
     }
 
     // endregion

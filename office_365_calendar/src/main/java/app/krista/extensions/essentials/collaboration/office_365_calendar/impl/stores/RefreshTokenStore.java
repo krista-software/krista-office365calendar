@@ -4,7 +4,6 @@ import app.krista.extensions.util.KeyValueStore;
 import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
-import java.io.IOException;
 
 @Service
 public final class RefreshTokenStore {
@@ -17,31 +16,29 @@ public final class RefreshTokenStore {
     }
 
     /**
-     * @param key
-     * @param refToken
-     * @throws IOException
      * This function stores the refresh token in the Database
+     *
+     * @param key      key for the refresh token to be saved
+     * @param refToken refresh token
      */
-    public void put(String key, String refToken) throws IOException {
+    public void put(String key, String refToken) {
         keyValueStore.put(key, refToken);
     }
 
     /**
-     * @param key
-     * @return
-     * @throws IOException
-     * This function returns the refresh token.
+     * This function will fetch the refresh token
+     *
+     * @param key key to be fetched
+     * @return stored refresh token for the given key
      */
-    public String get(String key) throws IOException {
+    public String get(String key) {
         return keyValueStore.get(key, String.class);
     }
 
     /**
-     * @param key
-     * @throws IOException
-     * This function removes the refresh token from database
+     * @param key key to be removed
      */
-    public void remove(String key) throws IOException {
+    public void remove(String key) {
         keyValueStore.remove(key);
     }
 }

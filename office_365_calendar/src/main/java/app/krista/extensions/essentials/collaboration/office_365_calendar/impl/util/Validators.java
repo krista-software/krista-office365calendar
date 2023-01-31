@@ -2,40 +2,50 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 public class Validators {
 
-    public static List<Map<String, Object>> validateList(String queryString) {
-        if (queryString == null || queryString.isBlank()) {
-            return List.of();
-        }
-        return null;
+    private Validators() {
+
     }
+
     public static void validateString(String inputString, String errorMsg) {
-        if (inputString == null || inputString.isEmpty()) {
-            throw new IllegalArgumentException("Given " + errorMsg + " is empty or null.");
+        if (inputString == null || inputString.isBlank()) {
+            throw new IllegalArgumentException("Given " + errorMsg + " is null or blank.");
+        }
+    }
+
+    public static void validateStringsList(List<String> inputList, String errorMsg) {
+        if (inputList == null || inputList.isEmpty()) {
+            throw new IllegalArgumentException("Given " + errorMsg + " list is null or empty.");
         }
     }
 
     public static void validateRecurrenceValues(String recurrenceValue, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatDay) {
-        if (recurrenceValue != null && !recurrenceValue.isBlank() && !recurrenceValue.equalsIgnoreCase("Does not repeat") && !recurrenceValue.equalsIgnoreCase("Never")) {
-            if ((recurrenceValue.equalsIgnoreCase("Monthly") || recurrenceValue.equalsIgnoreCase("Yearly")) &&
+        validateString(recurrenceValue, "recurrence value");
+        if (!recurrenceValue.equalsIgnoreCase("Does not repeat") &&
+                !recurrenceValue.equalsIgnoreCase("Never")) {
+            if (isMonthlyOrYearlyRecurrence(recurrenceValue) &&
                     recurrenceType.equalsIgnoreCase("Absolute Recurrence") &&
                     (dayOfMonth == null || (dayOfMonth < 1 || dayOfMonth > 31))) {
                 throw new IllegalArgumentException("Please provide valid day of month!");
             }
-            if ((recurrenceValue.equalsIgnoreCase("Monthly") || recurrenceValue.equalsIgnoreCase("Yearly")) && recurrenceType.equalsIgnoreCase("Relative Recurrence") && (repeatDay == null || repeatDay.isBlank())) {
-                throw new IllegalArgumentException("Please provide valid repeat day!");
+            if (isMonthlyOrYearlyRecurrence(recurrenceValue) &&
+                    recurrenceType.equalsIgnoreCase("Relative Recurrence")) {
+                validateString(repeatDay, "repeat day");
             }
-            if (recurrenceValue.equalsIgnoreCase("Weekly") && (daysOfWeek == null || daysOfWeek.isEmpty())) {
-                throw new IllegalArgumentException("Please provide repeat days of week!");
+            if (recurrenceValue.equalsIgnoreCase("Weekly")) {
+                validateStringsList(daysOfWeek, "repeat days of week");
             }
         }
     }
 
+    private static boolean isMonthlyOrYearlyRecurrence(String recurrenceValue) {
+        return recurrenceValue.equalsIgnoreCase("Monthly") ||
+                recurrenceValue.equalsIgnoreCase("Yearly");
+    }
+
     public static void validateTimeZone(String timeZone) throws IOException {
-//        List<String> timeZones = MeetingDaoImpl.getListOfSupportedTimeZones();
         List<String> timeZones = List.of("Etc/GMT+12", "Etc/GMT+11", "Pacific/Honolulu", "America/Anchorage", "America/Santa_Isabel",
                 "America/Los_Angeles", "America/Phoenix", "America/Chihuahua", "America/Denver", "America/Guatemala", "America/Chicago",
                 "America/Mexico_City", "America/Regina", "America/Bogota", "America/New_York", "America/Indiana/Indianapolis", "America/Caracas",
@@ -52,7 +62,7 @@ public class Validators {
                 "Asia/Yakutsk", "Pacific/Guadalcanal", "Asia/Vladivostok", "Pacific/Auckland", "Etc/GMT-12", "Pacific/Fiji", "Asia/Magadan", "Pacific/Tongatapu",
                 "Pacific/Apia", "Pacific/Kiritimati");
         if (timeZone != null && !timeZones.contains(timeZone)) {
-            throw new IllegalArgumentException(Constants.PLEASE_PROVIDE_SUPPORTED_TIME_ZONE);
+            throw new IOException(Constants.PLEASE_PROVIDE_SUPPORTED_TIME_ZONE);
         }
     }
 }

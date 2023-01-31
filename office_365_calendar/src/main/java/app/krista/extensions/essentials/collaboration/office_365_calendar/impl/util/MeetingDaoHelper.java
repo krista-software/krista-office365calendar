@@ -4,7 +4,6 @@ import com.microsoft.graph.core.DateOnly;
 import com.microsoft.graph.models.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
@@ -15,11 +14,17 @@ import java.util.*;
 
 public final class MeetingDaoHelper {
 
+    public static final String UNEXPECTED_RECURRENCE_VALUE = "Unexpected recurrence value: ";
+    public static final String END_DATE = "End date";
+    public static final String NUMBERED_OCCURRENCES = "Numbered occurrences";
+    public static final String ABSOLUTE_RECURRENCE = "Absolute recurrence";
+    public static final String RELATIVE_RECURRENCE = "Relative recurrence";
+
     private MeetingDaoHelper() {
     }
 
-    public static LinkedList<Attendee> getAttendees(List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail) {
-        LinkedList<Attendee> attendeesList = new LinkedList<>();
+    public static List<Attendee> getAttendees(List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail) {
+        List<Attendee> attendeesList = new LinkedList<>();
         for (String attendeeEmail : requiredAttendeeEmail) {
             Attendee attendees = new Attendee();
             EmailAddress emailAddress = new EmailAddress();
@@ -126,46 +131,29 @@ public final class MeetingDaoHelper {
 
         switch (recurrenceValue) {
             case "Daily":
-                pattern.type = RecurrencePatternType.DAILY;
+                getDailyRecurrence(pattern);
                 break;
             case "Weekly":
-                pattern.type = RecurrencePatternType.WEEKLY;
-                pattern.daysOfWeek = getDayOfWeeks(daysOfWeek);
+                getWeeklyRecurrence(daysOfWeek, pattern);
                 break;
             case "Monthly":
-                if (recurrenceType.equalsIgnoreCase("Absolute recurrence")) {
-                    pattern.type = RecurrencePatternType.ABSOLUTE_MONTHLY;
-                    pattern.dayOfMonth = dayOfMonth != null ? dayOfMonth.intValue() : startDateDateOnly.get(Calendar.DAY_OF_MONTH);
-                    break;
-                } else if (recurrenceType.equalsIgnoreCase("Relative recurrence")) {
-                    pattern.type = RecurrencePatternType.RELATIVE_MONTHLY;
-                    pattern.daysOfWeek = getDayOfWeeks(List.of(repeatDay));
-                    pattern.index = getWeekIndex(repeatIndex);
-                    break;
-                }
+                getMonthlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, startDateDateOnly, pattern);
+                break;
             case "Yearly":
-                if (recurrenceType.equalsIgnoreCase("Absolute recurrence")) {
-                    pattern.type = RecurrencePatternType.ABSOLUTE_YEARLY;
-                    pattern.month = (repeatMonth != null && !repeatMonth.isBlank()) ? getMonthIndex(repeatMonth) : (startDateDateOnly.get(Calendar.MONTH) + 1);
-                    pattern.dayOfMonth = (dayOfMonth != null) ? dayOfMonth.intValue() : startDateDateOnly.get(Calendar.DAY_OF_MONTH);
-                    break;
-                } else if (recurrenceType.equalsIgnoreCase("Relative recurrence")) {
-                    pattern.type = RecurrencePatternType.RELATIVE_YEARLY;
-                    pattern.month = (repeatMonth != null && !repeatMonth.isBlank()) ? getMonthIndex(repeatMonth) : (startDateDateOnly.get(Calendar.MONTH) + 1);
-                    pattern.index = getWeekIndex(repeatIndex);
-                    pattern.daysOfWeek = getDayOfWeeks(List.of(repeatDay));
-                    break;
-                }
+                getYearlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, startDateDateOnly, pattern);
+                break;
+            default:
+                throw new IllegalStateException(UNEXPECTED_RECURRENCE_VALUE + recurrenceValue);
         }
-        pattern.interval = recurrenceInterval != null ? recurrenceInterval.intValue() : 1;
+        pattern.interval = (recurrenceInterval != null) ? recurrenceInterval.intValue() : 1;
         recurrence.pattern = pattern;
 
-        if (endRecurrence.equalsIgnoreCase("End date" )) {
+        if (endRecurrence.equalsIgnoreCase(END_DATE)) {
             range.type = RecurrenceRangeType.END_DATE;
             Calendar endDateDateOnly = Calendar.getInstance();
             endDateDateOnly.setTimeInMillis(endDate);
             range.endDate = new DateOnly(endDateDateOnly.get(Calendar.YEAR), endDateDateOnly.get(Calendar.MONTH) + 1, endDateDateOnly.get(Calendar.DAY_OF_MONTH));
-        } else if (endRecurrence.equalsIgnoreCase("Numbered occurrences")) {
+        } else if (endRecurrence.equalsIgnoreCase(NUMBERED_OCCURRENCES)) {
             range.type = RecurrenceRangeType.NUMBERED;
             range.numberOfOccurrences = numberedOccurrences != null ? numberedOccurrences.intValue() : 10;
         } else {
@@ -173,6 +161,39 @@ public final class MeetingDaoHelper {
         }
         recurrence.range = range;
         return recurrence;
+    }
+
+    private static void getDailyRecurrence(RecurrencePattern pattern) {
+        pattern.type = RecurrencePatternType.DAILY;
+    }
+
+    private static void getWeeklyRecurrence(List<String> daysOfWeek, RecurrencePattern pattern) {
+        pattern.type = RecurrencePatternType.WEEKLY;
+        pattern.daysOfWeek = getDayOfWeeks(daysOfWeek);
+    }
+
+    private static void getYearlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, Calendar startDateDateOnly, RecurrencePattern pattern) {
+        if (recurrenceType.equalsIgnoreCase(ABSOLUTE_RECURRENCE)) {
+            pattern.type = RecurrencePatternType.ABSOLUTE_YEARLY;
+            pattern.month = (repeatMonth != null && !repeatMonth.isBlank()) ? getMonthIndex(repeatMonth) : (startDateDateOnly.get(Calendar.MONTH) + 1);
+            pattern.dayOfMonth = (dayOfMonth != null) ? dayOfMonth.intValue() : startDateDateOnly.get(Calendar.DAY_OF_MONTH);
+        } else if (recurrenceType.equalsIgnoreCase(RELATIVE_RECURRENCE)) {
+            pattern.type = RecurrencePatternType.RELATIVE_YEARLY;
+            pattern.month = (repeatMonth != null && !repeatMonth.isBlank()) ? getMonthIndex(repeatMonth) : (startDateDateOnly.get(Calendar.MONTH) + 1);
+            pattern.index = getWeekIndex(repeatIndex);
+            pattern.daysOfWeek = getDayOfWeeks(List.of(repeatDay));
+        }
+    }
+
+    private static void getMonthlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, Calendar startDateDateOnly, RecurrencePattern pattern) {
+        if (recurrenceType.equalsIgnoreCase(ABSOLUTE_RECURRENCE)) {
+            pattern.type = RecurrencePatternType.ABSOLUTE_MONTHLY;
+            pattern.dayOfMonth = (dayOfMonth != null) ? dayOfMonth.intValue() : startDateDateOnly.get(Calendar.DAY_OF_MONTH);
+        } else if (recurrenceType.equalsIgnoreCase(RELATIVE_RECURRENCE)) {
+            pattern.type = RecurrencePatternType.RELATIVE_MONTHLY;
+            pattern.daysOfWeek = getDayOfWeeks(List.of(repeatDay));
+            pattern.index = getWeekIndex(repeatIndex);
+        }
     }
 
     @NotNull
@@ -194,7 +215,7 @@ public final class MeetingDaoHelper {
             return 7;
         } else if (repeatMonth.equalsIgnoreCase("August")) {
             return 8;
-        } else if(repeatMonth.equalsIgnoreCase("September")) {
+        } else if (repeatMonth.equalsIgnoreCase("September")) {
             return 9;
         } else if (repeatMonth.equalsIgnoreCase("October")) {
             return 10;
@@ -208,7 +229,7 @@ public final class MeetingDaoHelper {
 
     private static WeekIndex getWeekIndex(String repeatIndex) {
 
-        if(repeatIndex != null && !repeatIndex.isEmpty()) {
+        if (repeatIndex != null && !repeatIndex.isEmpty()) {
             if (repeatIndex.equalsIgnoreCase("First")) {
                 return WeekIndex.FIRST;
             } else if (repeatIndex.equalsIgnoreCase("Second")) {
@@ -277,8 +298,8 @@ public final class MeetingDaoHelper {
         }
     }
 
-    public static LinkedList<Recipient> getRecipient(List<String> attendeeEmail) {
-        LinkedList<Recipient> toRecipientsList = new LinkedList<>();
+    public static List<Recipient> getRecipient(List<String> attendeeEmail) {
+        List<Recipient> toRecipientsList = new LinkedList<>();
         for (String email : attendeeEmail) {
             Recipient toRecipients = new Recipient();
             EmailAddress emailAddress = new EmailAddress();
@@ -289,8 +310,8 @@ public final class MeetingDaoHelper {
         return toRecipientsList;
     }
 
-    public static LinkedList<AttendeeBase> getRequiredAttendee(List<String> requiredAttendee, List<String> optionalAttendee) {
-        LinkedList<AttendeeBase> attendeesList = new LinkedList<>();
+    public static List<AttendeeBase> getRequiredAttendee(List<String> requiredAttendee, List<String> optionalAttendee) {
+        List<AttendeeBase> attendeesList = new LinkedList<>();
         for (String attendeeEmail : requiredAttendee) {
             AttendeeBase attendees = new AttendeeBase();
             EmailAddress emailAddress = new EmailAddress();
@@ -312,7 +333,7 @@ public final class MeetingDaoHelper {
         return attendeesList;
     }
 
-    public static DateTimeTimeZone getDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) throws IOException, ParseException {
+    public static DateTimeTimeZone getDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
         SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();

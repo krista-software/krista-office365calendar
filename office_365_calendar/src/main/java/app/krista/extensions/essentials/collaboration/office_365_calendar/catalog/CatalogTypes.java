@@ -49,7 +49,7 @@ public final class CatalogTypes {
                 fileAttachments.contentBytes = readContentOfTheFile(ioFile);
                 fileAttachments.oDataType = Constants.MICROSOFT_GRAPH_FILE_ATTACHMENT;
             } catch (IOException ioException) {
-                throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT_, ioException.getCause());
+                throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT, ioException.getCause());
             }
             attachmentsList.add(fileAttachments);
         }
@@ -69,7 +69,7 @@ public final class CatalogTypes {
     }
 
     private static java.io.File getFileObject(File file) throws IOException {
-        MediaClient mediaClient = new MediaClient(Constants.MEDIA_URL);
+        MediaClient mediaClient = MediaClient.getInstance();
         String mediaURI = MediaClient.createMediaUrl(file.getMediaId());
         return mediaClient.download(mediaURI, file.getFileName());
     }
@@ -82,10 +82,12 @@ public final class CatalogTypes {
         byte[] bFile = new byte[(int) ioFile.length()];
         try (FileInputStream fileInputStream = new FileInputStream(ioFile)) {
             //convert file into array of bytes
-            fileInputStream.read(bFile);
-            return bFile;
-        } catch (IOException exception) {
-            throw new IOException(Constants.ERROR_OCCURRED_WHILE_READING_FILE_, exception.getCause());
+            final int read = fileInputStream.read(bFile);
+            if (read > 0) {
+                return bFile;
+            } else {
+                throw new IOException(Constants.ERROR_OCCURRED_WHILE_READING_FILE);
+            }
         }
     }
 }

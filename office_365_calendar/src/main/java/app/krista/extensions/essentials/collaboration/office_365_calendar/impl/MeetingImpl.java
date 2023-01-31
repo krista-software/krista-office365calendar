@@ -50,7 +50,12 @@ public class MeetingImpl implements Meeting {
     @Override
     public String getDetails() {
         ItemBody body = event.body;
-        return body != null ? body.content.replace("\n", "").replace("\r", "") : null;
+        if (body != null) {
+            assert body.content != null;
+            return body.content.replace("\n", "").replace("\r", "");
+        } else {
+            return null;
+        }
     }
 
     @Override
