@@ -28,7 +28,6 @@ public final class Office365CalendarExtension {
     private final GraphServiceClientProviderFactory clientProviderFactory;
     private final Office365CalendarRequestAuthenticator requestAuthenticator;
 
-
     @Inject
     public Office365CalendarExtension(Invoker invoker, Office365CalendarAttributes office365CalendarAttributes, GraphServiceClientProviderFactory clientProviderFactory, Office365CalendarAttributeStore office365CalendarAttributeStore) {
         this(invoker, office365CalendarAttributes, clientProviderFactory,
@@ -64,8 +63,7 @@ public final class Office365CalendarExtension {
     }
 
     /**
-     * @param office365CalendarAttributes
-     * This function creates connection with GraphServiceClient to validate the given credentials.
+     * @param office365CalendarAttributes This function creates connection with GraphServiceClient to validate the given credentials.
      */
     private void validateAndTestConnection(Office365CalendarAttributes office365CalendarAttributes) {
         try {

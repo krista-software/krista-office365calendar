@@ -8,6 +8,7 @@ import app.krista.ksdk.context.RequestContext;
 import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
+import java.io.IOException;
 
 @Service
 public final class GraphServiceClientProviderFactory {
@@ -32,7 +33,7 @@ public final class GraphServiceClientProviderFactory {
         this.defaultClientProvider = defaultClientProvider;
     }
 
-    public GraphServiceClientProvider create(Office365CalendarAttributes office365CalendarAttributes) {
+    public GraphServiceClientProvider create(Office365CalendarAttributes office365CalendarAttributes) throws IOException {
         String authContextId = office365CalendarAttributeStore.save(office365CalendarAttributes);
         return new GraphServiceClientProvider(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, authContextId);
     }

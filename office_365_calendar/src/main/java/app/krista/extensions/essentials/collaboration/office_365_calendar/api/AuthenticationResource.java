@@ -12,6 +12,7 @@ import com.github.scribejava.core.exceptions.OAuthException;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.requests.GraphServiceClient;
+import okhttp3.Request;
 
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -19,6 +20,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import java.io.IOException;
+import java.net.http.HttpRequest;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +44,6 @@ public final class AuthenticationResource {
         this.context = context;
         this.authorizationListener = authorizationListener;
     }
-
 
     @GET
     @Path("/callback")
@@ -97,7 +98,7 @@ public final class AuthenticationResource {
         return errorDescription;
     }
 
-    private String getAuthenticatedUserEmail(GraphServiceClient graphServiceClientForAdmin) {
+    private String getAuthenticatedUserEmail(GraphServiceClient<Request> graphServiceClientForAdmin) {
         User user = graphServiceClientForAdmin.me().buildRequest().get();
         return user != null ? user.mail : "";
     }

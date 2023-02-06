@@ -91,11 +91,10 @@ public class MeetingDaoImplTest {
     public void testRemoveAttendees() {
         List<String> attendees = List.of();
         meetingDaoImpl.removeAttendees(null, attendees);
-
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetQueryResults() {
+    public void testGetQueryResults() throws IOException {
         meetingDaoImpl.getQueryResults(null);
     }
 }

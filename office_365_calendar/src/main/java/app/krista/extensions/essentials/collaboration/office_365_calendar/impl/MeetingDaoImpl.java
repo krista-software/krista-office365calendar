@@ -87,7 +87,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 }
             }
             return eventDetails;
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_GET_ALL_UNACCEPTED_EVENTS + cause.getMessage());
         }
     }
@@ -168,7 +168,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 }
             }
             return eventDetails;
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException("Failed to get upcoming meetings " + cause.getMessage());
         }
     }
@@ -178,7 +178,12 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(queryString, "query text");
         List<Map<String, Object>> searchHits = new ArrayList<>();
         LinkedList<SearchRequest> requests = getSearchRequests(queryString);
-        SearchEntityQueryCollectionPage searchEntityQueryCollectionPage = getSearchEntityQueryCollectionPage(requests);
+        SearchEntityQueryCollectionPage searchEntityQueryCollectionPage = null;
+        try {
+            searchEntityQueryCollectionPage = getSearchEntityQueryCollectionPage(requests);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         if (searchEntityQueryCollectionPage != null && !searchEntityQueryCollectionPage.getCurrentPage().isEmpty()) {
             int numberOfHits = searchEntityQueryCollectionPage.getCurrentPage().get(0).hitsContainers.get(0).total;
             numberOfHits = Math.min(numberOfHits, 25);
@@ -203,7 +208,7 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @Nullable
-    private SearchEntityQueryCollectionPage getSearchEntityQueryCollectionPage(LinkedList<SearchRequest> requestsList) {
+    private SearchEntityQueryCollectionPage getSearchEntityQueryCollectionPage(LinkedList<SearchRequest> requestsList) throws IOException {
         return clientProvider.getGraphServiceClient()
                 .search()
                 .query(SearchEntityQueryParameterSet
@@ -242,17 +247,22 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
-        MeetingTimeSuggestionsResult meetingTimeSuggestionsResult = clientProvider.getGraphServiceClient().me()
-                .findMeetingTimes(UserFindMeetingTimesParameterSet
-                        .newBuilder()
-                        .withAttendees(attendeesList)
-                        .withTimeConstraint(timeConstraint)
-                        .withMeetingDuration(slotDuration)
-                        .withIsOrganizerOptional(isOrganizerOptional)
-                        .withReturnSuggestionReasons(true)
-                        .build())
-                .buildRequest()
-                .post();
+        MeetingTimeSuggestionsResult meetingTimeSuggestionsResult = null;
+        try {
+            meetingTimeSuggestionsResult = clientProvider.getGraphServiceClient().me()
+                    .findMeetingTimes(UserFindMeetingTimesParameterSet
+                            .newBuilder()
+                            .withAttendees(attendeesList)
+                            .withTimeConstraint(timeConstraint)
+                            .withMeetingDuration(slotDuration)
+                            .withIsOrganizerOptional(isOrganizerOptional)
+                            .withReturnSuggestionReasons(true)
+                            .build())
+                    .buildRequest()
+                    .post();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         if (meetingTimeSuggestionsResult != null && meetingTimeSuggestionsResult.meetingTimeSuggestions != null) {
             for (MeetingTimeSuggestion meetingTimeSuggestion : meetingTimeSuggestionsResult.meetingTimeSuggestions) {
@@ -313,8 +323,8 @@ public class MeetingDaoImpl implements MeetingDao {
 
     @Override
     public Meeting addMeeting(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting) {
-        Validators.validateString(dateTo.toString(), "date");
-        if (dateFrom > dateTo) {
+        Validators.validateString(dateFrom.toString(), "date");
+        if ((dateTo != null) && (dateFrom > dateTo)) {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
@@ -330,7 +340,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 getCalendarRequestBuilder().events(newEvent.id).buildRequest().patch(newEvent);
             }
             return new MeetingImpl(newEvent);
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
         }
     }
@@ -374,17 +384,20 @@ public class MeetingDaoImpl implements MeetingDao {
             event.attendees = oldEvent.attendees;
             if (isOldEventOnline(details, oldEvent, event)) {
                 Pattern regex = Pattern.compile("\\.{137}");
-                String[] result = new String[0];
+                String[] result = new String[3];
                 if (oldEvent.body != null && oldEvent.body.content != null) {
                     result = oldEvent.body.content.split(String.valueOf(regex), 3);
                 }
                 event.body = MeetingDaoHelper.getItemBody(result[0] + "" + result[2], Constants.HTML);
             }
-            Event newEvent = clientProvider.getGraphServiceClient().me().events(id)
+            event.changeKey = oldEvent.changeKey;
+            event.originalStartTimeZone = oldEvent.start.timeZone;
+            event.originalEndTimeZone = oldEvent.end.timeZone;
+            Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
             return new MeetingImpl(newEvent);
-        } catch (GraphServiceException | ParseException cause) {
+        } catch (GraphServiceException | ParseException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
         }
     }
@@ -407,7 +420,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event event = clientProvider.getGraphServiceClient().me().events(id).buildRequest().get();
             getCalendarRequestBuilder().events(id).decline(EventDeclineParameterSet.newBuilder().withSendResponse(true).build()).buildRequest().post();
             return new MeetingImpl(event);
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_DECLINE_INVITATION + cause.getMessage());
         }
     }
@@ -430,7 +443,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
             getCalendarRequestBuilder().events(id).buildRequest().delete();
             return new MeetingImpl(event);
-        } catch (ClientException cause) {
+        } catch (ClientException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
         }
     }
@@ -446,7 +459,7 @@ public class MeetingDaoImpl implements MeetingDao {
             event.attendees = attendeesList;
             Event updatedEvent = getCalendarRequestBuilder().events(id).buildRequest().patch(event);
             return new MeetingImpl(updatedEvent);
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_ADD_ATTENDEES + cause.getMessage());
         }
     }
@@ -461,14 +474,13 @@ public class MeetingDaoImpl implements MeetingDao {
             event.attendees = attendeesList;
             Event updatedEvent = getCalendarRequestBuilder().events(id).buildRequest().patch(event);
             return new MeetingImpl(updatedEvent);
-        } catch (GraphServiceException cause) {
+        } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_REMOVE_ATTENDEE + cause.getMessage());
         }
     }
 
     private Event getEvent(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrenceValue, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, String details, Boolean isCreateEvent, Boolean isTeamsMeeting) {
 
-        Validators.validateRecurrenceValues(recurrenceValue, daysOfWeek, recurrenceType, dayOfMonth, repeatDay);
         try {
             Event event = new Event();
             CreateMeetingHelper.setEventSubject(title, event);
@@ -476,7 +488,10 @@ public class MeetingDaoImpl implements MeetingDao {
             CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, clientTimeZone, event);
             CreateMeetingHelper.setEventLocation(location, event);
             CreateMeetingHelper.setEventAttendees(requiredAttendeeEmail, optionalAttendeeEmail, event);
-            CreateMeetingHelper.setEventRecurrence(dateFrom, recurrenceValue, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, event);
+            if (recurrenceValue != null && !recurrenceValue.isBlank()) {
+                Validators.validateRecurrenceValues(recurrenceValue, daysOfWeek, recurrenceType, dayOfMonth, repeatDay);
+                CreateMeetingHelper.setEventRecurrence(dateFrom, recurrenceValue, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, event);
+            }
             CreateMeetingHelper.setEventReminder(reminder, event);
             CreateMeetingHelper.setIsTeamsMeeting(isTeamsMeeting, event);
             CreateMeetingHelper.setEventTransactionId(isCreateEvent, event);
@@ -486,7 +501,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private CalendarRequestBuilder getCalendarRequestBuilder() {
+    private CalendarRequestBuilder getCalendarRequestBuilder() throws IOException {
         return clientProvider.getGraphServiceClient().me().calendar();
     }
 

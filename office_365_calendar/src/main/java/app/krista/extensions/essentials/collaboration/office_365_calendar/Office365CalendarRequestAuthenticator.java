@@ -76,27 +76,23 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
 
     @Override
     public AuthorizationResponse getMustAuthorizeResponse(MustAuthorizeException cause) {
-        try {
-            String userId = (String) cause.getDetails().get(0).getValue();
-            Optional<NamedValuedField> authContextIdField = cause.getDetails().stream().filter(f -> Objects.equals(f.getName(), "authContextId")).findFirst();
+        String userId = (String) cause.getDetails().get(0).getValue();
+        Optional<NamedValuedField> authContextIdField = cause.getDetails().stream().filter(f -> Objects.equals(f.getName(), "authContextId")).findFirst();
 
-            Office365CalendarAttributes effectiveOffice365CalendarAttributes;
-            String state;
-            if (authContextIdField.isPresent()) {
-                String authContextId = (String) authContextIdField.get().getValue();
-                effectiveOffice365CalendarAttributes = office365CalendarAttributeStore.load(authContextId);
-                state = userId + "#" + authContextId;
-            } else {
-                effectiveOffice365CalendarAttributes = office365CalendarAttributes;
-                state = userId;
-            }
-            OAuth20Service oAuth20Service = effectiveOffice365CalendarAttributes.getOAuth20Service();
-            String url = oAuth20Service.getAuthorizationUrl(state);
-            String urlQueryParam = "&access_type=offline&approval_prompt=force";
-            return new AuthorizationResponse(url + urlQueryParam, List.of());
-        } catch (RuntimeException exec) {
-            throw new IllegalStateException("Failed to get authorize response", exec);
+        Office365CalendarAttributes effectiveOffice365CalendarAttributes;
+        String state;
+        if (authContextIdField.isPresent()) {
+            String authContextId = (String) authContextIdField.get().getValue();
+            effectiveOffice365CalendarAttributes = office365CalendarAttributeStore.load(authContextId);
+            state = userId + "#" + authContextId;
+        } else {
+            effectiveOffice365CalendarAttributes = office365CalendarAttributes;
+            state = userId;
         }
+        OAuth20Service oAuth20Service = effectiveOffice365CalendarAttributes.getOAuth20Service();
+        String url = oAuth20Service.getAuthorizationUrl(state);
+        String urlQueryParam = "&access_type=offline&approval_prompt=force";
+        return new AuthorizationResponse(url + urlQueryParam, List.of());
     }
 
 }

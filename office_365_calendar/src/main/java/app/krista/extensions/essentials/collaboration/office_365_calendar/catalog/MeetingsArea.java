@@ -228,7 +228,7 @@ public final class MeetingsArea {
             @Field.Desc(name = "Required Attendee", type = "[ Email ]") List<String> requiredAttendee,
             @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false) List<String> optionalAttendee,
             @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
-            @Field(name = "Meeting Duration", type = "Text", required = false) String meetingDuration) throws DatatypeConfigurationException {
+            @Field(name = "Meeting Duration", type = "Text", required = false) String meetingDuration) throws DatatypeConfigurationException, IOException {
 
         return meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
     }

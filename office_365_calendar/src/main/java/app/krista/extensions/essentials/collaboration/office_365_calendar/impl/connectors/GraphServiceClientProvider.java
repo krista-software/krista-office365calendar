@@ -10,6 +10,7 @@ import app.krista.model.field.NamedValuedField;
 import com.microsoft.aad.msal4j.*;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.requests.GraphServiceClient;
+import okhttp3.Request;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,15 +54,15 @@ public final class GraphServiceClientProvider {
         return office365CalendarAttributes;
     }
 
-    public GraphServiceClient getGraphServiceClient() {
+    public GraphServiceClient<Request> getGraphServiceClient() throws IOException{
         return getGraphServiceClient(!requestContext.invokeAsUser());
     }
 
-    public GraphServiceClient getGraphServiceClientForAdmin() {
+    public GraphServiceClient<Request> getGraphServiceClientForAdmin() throws IOException{
         return getGraphServiceClient(true);
     }
 
-    private GraphServiceClient getGraphServiceClient(boolean useEmail) {
+    private GraphServiceClient<Request> getGraphServiceClient(boolean useEmail) {
         try {
             String userId = getUserId(useEmail);
             String refreshToken = refreshTokenStore.get(userId);
@@ -69,12 +70,12 @@ public final class GraphServiceClientProvider {
                 throw createMustAuthorizationException(userId, false);
             }
             return getGraphServiceClient(userId, refreshToken);
-        } catch (MustAuthorizeException cause) {
-            throw new IllegalStateException("Failed to get graph client " + cause.getClass().getName());
+        } catch (RuntimeException cause) {
+            throw cause;
         }
     }
 
-    private GraphServiceClient getGraphServiceClient(String userId, String refreshToken) {
+    private GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
         try {
 
             String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
