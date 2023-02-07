@@ -31,8 +31,12 @@ public class CreateMeetingHelper {
         }
     }
 
-    public static void setEventSubject(String title, Event event) {
-        event.subject = (title != null && !title.isBlank()) ? title : Constants.NEW_EVENT;
+    public static void setEventSubject(String title, Event event, Boolean isCreateEvent) {
+        if (Boolean.TRUE.equals(isCreateEvent)) {
+            event.subject = (title != null && !title.isBlank()) ? title : Constants.NEW_EVENT;
+        } else {
+            event.subject = title;
+        }
     }
 
     public static void setEventTransactionId(Boolean isCreateEvent, Event event) {

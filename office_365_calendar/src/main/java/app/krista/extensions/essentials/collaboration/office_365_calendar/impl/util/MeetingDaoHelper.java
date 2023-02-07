@@ -66,7 +66,7 @@ public final class MeetingDaoHelper {
         Date eventDate;
         SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         try {
-            eventDate = sfd.parse(event.start.dateTime);
+            eventDate = sfd.parse(Objects.requireNonNull(event.start).dateTime);
         } catch (ParseException parseException) {
             throw new IllegalStateException("Date :" + event.start.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
         }
@@ -96,8 +96,8 @@ public final class MeetingDaoHelper {
     }
 
     private static boolean isCurrentUserNeitherAcceptedNorDeclinedMeeting(String currentUserMailAddress, Attendee attendee) {
-        return currentUserMailAddress.equals(attendee.emailAddress.address) &&
-                !(ResponseType.ACCEPTED.equals(attendee.status.response) ||
+        return currentUserMailAddress.equals(Objects.requireNonNull(attendee.emailAddress).address) &&
+                !(ResponseType.ACCEPTED.equals(Objects.requireNonNull(attendee.status).response) ||
                         ResponseType.DECLINED.equals(attendee.status.response));
     }
 
@@ -338,7 +338,7 @@ public final class MeetingDaoHelper {
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
         dateTimeTimeZone.dateTime = sfd.format(timeStamp);
-        dateTimeTimeZone.timeZone = timeZone != null ? timeZone : clientTimeZone;
+        dateTimeTimeZone.timeZone = (timeZone != null) ? timeZone : clientTimeZone;
         return dateTimeTimeZone;
     }
 }

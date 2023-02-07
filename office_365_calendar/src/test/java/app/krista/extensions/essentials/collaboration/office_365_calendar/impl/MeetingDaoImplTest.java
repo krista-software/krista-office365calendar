@@ -3,8 +3,6 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,6 +40,7 @@ public class MeetingDaoImplTest {
     public void testGet0Meetings() {
         meetingDaoImpl.getMeetings(0);
     }
+
     @Test(expected = IllegalArgumentException.class)
     public void testGetSchedulesForInvalidText() throws IOException {
         meetingDaoImpl.getSchedules(123224324522L, 12123123123L, List.of(), null);
@@ -94,7 +93,7 @@ public class MeetingDaoImplTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetQueryResults() throws IOException {
+    public void testGetQueryResults() {
         meetingDaoImpl.getQueryResults(null);
     }
 }

@@ -178,7 +178,7 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(queryString, "query text");
         List<Map<String, Object>> searchHits = new ArrayList<>();
         LinkedList<SearchRequest> requests = getSearchRequests(queryString);
-        SearchEntityQueryCollectionPage searchEntityQueryCollectionPage = null;
+        SearchEntityQueryCollectionPage searchEntityQueryCollectionPage;
         try {
             searchEntityQueryCollectionPage = getSearchEntityQueryCollectionPage(requests);
         } catch (IOException e) {
@@ -247,7 +247,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
-        MeetingTimeSuggestionsResult meetingTimeSuggestionsResult = null;
+        MeetingTimeSuggestionsResult meetingTimeSuggestionsResult;
         try {
             meetingTimeSuggestionsResult = clientProvider.getGraphServiceClient().me()
                     .findMeetingTimes(UserFindMeetingTimesParameterSet
@@ -367,12 +367,9 @@ public class MeetingDaoImpl implements MeetingDao {
                     .buildRequest()
                     .get();
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            assert oldEvent != null;
-            assert oldEvent.start != null;
-            Date date = sfd.parse(oldEvent.start.dateTime);
-            assert oldEvent.end != null;
+            Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
             long eventStart = date.getTime();
-            date = sfd.parse(oldEvent.end.dateTime);
+            date = sfd.parse(Objects.requireNonNull(oldEvent.end).dateTime);
             long eventEnd = date.getTime();
             if (isAllDay != null && isAllDay && dateFrom == null) {
                 dateFrom = eventStart;
@@ -391,7 +388,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 event.body = MeetingDaoHelper.getItemBody(result[0] + "" + result[2], Constants.HTML);
             }
             event.changeKey = oldEvent.changeKey;
-            event.originalStartTimeZone = oldEvent.start.timeZone;
+            event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
             event.originalEndTimeZone = oldEvent.end.timeZone;
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
@@ -483,7 +480,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
         try {
             Event event = new Event();
-            CreateMeetingHelper.setEventSubject(title, event);
+            CreateMeetingHelper.setEventSubject(title, event, isCreateEvent);
             CreateMeetingHelper.setEventBody(details, event);
             CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, clientTimeZone, event);
             CreateMeetingHelper.setEventLocation(location, event);
