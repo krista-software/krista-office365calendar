@@ -2,9 +2,9 @@
 
 ### Version 2.0.2
 
-- **Developer Name** : Amol Bhadane
-- **Krista Service APIs Java** : 1.0.45
-- **Global Catalog Version** : 1.0.24
+- **Developer Name** : Vara Prasad Kolli
+- **Krista Service APIs Java** : 1.0.56
+- **Global Catalog Version** : 1.0.27
 
 ### Resolved Bugs
 
@@ -28,8 +28,9 @@
 * [KC-1190](https://antbrains.atlassian.net/browse/KC-1190) Support is not there to identify conflicts in meeting.
 * [KC-1209](https://antbrains.atlassian.net/browse/KC-1209) Schedule Meeting: When to "Repeat" custom options settings are missing.
 * [KC-1329](https://antbrains.atlassian.net/browse/KC-1329) Needed enhancements to Office 365 Calendar Extension.
+* [KE-777](https://antbrains.atlassian.net/browse/KE-777) If timezone is given then events are scheduling in different time.
 * [KS-456](https://antbrains.atlassian.net/browse/KS-456) Getting multiple invites for a single invite.
 
 ### Known Issues
 
-* [KC-1168](https://antbrains.atlassian.net/browse/KC-1168) Schedule Meeting: Add email reminder option is missing.
+* [KE-620](https://antbrains.atlassian.net/browse/KC-620) Schedule Meeting: Add email reminder option is missing.
