@@ -24,7 +24,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM_TYPE;
 
 public final class MediaClient {
 
-    public static final String TEMP_DIR = "/tmp/krista/extension/pdf/";
+    public static final String TEMP_DIR = "/tmp/krista/extension/";
     private static final Logger LOGGER = LoggerFactory.getLogger(MediaClient.class);
     private static MediaClient mediaClient;
     private final WebTarget webTarget;

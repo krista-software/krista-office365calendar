@@ -1,6 +1,5 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;

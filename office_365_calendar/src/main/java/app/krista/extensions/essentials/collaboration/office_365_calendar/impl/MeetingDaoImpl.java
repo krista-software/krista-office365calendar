@@ -248,21 +248,17 @@ public class MeetingDaoImpl implements MeetingDao {
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
         MeetingTimeSuggestionsResult meetingTimeSuggestionsResult;
-        try {
-            meetingTimeSuggestionsResult = clientProvider.getGraphServiceClient().me()
-                    .findMeetingTimes(UserFindMeetingTimesParameterSet
-                            .newBuilder()
-                            .withAttendees(attendeesList)
-                            .withTimeConstraint(timeConstraint)
-                            .withMeetingDuration(slotDuration)
-                            .withIsOrganizerOptional(isOrganizerOptional)
-                            .withReturnSuggestionReasons(true)
-                            .build())
-                    .buildRequest()
-                    .post();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        meetingTimeSuggestionsResult = clientProvider.getGraphServiceClient().me()
+                .findMeetingTimes(UserFindMeetingTimesParameterSet
+                        .newBuilder()
+                        .withAttendees(attendeesList)
+                        .withTimeConstraint(timeConstraint)
+                        .withMeetingDuration(slotDuration)
+                        .withIsOrganizerOptional(isOrganizerOptional)
+                        .withReturnSuggestionReasons(true)
+                        .build())
+                .buildRequest()
+                .post();
 
         if (meetingTimeSuggestionsResult != null && meetingTimeSuggestionsResult.meetingTimeSuggestions != null) {
             for (MeetingTimeSuggestion meetingTimeSuggestion : meetingTimeSuggestionsResult.meetingTimeSuggestions) {
@@ -438,7 +434,7 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(id, Constants.MEETING_ID);
         try {
             Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
-            getCalendarRequestBuilder().events(id).buildRequest().delete();
+            clientProvider.getGraphServiceClient().me().events(id).buildRequest().delete();
             return new MeetingImpl(event);
         } catch (ClientException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());

@@ -23,6 +23,13 @@ public final class MeetingDaoHelper {
     private MeetingDaoHelper() {
     }
 
+    /**
+     * This function will get the given email address into microsoft {@link Attendee} list
+     *
+     * @param requiredAttendeeEmail list of required attendees emails
+     * @param optionalAttendeeEmail list of optional attendees email
+     * @return List of {@link Attendee} for the event
+     */
     public static List<Attendee> getAttendees(List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail) {
         List<Attendee> attendeesList = new LinkedList<>();
         for (String attendeeEmail : requiredAttendeeEmail) {
@@ -46,6 +53,12 @@ public final class MeetingDaoHelper {
         return attendeesList;
     }
 
+    /**
+     * This function will remove attendees from the event
+     *
+     * @param attendeesList list of existing attendees
+     * @param attendeeMail  list of attendees to be removed
+     */
     public static void updateAttendeesList(List<Attendee> attendeesList, List<String> attendeeMail) {
         List<Attendee> removableAttendee = new ArrayList<>();
         for (Attendee attendee : attendeesList) {
@@ -56,12 +69,25 @@ public final class MeetingDaoHelper {
         attendeesList.removeAll(removableAttendee);
     }
 
+    /**
+     * This function will check if the given event is upcoming or not
+     *
+     * @param event event to be checked
+     * @return {@link Boolean} value if the event is upcoming or not
+     */
     public static boolean isUpcomingEvent(Event event) {
         Date eventDate = getEventDate(event);
         long currentDate = getCurrentDateCorrespondingToUTCTZ();
         return currentDate < eventDate.getTime();
     }
 
+
+    /**
+     * This function will get the event date in format
+     *
+     * @param event event to get the date
+     * @return {@link Date} for the event
+     */
     private static Date getEventDate(Event event) {
         Date eventDate;
         SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -73,11 +99,23 @@ public final class MeetingDaoHelper {
         return eventDate;
     }
 
+    /**
+     * This function will get time stamp with respect to UTC
+     *
+     * @return time stamp
+     */
     private static long getCurrentDateCorrespondingToUTCTZ() {
         ZoneId sourceTimeZone = ZoneId.ofOffset("UTC", ZoneOffset.UTC);
         return new Date().toInstant().atZone(sourceTimeZone).toEpochSecond();
     }
 
+    /**
+     * This function will get the boolean value for event accepted nor declined for the given user
+     *
+     * @param event                  event to get the details
+     * @param currentUserMailAddress user to know accepted or not
+     * @return {@link Boolean} value if the event is accepted or not by user
+     */
     public static boolean isEventNeitherAcceptedNorDeclined(Event event, String currentUserMailAddress) {
         List<Attendee> attendees = event.attendees;
         if (event.organizer != null && event.organizer.emailAddress != null && attendees != null) {
@@ -91,16 +129,37 @@ public final class MeetingDaoHelper {
         return false;
     }
 
+    /**
+     * This function will check if the current user is organizer or not
+     *
+     * @param currentUserMailAddress current user email address
+     * @param attendee               attendee email address
+     * @return {@link Boolean} value
+     */
     private static boolean isCurrentUserOrganizer(String currentUserMailAddress, String attendee) {
         return currentUserMailAddress.equals(attendee);
     }
 
+    /**
+     * This function will give boolean value if the current user accepted or declined the event
+     *
+     * @param currentUserMailAddress current user email address
+     * @param attendee               {@link Attendee} of the event
+     * @return Boolean value
+     */
     private static boolean isCurrentUserNeitherAcceptedNorDeclinedMeeting(String currentUserMailAddress, Attendee attendee) {
         return currentUserMailAddress.equals(Objects.requireNonNull(attendee.emailAddress).address) &&
                 !(ResponseType.ACCEPTED.equals(Objects.requireNonNull(attendee.status).response) ||
                         ResponseType.DECLINED.equals(attendee.status.response));
     }
 
+    /**
+     * This function will get the events details and type of text in the event
+     *
+     * @param details details of the event
+     * @param type    html or text type
+     * @return {@link ItemBody}
+     */
     public static ItemBody getItemBody(String details, String type) {
         ItemBody body = new ItemBody();
         if (type.equalsIgnoreCase(Constants.TEXT)) {
@@ -113,12 +172,35 @@ public final class MeetingDaoHelper {
         return body;
     }
 
+    /**
+     * This function will get the location of the event
+     *
+     * @param location location string
+     * @return {@link Location} object
+     */
     public static Location getLocation(String location) {
         Location local = new Location();
         local.displayName = location;
         return local;
     }
 
+    /**
+     * This function will get the recurrence of the event
+     *
+     * @param recurrenceValue     recurrence value
+     * @param recurrenceInterval  interval of recurring event
+     * @param dateFrom            from date of event
+     * @param endRecurrence       recurrence end type
+     * @param endDate             end date of recurring event
+     * @param numberedOccurrences end event after this number of occurrences
+     * @param daysOfWeek          days of the week of the recurring event
+     * @param recurrenceType      absolute or relative recurrence type
+     * @param dayOfMonth          day of month for absolute recurrence
+     * @param repeatIndex         repeat index for relative recurrence
+     * @param repeatDay           repeat day for absolute or relative recurrence
+     * @param repeatMonth         repeat month of the event f
+     * @return {@link PatternedRecurrence} object for the recurring event
+     */
     public static PatternedRecurrence getRecurrence(String recurrenceValue, Double recurrenceInterval, Long dateFrom, String endRecurrence, Long endDate, Double numberedOccurrences, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth) {
 
         PatternedRecurrence recurrence = new PatternedRecurrence();
@@ -131,16 +213,16 @@ public final class MeetingDaoHelper {
 
         switch (recurrenceValue) {
             case "Daily":
-                getDailyRecurrence(pattern);
+                setDailyRecurrence(pattern);
                 break;
             case "Weekly":
-                getWeeklyRecurrence(daysOfWeek, pattern);
+                setWeeklyRecurrence(daysOfWeek, pattern);
                 break;
             case "Monthly":
-                getMonthlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, startDateDateOnly, pattern);
+                setMonthlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, startDateDateOnly, pattern);
                 break;
             case "Yearly":
-                getYearlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, startDateDateOnly, pattern);
+                setYearlyRecurrence(recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, startDateDateOnly, pattern);
                 break;
             default:
                 throw new IllegalStateException(UNEXPECTED_RECURRENCE_VALUE + recurrenceValue);
@@ -163,16 +245,38 @@ public final class MeetingDaoHelper {
         return recurrence;
     }
 
-    private static void getDailyRecurrence(RecurrencePattern pattern) {
+    /**
+     * This function will set the patter as daily recurrence
+     *
+     * @param pattern {@link RecurrencePattern}
+     */
+    private static void setDailyRecurrence(RecurrencePattern pattern) {
         pattern.type = RecurrencePatternType.DAILY;
     }
 
-    private static void getWeeklyRecurrence(List<String> daysOfWeek, RecurrencePattern pattern) {
+    /**
+     * This function will set the recurrence pattern as weekly recurrence
+     *
+     * @param daysOfWeek days of the week in recurring event
+     * @param pattern    {@link RecurrencePattern} object
+     */
+    private static void setWeeklyRecurrence(List<String> daysOfWeek, RecurrencePattern pattern) {
         pattern.type = RecurrencePatternType.WEEKLY;
         pattern.daysOfWeek = getDayOfWeeks(daysOfWeek);
     }
 
-    private static void getYearlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, Calendar startDateDateOnly, RecurrencePattern pattern) {
+    /**
+     * This function will set the recurrence pattern as yearly recurrence
+     *
+     * @param recurrenceType    absolute or relative recurrence
+     * @param dayOfMonth        day of month for repeating event
+     * @param repeatIndex       index for repeating the event
+     * @param repeatDay         day of week for repeating the event
+     * @param repeatMonth       repeat month for recurring event
+     * @param startDateDateOnly start date object {@link Calendar}
+     * @param pattern           {@link RecurrencePattern}
+     */
+    private static void setYearlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, Calendar startDateDateOnly, RecurrencePattern pattern) {
         if (recurrenceType.equalsIgnoreCase(ABSOLUTE_RECURRENCE)) {
             pattern.type = RecurrencePatternType.ABSOLUTE_YEARLY;
             pattern.month = (repeatMonth != null && !repeatMonth.isBlank()) ? getMonthIndex(repeatMonth) : (startDateDateOnly.get(Calendar.MONTH) + 1);
@@ -185,7 +289,17 @@ public final class MeetingDaoHelper {
         }
     }
 
-    private static void getMonthlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, Calendar startDateDateOnly, RecurrencePattern pattern) {
+    /**
+     * This function will set the recurrence pattern as monthly
+     *
+     * @param recurrenceType    absolute or relative recurrence
+     * @param dayOfMonth        day of month for repeating event
+     * @param repeatIndex       index for repeating the event
+     * @param repeatDay         day of week for repeating the event
+     * @param startDateDateOnly start date object {@link Calendar}
+     * @param pattern           {@link RecurrencePattern}
+     */
+    private static void setMonthlyRecurrence(String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, Calendar startDateDateOnly, RecurrencePattern pattern) {
         if (recurrenceType.equalsIgnoreCase(ABSOLUTE_RECURRENCE)) {
             pattern.type = RecurrencePatternType.ABSOLUTE_MONTHLY;
             pattern.dayOfMonth = (dayOfMonth != null) ? dayOfMonth.intValue() : startDateDateOnly.get(Calendar.DAY_OF_MONTH);
@@ -196,6 +310,12 @@ public final class MeetingDaoHelper {
         }
     }
 
+    /**
+     * This function will return the integer for the repeat month
+     *
+     * @param repeatMonth month
+     * @return integer for the month
+     */
     @NotNull
     private static Integer getMonthIndex(String repeatMonth) {
 
@@ -227,6 +347,12 @@ public final class MeetingDaoHelper {
         return 1;
     }
 
+    /**
+     * This function will return the {@link WeekIndex} for the repeat index of the week or month
+     *
+     * @param repeatIndex input repeat index
+     * @return {@link WeekIndex}
+     */
     private static WeekIndex getWeekIndex(String repeatIndex) {
 
         if (repeatIndex != null && !repeatIndex.isEmpty()) {
@@ -245,6 +371,12 @@ public final class MeetingDaoHelper {
         return WeekIndex.FIRST;
     }
 
+    /**
+     * This function will get the list of days of week for recurring event
+     *
+     * @param daysOfWeek input days of week list
+     * @return {@link DayOfWeek} list for the recurring event
+     */
     @NotNull
     private static LinkedList<DayOfWeek> getDayOfWeeks(List<String> daysOfWeek) {
         LinkedList<DayOfWeek> daysOfWeekly = new LinkedList<>();
@@ -268,6 +400,12 @@ public final class MeetingDaoHelper {
         return daysOfWeekly;
     }
 
+    /**
+     * This function will get reminder Integer form the given reminder string
+     *
+     * @param reminder reminder for the event
+     * @return minutes before the event
+     */
     public static Integer getReminder(String reminder) {
         switch (reminder) {
             case "None":
@@ -298,6 +436,12 @@ public final class MeetingDaoHelper {
         }
     }
 
+    /**
+     * This function will give list of {@link Recipient} from the given attendee emails list
+     *
+     * @param attendeeEmail list of attendee emails
+     * @return List of {@link Recipient}
+     */
     public static List<Recipient> getRecipient(List<String> attendeeEmail) {
         List<Recipient> toRecipientsList = new LinkedList<>();
         for (String email : attendeeEmail) {
@@ -310,6 +454,13 @@ public final class MeetingDaoHelper {
         return toRecipientsList;
     }
 
+    /**
+     * This function will get the list of {@link AttendeeBase} for scheduling a meeting with required attendees
+     *
+     * @param requiredAttendee list of required attendee emails
+     * @param optionalAttendee list of optional attendee emails
+     * @return list of {@link AttendeeBase} for the required attendees
+     */
     public static List<AttendeeBase> getRequiredAttendee(List<String> requiredAttendee, List<String> optionalAttendee) {
         List<AttendeeBase> attendeesList = new LinkedList<>();
         for (String attendeeEmail : requiredAttendee) {
@@ -333,6 +484,14 @@ public final class MeetingDaoHelper {
         return attendeesList;
     }
 
+    /**
+     * This function will give {@link DateTimeTimeZone} for the given timestamp and time zone
+     *
+     * @param timeStamp      input timestamp
+     * @param timeZone       timezone for event
+     * @param clientTimeZone timezone of the client scheduling the event
+     * @return {@link DateTimeTimeZone} object
+     */
     public static DateTimeTimeZone getDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
         SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));

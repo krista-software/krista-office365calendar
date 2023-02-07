@@ -20,7 +20,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import java.io.IOException;
-import java.net.http.HttpRequest;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -28,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 @Path("/")
 public final class AuthenticationResource {
 
+    public static final String ERROR_DESCRIPTION = "error_description";
     private static final String CODE = "code";
     private static final String STATE = "state";
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
@@ -71,6 +71,7 @@ public final class AuthenticationResource {
             }
             if (context.isAuthenticated()) {
                 authorizationListener.authorized();
+                return "user authenticated successfully. Please close the dialog.";
             }
             return "User authenticated successfully. Save the changes.";
         } catch (OAuthException cause) {
@@ -91,8 +92,8 @@ public final class AuthenticationResource {
         String errorDescription = "Error occurred during authorization. ";
         if (cause.getMessage() != null && !cause.getMessage().isBlank()) {
             var exceptionMap = Constants.GSON.fromJson(cause.getMessage(), Map.class);
-            if (exceptionMap.containsKey("error_description")) {
-                errorDescription = errorDescription + exceptionMap.get("error_description");
+            if (exceptionMap.containsKey(ERROR_DESCRIPTION)) {
+                errorDescription = errorDescription + exceptionMap.get(ERROR_DESCRIPTION);
             }
         }
         return errorDescription;

@@ -39,6 +39,8 @@ public final class Constants {
     public static final String TEXT = "text";
     public static final String HTML = "html";
     public static final String YYYY_DD_MM = "yyyy-dd-MM";
+    public static final String STATE = "state";
+    public static final String CALLBACK_URI = "/calendar/callback";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
     private static final String OFFLINE_ACCESS = "offline_access";

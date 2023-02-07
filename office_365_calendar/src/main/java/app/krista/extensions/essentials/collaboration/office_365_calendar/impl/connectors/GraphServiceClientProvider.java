@@ -54,11 +54,11 @@ public final class GraphServiceClientProvider {
         return office365CalendarAttributes;
     }
 
-    public GraphServiceClient<Request> getGraphServiceClient() throws IOException{
+    public GraphServiceClient<Request> getGraphServiceClient() {
         return getGraphServiceClient(!requestContext.invokeAsUser());
     }
 
-    public GraphServiceClient<Request> getGraphServiceClientForAdmin() throws IOException{
+    public GraphServiceClient<Request> getGraphServiceClientForAdmin() {
         return getGraphServiceClient(true);
     }
 

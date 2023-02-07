@@ -6,21 +6,41 @@ import java.util.List;
 public class Validators {
 
     private Validators() {
-
     }
 
+    /**
+     * This function will validate if the string is empty or null
+     *
+     * @param inputString input string
+     * @param errorMsg    variable to be displayed for error message
+     */
     public static void validateString(String inputString, String errorMsg) {
         if (inputString == null || inputString.isBlank()) {
             throw new IllegalArgumentException("Given " + errorMsg + " is null or blank.");
         }
     }
 
+    /**
+     * This function will validate if the list is null or empty
+     *
+     * @param inputList input list
+     * @param errorMsg  type of list to be displayed for error message
+     */
     public static void validateStringsList(List<String> inputList, String errorMsg) {
         if (inputList == null || inputList.isEmpty()) {
             throw new IllegalArgumentException("Given " + errorMsg + " list is null or empty.");
         }
     }
 
+    /**
+     * This function will validate for the recurrence pattern values
+     *
+     * @param recurrenceValue recurrence value for repeating the event
+     * @param daysOfWeek      days of week in recurring event
+     * @param recurrenceType  absolute or relative recurrence
+     * @param dayOfMonth      of the month in the recurring event
+     * @param repeatDay       repeat day of week in the recurring event
+     */
     public static void validateRecurrenceValues(String recurrenceValue, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatDay) {
         validateString(recurrenceValue, "recurrence value");
         if (!recurrenceValue.equalsIgnoreCase("Does not repeat") &&
@@ -40,11 +60,23 @@ public class Validators {
         }
     }
 
+    /**
+     * This function will check for monthly recurrence or yearly recurrence
+     *
+     * @param recurrenceValue recurrence value monthly or yearly
+     * @return {@link Boolean} value
+     */
     private static boolean isMonthlyOrYearlyRecurrence(String recurrenceValue) {
         return recurrenceValue.equalsIgnoreCase("Monthly") ||
                 recurrenceValue.equalsIgnoreCase("Yearly");
     }
 
+    /**
+     * This function will validate with the supported time zones
+     *
+     * @param timeZone input timezone
+     * @throws IOException if there is error in input
+     */
     public static void validateTimeZone(String timeZone) throws IOException {
         List<String> timeZones = List.of("Etc/GMT+12", "Etc/GMT+11", "Pacific/Honolulu", "America/Anchorage", "America/Santa_Isabel",
                 "America/Los_Angeles", "America/Phoenix", "America/Chihuahua", "America/Denver", "America/Guatemala", "America/Chicago",

@@ -7,6 +7,7 @@ import app.krista.extension.request.ProtoRequest;
 import app.krista.extension.request.ProtoResponse;
 import app.krista.extension.request.protos.http.HttpRequest;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.field.NamedField;
 import app.krista.model.field.NamedValuedField;
 import com.github.scribejava.core.oauth.OAuth20Service;
@@ -39,13 +40,22 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
     public String getAuthenticatedAccountId(ProtoRequest protoRequest) {
         try {
             HttpRequest httpRequest = (HttpRequest) protoRequest;
-            httpRequest.bufferBody();
-            MultivaluedMap<String, String> queryParameters = httpRequest.getQueryParameters();
-            String state = String.valueOf(queryParameters.get("state").get(0));
-            String[] parts = state.split("#");
-            return parts[0];
-        } catch (IOException | RuntimeException cause) {
-            throw new IllegalStateException("Failed to authenticate user " + cause.getMessage(), cause.getCause());
+            if (httpRequest.getUri().getPath().equals(Constants.CALLBACK_URI)) {
+                httpRequest.bufferBody();
+                MultivaluedMap<String, String> queryParameters = httpRequest.getQueryParameters();
+                if (queryParameters == null ||
+                        queryParameters.get(Constants.STATE) == null ||
+                        queryParameters.get(Constants.STATE).get(0) == null) {
+                    return null;
+                }
+                String state = String.valueOf(queryParameters.get(Constants.STATE).get(0));
+                String[] parts = state.split("&");
+                return parts[0];
+            } else {
+                return null;
+            }
+        } catch (RuntimeException | IOException cause) {
+            return null;
         }
     }
 

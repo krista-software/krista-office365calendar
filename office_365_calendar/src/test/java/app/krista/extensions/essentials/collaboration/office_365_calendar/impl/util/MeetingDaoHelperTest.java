@@ -4,11 +4,7 @@ import com.microsoft.graph.models.*;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
 
-import java.io.IOException;
-import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -38,7 +34,7 @@ public class MeetingDaoHelperTest {
     }
 
     @Test
-    public void testDateTimeTimeZone() throws IOException, ParseException {
+    public void testDateTimeTimeZone() {
         DateTimeTimeZone dateTimeTimeZone = MeetingDaoHelper.getDateTimeTimeZone(dateFrom, timeZone, timeZone);
         Assert.assertEquals("2023-01-24T22:09:35", dateTimeTimeZone.dateTime);
         Assert.assertEquals(timeZone, dateTimeTimeZone.timeZone);
@@ -76,7 +72,7 @@ public class MeetingDaoHelperTest {
     public void testGetRecurrence() {
         PatternedRecurrence recurrence = MeetingDaoHelper.getRecurrence(MONTHLY, 3.0, dateFrom,
                 NUMBERED_OCCURRENCES, null, 5.0, List.of(), ABSOLUTE_RECURRENCE,
-                25.0,null, null, null);
+                25.0, null, null, null);
         Assert.assertNotNull(recurrence);
         Assert.assertEquals(ABSOLUTE_MONTHLY, Objects.requireNonNull(recurrence.pattern).type);
     }
@@ -92,6 +88,6 @@ public class MeetingDaoHelperTest {
         attendeeLinkedList = MeetingDaoHelper.getAttendees(attendeesEmailList, emptyList);
         System.out.println(attendeeLinkedList);
         MeetingDaoHelper.updateAttendeesList(attendeeLinkedList, attendeesEmailList);
-        Assert.assertEquals(0,attendeeLinkedList.size());
+        Assert.assertEquals(0, attendeeLinkedList.size());
     }
 }

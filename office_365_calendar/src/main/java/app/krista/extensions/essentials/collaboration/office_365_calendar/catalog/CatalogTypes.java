@@ -22,6 +22,12 @@ public final class CatalogTypes {
     private CatalogTypes() {
     }
 
+    /**
+     * This function will return {@link EventDetails} entity from {@link Meeting}
+     *
+     * @param meeting {@link Meeting} object
+     * @return {@link EventDetails} entity
+     */
     public static EventDetails fromEvent(Meeting meeting) {
         if (meeting == null) {
             return null;
@@ -37,6 +43,12 @@ public final class CatalogTypes {
         return eventDetails;
     }
 
+    /**
+     * This function will return list of krista files to list of microsoft attachments
+     *
+     * @param attachments list of {@link File}
+     * @return list of {@link Attachment}
+     */
     public static List<Attachment> toAttachment(List<File> attachments) {
         List<Attachment> attachmentsList = new LinkedList<>();
         List<File> filesToAttach = getAttachmentsByParsingIntoJsonMapper(attachments);
@@ -68,16 +80,37 @@ public final class CatalogTypes {
         return attachments;
     }
 
+    /**
+     * This function will return java file for given krista file
+     *
+     * @param file {@link File}
+     * @return {@link java.io.File}
+     * @throws IOException if there is any error in input file
+     */
     private static java.io.File getFileObject(File file) throws IOException {
         MediaClient mediaClient = MediaClient.getInstance();
         String mediaURI = MediaClient.createMediaUrl(file.getMediaId());
         return mediaClient.download(mediaURI, file.getFileName());
     }
 
+    /**
+     * This function will return the type of file extension
+     *
+     * @param file {@link java.io.File}
+     * @return file extension string
+     * @throws IOException if there is error in input file
+     */
     private static String getFileType(java.io.File file) throws IOException {
         return Files.probeContentType(file.toPath()) != null ? Files.probeContentType(file.toPath()) : Constants.APPLICATION_X_BINARY;
     }
 
+    /**
+     * This function will read the java file contents and return byte array of file
+     *
+     * @param ioFile input {@link java.io.File}
+     * @return byte array
+     * @throws IOException if there is error in input ioFile
+     */
     private static byte[] readContentOfTheFile(java.io.File ioFile) throws IOException {
         byte[] bFile = new byte[(int) ioFile.length()];
         try (FileInputStream fileInputStream = new FileInputStream(ioFile)) {

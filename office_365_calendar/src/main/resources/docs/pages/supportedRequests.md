@@ -115,7 +115,7 @@ The Office 365 Calendar Extension supports the following catalog requests.
 | Location                | Text               | No            | Pune                       |
 | Date From               | Date               | Yes           | 5 Jun 2022 17:00           |
 | Date To                 | Date               | No            | 5 Jun 2022 18:00           |
-| Time Zone               | Text               | No            | UTC, Asia/Kolkata          |
+| Time Zone               | Text               | No            | America/Chicago            |
 | Details                 | Rich text          | No            | Share Company Update       |
 | Required Attendee Email | Email              | No            | requiredattendee@email.com |
 | Optional Attendee Email | Email              | No            | optionalattendee@email.com |
@@ -251,15 +251,15 @@ The Office 365 Calendar Extension supports the following catalog requests.
 - **Description**: This request will get the list of free slots for the given attendees in the given date range.
 - **Input Parameters**:
 
-| **Parameter Name**    | **Parameter Type** | **Mandatory** | **Example**           |
-|-----------------------|--------------------|---------------|-----------------------|
-| Date From             | Date               | Yes           | 5 Jun 2022 10:00      |
-| Date To               | Date               | Yes           | 5 Jun 2022 17:00      |
-| Is Organizer Optional | Yes/No             | No            | Yes                   |
-| Required Attendee     | List<Email>        | Yes           | abc@xyz.com           |
-| Optional Attendee     | List<Email>        | No            | xyz@abc.com           |
-| Time Zone             | String             | No            | Pacific Standard Time |
-| Meeting Duration      | String             | No            | 1H30M                 |
+| **Parameter Name**    | **Parameter Type** | **Mandatory** | **Example**      |
+|-----------------------|--------------------|---------------|------------------|
+| Date From             | Date               | Yes           | 5 Jun 2022 10:00 |
+| Date To               | Date               | Yes           | 5 Jun 2022 17:00 |
+| Is Organizer Optional | Yes/No             | No            | Yes              |
+| Required Attendee     | List<Email>        | Yes           | abc@xyz.com      |
+| Optional Attendee     | List<Email>        | No            | xyz@abc.com      |
+| Time Zone             | String             | No            | America/Chicago  |
+| Meeting Duration      | String             | No            | 1H30M            |
 
 - **Output Parameters**:
 
