@@ -8,6 +8,9 @@
 
 ### Resolved Bugs
 
+* [KC-1329](https://antbrains.atlassian.net/browse/KC-1329) Needed enhancements to Office 365 Calendar Extension.
+* [KE-777](https://antbrains.atlassian.net/browse/KE-777) If timezone is given then events are scheduling in different time.
+* [KS-456](https://antbrains.atlassian.net/browse/KS-456) Getting multiple invites for a single invite.
 * [KS-612](https://antbrains.atlassian.net/browse/KS-612) Outlook calendar extension documentation needs more detail
 
 ### Known Issues
