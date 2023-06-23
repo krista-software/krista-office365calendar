@@ -1,6 +1,6 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2.0.2-rc3
+### Version 2.0.2
 
 - **Developer Name** : Rohan Sharma
 - **Krista Service APIs Java** : 1.0.72
