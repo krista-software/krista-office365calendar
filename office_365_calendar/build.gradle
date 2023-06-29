@@ -4,7 +4,7 @@ plugins {
 apply plugin: 'java-library'
 jar.archiveBaseName = "office_365_calendar-extension"
 group 'app.krista.extensions.essentials.collaboration'
-version '2.0.2'
+version '2.0.3'
 
 
 if (rootProject.file('builder.txt').canRead()) {

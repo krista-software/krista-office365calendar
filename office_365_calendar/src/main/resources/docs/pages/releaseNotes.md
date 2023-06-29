@@ -1,6 +1,6 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2.0.2
+### Version 2.0.3
 
 - **Developer Name** : Rohan Sharma
 - **Krista Service APIs Java** : 1.0.72
@@ -12,6 +12,7 @@
 * [KE-777](https://antbrains.atlassian.net/browse/KE-777) If timezone is given then events are scheduling in different time.
 * [KS-456](https://antbrains.atlassian.net/browse/KS-456) Getting multiple invites for a single invite.
 * [KS-612](https://antbrains.atlassian.net/browse/KS-612) Outlook calendar extension documentation needs more detail
+* [KE-1142](https://antbrains.atlassian.net/browse/KE-1142) Getting null pointer exception while scheduling the event.
 
 ### Known Issues
 
