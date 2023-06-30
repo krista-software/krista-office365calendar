@@ -28,7 +28,7 @@
 
 * In the **Email** field, enter the email ID of the administrator. After user authentication a Refresh Token is provided along with this email ID.
 
-* In the **Time Zone** field, enter the name of the time zone that you want to set up. If it is not provided, **UTC** would be considered, by default. To refer to the list of supported time zones see <span style="color:blue">[here](https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0)</span>.
+* In the **Time Zone** field, enter the name of the time zone that you want to set up. If it is not provided, **UTC** would be considered, by default. To refer to the list of supported time zones see [here](https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0).
 
 * On the extension set up page, click **Validate**. On the resulting Authentication tab, authorize with the same account details that you registered application with, on the Azure portal.
 
