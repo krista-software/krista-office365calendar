@@ -7,7 +7,7 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
 
 ### Steps to get Client ID, Tenant ID, and Client Secret
 
-* Log in to the Azure portal Click [Here](https://portal.azure.com/).
+* Log in to the Azure portal Click [here](https://portal.azure.com/).
   ![Home Page](../_media/homePage.png)
 
 
