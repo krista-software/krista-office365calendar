@@ -3,7 +3,7 @@
 ### Version 2.0.2
 
 - **Developer Name** : Rohan Sharma
-- **Krista Service APIs Java** : 1.0.87
+- **Krista Service APIs Java** : 1.0.88
 - **Global Catalog Version** : 1.0.38
 - **Appliance Release Version** : 3.2.2
 
