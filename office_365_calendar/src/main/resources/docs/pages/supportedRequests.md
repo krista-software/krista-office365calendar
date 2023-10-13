@@ -124,7 +124,7 @@ Note: Detail description of fields is [here](pages/details.md).
 | Reminder                | Pick one           | No            | Reminding the event. For example: Don't remind me,5 min. before                                                                  |
 | Recurrence              | Pick one           | No            | Repeating the event. For example: Does Not Repeat, Daily, Weekly                                                                 |
 | Recurrence Interval     | Number             | No            | Time between two events. For example: 1,4,8                                                                                      |
-| Days Of Week            | String             | No            | Specifies days of week. For example: Monday, Friday                                                                              |
+| Days Of Week            | String             | No            | Specific day of week, on which you want to repeat an event. For example: Every Wednesday                                         |
 | Recurrence Type         | Pick one           | No            | Absolute Recurrence: Exactly that day. For example: 19th,27th. Relative Recurrence: Day of that day. For example: Monday, Friday |
 | Day Of Month            | Number             | No            | Specific day of month. For example: 23, 9                                                                                        |
 | Repeat Index            | Pick One           | No            | Specify which day of week in monthly or yearly recurrence. For example: Second Monday of month                                   |
@@ -133,7 +133,7 @@ Note: Detail description of fields is [here](pages/details.md).
 | End Recurrence          | Pick One           | No            | Specify the end of recurrence. For example: End Date                                                                             |
 | End Date                | Date               | No            | If you want to end on specific date. For example: 25 Apr 2025                                                                    |
 | Numbered Occurrences    | Number             | No            | If you want to end after specific occurrence. For example: 25, 56                                                                |
-| Attachments             | File               | No            | sample.png                                                                                                                       |
+| Attachments             | File               | No            | Any type of file                                                                                                                 |
 
 Notes:
 * Refer to the list of supported time zones, [here](https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0).<br>
@@ -269,7 +269,8 @@ Notes:
 |--------------------|--------------------|
 | List of Free Slots | List<Multi Field>  |
 
-Note: To refer additional time zones, please scroll to the end of the page and refer to the "Time Zones For Free Slots"
+Note: To refer additional time zones, please scroll to the end of the page and refer to the **Time Zones For Free Slots
+**
 section.
 
 #### Search Events
@@ -290,7 +291,7 @@ section.
 
 ### Time Zones For Free Slots
 
-The "Time Zone" input parameter for the "Get Free Slots" request accepts the following time zone values:
+The Time Zone input parameter for the Get Free Slots request accepts the following time zone values:
 
 | Time Zone ID                    | Time Zone Description                                         |
 |---------------------------------|---------------------------------------------------------------|

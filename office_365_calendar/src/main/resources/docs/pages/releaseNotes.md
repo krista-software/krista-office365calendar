@@ -14,4 +14,4 @@
 
 ### Known Issues
 
-* [KE-620](https://antbrains.atlassian.net/browse/KC-620) Schedule Meeting: Add email reminder option is missing.
+Not Available
