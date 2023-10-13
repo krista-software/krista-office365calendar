@@ -500,12 +500,13 @@ public class MeetingDaoImpl implements MeetingDao {
 
     private long getDateInMilliSecond(DateTimeTimeZone dateToParse) {
         try {
-            SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            sfd.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date date = sfd.parse(dateToParse.dateTime);
+//            SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
+//            sfd.setTimeZone(TimeZone.getTimeZone("UTC"));
+//            Date date = sfd.parse(dateToParse.dateTime);
             SimpleDateFormat customFormat = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             customFormat.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
-            Date newDate = customFormat.parse(customFormat.format(date));
+            // Date newDate = customFormat.parse(customFormat.format(date));
+            Date newDate = customFormat.parse(customFormat.format(dateToParse));
             return newDate.getTime();
         } catch (ParseException parseException) {
             throw new IllegalStateException("Date :" + dateToParse.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
