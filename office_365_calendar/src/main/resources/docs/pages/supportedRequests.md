@@ -54,7 +54,7 @@ The Office 365 Calendar Extension supports the following catalog requests.
 | Is All Day              | Yes/No             | No            | False                                                                                                                                                    |
 | Reminder                | Pick one           | No            | Don't remind me                                                                                                                                          |
 | Recurrence              | Pick one           | No            | Does Not Repeat                                                                                                                                          |
-| Recurrence Interval     | Number             | No            | 1                                                                                                                                                        |
+| Recurrence Interval     | Number             | No            | 1,2,3                                                                                                                                                    |
 | Days Of Week            | String             | No            | Monday                                                                                                                                                   |
 | Recurrence Type         | Pick one           | No            | Absolute Recurrence                                                                                                                                      |
 | Day Of Month            | Number             | No            | 23                                                                                                                                                       |
@@ -123,7 +123,7 @@ Note: Detail description of fields is [here](pages/details.md).
 | Is All Day              | Yes/No             | No            | Sets the meeting for all day. For example: False, True                                                                           |
 | Reminder                | Pick one           | No            | Reminding the event. For example: Don't remind me,5 min. before                                                                  |
 | Recurrence              | Pick one           | No            | Repeating the event. For example: Does Not Repeat, Daily, Weekly                                                                 |
-| Recurrence Interval     | Number             | No            | Time between two events. For example: 1,4,8                                                                                      |
+| Recurrence Interval     | Number             | No            | Time between two events.Interval in terms of days/months/ years , as per customer's requirement For example: 1,4,8               |
 | Days Of Week            | String             | No            | Specific day of week, on which you want to repeat an event. For example: Every Wednesday                                         |
 | Recurrence Type         | Pick one           | No            | Absolute Recurrence: Exactly that day. For example: 19th,27th. Relative Recurrence: Day of that day. For example: Monday, Friday |
 | Day Of Month            | Number             | No            | Specific day of month. For example: 23, 9                                                                                        |
