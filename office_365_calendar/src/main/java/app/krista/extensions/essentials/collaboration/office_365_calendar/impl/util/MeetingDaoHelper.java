@@ -505,7 +505,7 @@ public final class MeetingDaoHelper {
     }
 
     public static long convertDateTimeToEpoch(String date, String timeZone) throws ParseException {
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS");
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
         Date parsedDate = formatter.parse(date);
         ZoneId zoneId = ZoneId.of(timeZone);
@@ -522,7 +522,7 @@ public final class MeetingDaoHelper {
     }
 
     public static String convertDateToString(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzzz");
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         return formatter.format(date);
     }
 
