@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.getDateTimeTimeZone;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
 
 @Service
 public class MeetingDaoImpl implements MeetingDao {
@@ -367,10 +367,11 @@ public class MeetingDaoImpl implements MeetingDao {
                     .buildRequest()
                     .get();
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
+            String timeZoneTemp = timeZone == null ? clientTimeZone : timeZone;
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
-            long eventStart = date.getTime();
+            long eventStart = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
             date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
-            long eventEnd = date.getTime();
+            long eventEnd = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
             if (isAllDay != null && isAllDay && dateFrom == null) {
                 dateFrom = eventStart;
             }
