@@ -354,7 +354,11 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @Override
-    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo,
+                                 String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
+                                 Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval,
+                                 List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex,
+                                 String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
         if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
@@ -365,7 +369,7 @@ public class MeetingDaoImpl implements MeetingDao {
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
             long eventStart = date.getTime();
-            date = sfd.parse(Objects.requireNonNull(oldEvent.end).dateTime);
+            date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
             long eventEnd = date.getTime();
             if (isAllDay != null && isAllDay && dateFrom == null) {
                 dateFrom = eventStart;
