@@ -435,9 +435,3 @@ The Time Zone input parameter for the Get Free Slots request accepts the followi
 | UTC+13                          | (UTC+13:00) Coordinated Universal Time+13                     |
 | Tonga Standard Time             | (UTC+13:00) Nuku'alofa                                        |
 | Line Islands Standard Time      | (UTC+14:00) Kiritimati Island                                 |
-
-
-
-
-
-
