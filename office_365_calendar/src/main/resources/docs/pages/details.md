@@ -83,7 +83,7 @@ Set the following mandatory parameters and other parameters are filled according
   * End Date: Give end date to complete recurrence on the given data<br>
   *  Numbered Occurrences: End recurrence meeting after these many recurrences.
 
-### Time Zones For **Get Free Slots** and **Get Schedules**:
+### Supported Time Zones For Get Free Slots and Get Schedules:
 
 The Time Zone input parameter for the **Get Free Slots** and **Get Schedules** requests accepts the following time zone
 values:

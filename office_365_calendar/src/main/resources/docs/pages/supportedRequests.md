@@ -251,7 +251,8 @@ Notes:
 |--------------------|--------------------|
 | List of Meetings   | List<Multi Field>  |
 
-Note: To refer additional time zones,please click [here](pages/details.md).
+Note: To refer additional time zones,please
+click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get-schedules).
 
 #### Get Free Slots
 - **Description**: This request will get the list of free slots for the given attendees in the given date range.
@@ -273,7 +274,8 @@ Note: To refer additional time zones,please click [here](pages/details.md).
 |--------------------|--------------------|
 | List of Free Slots | List<Multi Field>  |
 
-Note: To refer additional time zones, please click [here](pages/details.md).
+Note: To refer additional time zones, please
+click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get-schedules).
 
 #### Search Events
 - **Description**: This request will retrieve the list of events that matches with the given search terms.
