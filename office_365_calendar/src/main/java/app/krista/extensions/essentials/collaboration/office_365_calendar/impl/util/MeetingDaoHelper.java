@@ -6,11 +6,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.List;
 import java.util.*;
@@ -504,6 +502,15 @@ public final class MeetingDaoHelper {
         return dateTimeTimeZone;
     }
 
+    public static DateTimeTimeZone getDateTimeTimeZone(String timeZone, Date date) {
+        SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        sfd.setTimeZone(TimeZone.getTimeZone(timeZone));
+        DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
+        dateTimeTimeZone.dateTime = sfd.format(timeStamp);
+        dateTimeTimeZone.timeZone = timeZone;
+        return dateTimeTimeZone;
+    }
+
     public static long convertDateTimeToEpoch(String date, String timeZone) throws ParseException {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -511,14 +518,6 @@ public final class MeetingDaoHelper {
         ZoneId zoneId = ZoneId.of(timeZone);
         ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
         return zonedDateTime.toInstant().toEpochMilli();
-    }
-
-    public static String convertEpochToDateTimeString(long epochTimestampMillis, String timeZoneString) {
-        ZoneId timeZone = ZoneId.of("Asia/Kolkata");
-        Instant instant = Instant.ofEpochMilli(epochTimestampMillis);
-        ZonedDateTime zonedDateTime = instant.atZone(timeZone);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzzz");
-        return zonedDateTime.format(formatter);
     }
 
     public static String convertDateToString(Date date) {
