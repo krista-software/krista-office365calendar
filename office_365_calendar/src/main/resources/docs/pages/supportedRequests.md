@@ -54,7 +54,7 @@ The Office 365 Calendar Extension supports the following catalog requests.
 | Is All Day              | Yes/No             | No            | False                                                                                                                                                    |
 | Reminder                | Pick one           | No            | Don't remind me                                                                                                                                          |
 | Recurrence              | Pick one           | No            | Does Not Repeat                                                                                                                                          |
-| Recurrence Interval     | Number             | No            | 1                                                                                                                                                        |
+| Recurrence Interval     | Number             | No            | 1,2,3                                                                                                                                                    |
 | Days Of Week            | String             | No            | Monday                                                                                                                                                   |
 | Recurrence Type         | Pick one           | No            | Absolute Recurrence                                                                                                                                      |
 | Day Of Month            | Number             | No            | 23                                                                                                                                                       |
@@ -72,6 +72,8 @@ Note: Detail description of fields is [here](pages/details.md).
 | **Parameter Name** | **Parameter Type** |
 |--------------------|--------------------|
 | Events             | Event Details      |
+
+Note: Detail description of fields is [here](pages/details.md).
 
 
 #### Get Next Upcoming Events
@@ -123,8 +125,8 @@ Note: Detail description of fields is [here](pages/details.md).
 | Is All Day              | Yes/No             | No            | Sets the meeting for all day. For example: False, True                                                                           |
 | Reminder                | Pick one           | No            | Reminding the event. For example: Don't remind me,5 min. before                                                                  |
 | Recurrence              | Pick one           | No            | Repeating the event. For example: Does Not Repeat, Daily, Weekly                                                                 |
-| Recurrence Interval     | Number             | No            | Time between two events. For example: 1,4,8                                                                                      |
-| Days Of Week            | String             | No            | Specifies days of week. For example: Monday, Friday                                                                              |
+| Recurrence Interval     | Number             | No            | Time between two events.Interval in terms of days/months/ years , as per customer's requirement For example: 1,4,8               |
+| Days Of Week            | String             | No            | Specific day of week, on which you want to repeat an event. For example: Every Wednesday                                         |
 | Recurrence Type         | Pick one           | No            | Absolute Recurrence: Exactly that day. For example: 19th,27th. Relative Recurrence: Day of that day. For example: Monday, Friday |
 | Day Of Month            | Number             | No            | Specific day of month. For example: 23, 9                                                                                        |
 | Repeat Index            | Pick One           | No            | Specify which day of week in monthly or yearly recurrence. For example: Second Monday of month                                   |
@@ -133,7 +135,7 @@ Note: Detail description of fields is [here](pages/details.md).
 | End Recurrence          | Pick One           | No            | Specify the end of recurrence. For example: End Date                                                                             |
 | End Date                | Date               | No            | If you want to end on specific date. For example: 25 Apr 2025                                                                    |
 | Numbered Occurrences    | Number             | No            | If you want to end after specific occurrence. For example: 25, 56                                                                |
-| Attachments             | File               | No            | sample.png                                                                                                                       |
+| Attachments             | File               | No            | Any type of file                                                                                                                 |
 
 Notes:
 * Refer to the list of supported time zones, [here](https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0).<br>
@@ -249,19 +251,22 @@ Notes:
 |--------------------|--------------------|
 | List of Meetings   | List<Multi Field>  |
 
+Note: To refer additional time zones,please
+click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get-schedules).
+
 #### Get Free Slots
 - **Description**: This request will get the list of free slots for the given attendees in the given date range.
 - **Input Parameters**:
 
-| **Parameter Name**    | **Parameter Type** | **Mandatory** | **Example**      |
-|-----------------------|--------------------|---------------|------------------|
-| Date From             | Date               | Yes           | 5 Jun 2022 10:00 |
-| Date To               | Date               | Yes           | 5 Jun 2022 17:00 |
-| Is Organizer Optional | Yes/No             | No            | Yes              |
-| Required Attendee     | List<Email>        | Yes           | abc@xyz.com      |
-| Optional Attendee     | List<Email>        | No            | xyz@abc.com      |
-| Time Zone             | String             | No            | America/Chicago  |
-| Meeting Duration      | String             | No            | 1H30M            |
+| **Parameter Name**    | **Parameter Type** | **Mandatory** | **Example**         |
+|-----------------------|--------------------|---------------|---------------------|
+| Date From             | Date               | Yes           | 5 Jun 2022 10:00    |
+| Date To               | Date               | Yes           | 5 Jun 2022 17:00    |
+| Is Organizer Optional | Yes/No             | No            | Yes                 |
+| Required Attendee     | List<Email>        | Yes           | abc@xyz.com         |
+| Optional Attendee     | List<Email>        | No            | xyz@abc.com         |
+| Time Zone             | String             | No            | India Standard Time |
+| Meeting Duration      | String             | No            | 1H30M               |
 
 - **Output Parameters**:
 
@@ -269,6 +274,8 @@ Notes:
 |--------------------|--------------------|
 | List of Free Slots | List<Multi Field>  |
 
+Note: To refer additional time zones, please
+click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get-schedules).
 
 #### Search Events
 - **Description**: This request will retrieve the list of events that matches with the given search terms.

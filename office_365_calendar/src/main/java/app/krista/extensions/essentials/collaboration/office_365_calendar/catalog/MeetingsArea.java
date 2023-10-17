@@ -165,8 +165,8 @@ public final class MeetingsArea {
             @Field(name = "Event Id", type = "Text") String eventId,
             @Field(name = "Title", type = "Text", required = false) String title,
             @Field(name = "Location", type = "Text", required = false) String location,
-            @Field(name = "Date From", type = "Date", required = false) Long dateFrom,
-            @Field(name = "Date to", type = "Date", required = false) Long dateTo,
+            @Field(name = "Date From", type = "Date", required = false, attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
+            @Field(name = "Date to", type = "Date", required = false, attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateTo,
             @Field(name = "Details", type = "RichText", required = false) String details,
             @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
@@ -215,21 +215,21 @@ public final class MeetingsArea {
     }
 
     @CatalogRequest(
-            id = "localDomainRequest_a732314b-6699-48ae-9a77-3a2091d4d9f8",
+            id = "localDomainRequest_7bbeb961-4ba2-4c89-8589-87a5226c33a4",
             name = "Get Free Slots",
             description = "Get list of meeting suggestions",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Email, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
+    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
     public List<Map<String, Object>> getFreeSlots(
-            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
-            @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateTo,
-            @Field(name = "Is Organizer Optional", type = "Switch", required = false) Boolean isOrganizerOptional,
+            @Field.Date(name = "Date From", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateFrom,
+            @Field.Date(name = "Date To", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateTo,
+            @Field.Boolean(name = "Is Organizer Optional", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Boolean isOrganizerOptional,
             @Field.Desc(name = "Required Attendee", type = "[ Email ]") List<String> requiredAttendee,
             @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false) List<String> optionalAttendee,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
-            @Field(name = "Meeting Duration", type = "Text", required = false) String meetingDuration) throws DatatypeConfigurationException, IOException {
-
+            @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}) String timeZone,
+            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration)
+            throws DatatypeConfigurationException {
         return meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
     }
 
