@@ -502,15 +502,6 @@ public final class MeetingDaoHelper {
         return dateTimeTimeZone;
     }
 
-    public static DateTimeTimeZone getDateTimeTimeZone(String timeZone, Date date) {
-        SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-        sfd.setTimeZone(TimeZone.getTimeZone(timeZone));
-        DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
-        dateTimeTimeZone.dateTime = sfd.format(timeStamp);
-        dateTimeTimeZone.timeZone = timeZone;
-        return dateTimeTimeZone;
-    }
-
     public static long convertDateTimeToEpoch(String date, String timeZone) throws ParseException {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         formatter.setTimeZone(TimeZone.getTimeZone("UTC"));

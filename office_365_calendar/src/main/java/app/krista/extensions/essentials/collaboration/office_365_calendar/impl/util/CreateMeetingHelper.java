@@ -165,7 +165,7 @@ public class CreateMeetingHelper {
      * @param event          event to be set with given date and time
      * @throws ParseException if there is error in parsing the dateFrom and dateTo
      */
-    public static void setEventDateTime(Long dateFrom, Long dateTo, Boolean isAllDay, String timeZone, Boolean isCreateEvent, String clientTimeZone, Event event) throws ParseException {
+    public static void setEventDateTime(Event oldEvent, Long dateFrom, Long dateTo, Boolean isAllDay, String timeZone, Boolean isCreateEvent, String clientTimeZone, Event event) throws ParseException {
         timeZone = setTimezone(timeZone, clientTimeZone);
         if (isAllDay != null && isAllDay) {
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(Constants.YYYY_DD_MM);
@@ -183,8 +183,10 @@ public class CreateMeetingHelper {
                 event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
             } else if (dateFrom != null) {
                 event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+                event.end = oldEvent.end;
             } else if (dateTo != null) {
                 event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+                event.start = oldEvent.start;
             }
         }
         event.isAllDay = isAllDay;

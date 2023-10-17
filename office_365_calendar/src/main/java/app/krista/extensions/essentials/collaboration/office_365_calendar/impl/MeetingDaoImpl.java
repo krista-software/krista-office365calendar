@@ -324,7 +324,7 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
-            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
+            Event event = getEvent(null, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
             Event newEvent = getCalendarRequestBuilder().events()
                     .buildRequest()
                     .post(event);
@@ -378,7 +378,7 @@ public class MeetingDaoImpl implements MeetingDao {
             if ((dateFrom != null && dateTo == null && dateFrom > eventEnd) || (dateFrom == null && dateTo != null && eventStart > dateTo)) {
                 throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
             }
-            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
+            Event event = getEvent(oldEvent, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
             event.attendees = oldEvent.attendees;
             if (isOldEventOnline(details, oldEvent, event)) {
                 Pattern regex = Pattern.compile("\\.{137}");
@@ -394,7 +394,6 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
-            convertUTCToTimeZone(newEvent, timeZoneTemp, sfd);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
@@ -478,13 +477,13 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private Event getEvent(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrenceValue, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, String details, Boolean isCreateEvent, Boolean isTeamsMeeting) {
+    private Event getEvent(Event oldEvent, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrenceValue, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, String details, Boolean isCreateEvent, Boolean isTeamsMeeting) {
 
         try {
             Event event = new Event();
             CreateMeetingHelper.setEventSubject(title, event, isCreateEvent);
             CreateMeetingHelper.setEventBody(details, event);
-            CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, clientTimeZone, event);
+            CreateMeetingHelper.setEventDateTime(oldEvent, dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, clientTimeZone, event);
             CreateMeetingHelper.setEventLocation(location, event);
             CreateMeetingHelper.setEventAttendees(requiredAttendeeEmail, optionalAttendeeEmail, event);
             if (recurrenceValue != null && !recurrenceValue.isBlank()) {
@@ -512,13 +511,6 @@ public class MeetingDaoImpl implements MeetingDao {
         } catch (ParseException parseException) {
             throw new IllegalStateException("Date :" + dateToParse.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
         }
-    }
-
-    private void convertUTCToTimeZone(Event event, String timeZone, SimpleDateFormat sfd) throws ParseException {
-        Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(event).start).dateTime);
-        event.start = getDateTimeTimeZone(timeZone, date);
-        date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(event).end).dateTime);
-        event.end = event.start = getDateTimeTimeZone(timeZone, date);
     }
 
 }
