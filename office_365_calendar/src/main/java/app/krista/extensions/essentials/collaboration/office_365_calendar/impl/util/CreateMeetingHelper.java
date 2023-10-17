@@ -178,7 +178,10 @@ public class CreateMeetingHelper {
             event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
             event.end = getDateTimeTimeZone(dateTo != null ? dateTo : dateFrom + 1800000, timeZone, clientTimeZone);
         } else {
-            if (dateFrom != null) {
+            if (dateFrom != null && dateTo != null) {
+                event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+                event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+            } else if (dateFrom != null) {
                 event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
             } else if (dateTo != null) {
                 event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);

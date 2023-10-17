@@ -363,15 +363,16 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
+            String timeZoneTemp = timeZone == null ? clientTimeZone : timeZone;
             Event oldEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .get();
+            long eventStart, eventEnd;
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            String timeZoneTemp = timeZone == null ? clientTimeZone : timeZone;
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
-            long eventStart = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
+            eventStart = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
             date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
-            long eventEnd = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
+            eventEnd = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
             if (isAllDay != null && isAllDay && dateFrom == null) {
                 dateFrom = eventStart;
             }
@@ -390,10 +391,11 @@ public class MeetingDaoImpl implements MeetingDao {
             }
             event.changeKey = oldEvent.changeKey;
             event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
-            event.originalEndTimeZone = oldEvent.end.timeZone;
+            event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
+            convertUTCToTimeZone(newEvent, timeZoneTemp, sfd);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
@@ -512,4 +514,24 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalStateException("Date :" + dateToParse.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
         }
     }
+
+    private void convertUTCToTimeZone(Event event, String timeZone, SimpleDateFormat sfd) throws ParseException {
+        Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(event).start).dateTime);
+        event.start = convertToTimeZone(date, timeZone);
+    }
+
+    public static Date convertToTimeZone(Date date, String timeZone) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        dateFormat.setTimeZone(TimeZone.getTimeZone(timeZone));
+
+        try {
+            String formattedDate = dateFormat.format(date);
+            return dateFormat.parse(formattedDate);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
 }
