@@ -4,7 +4,7 @@ plugins {
 apply plugin: 'java-library'
 jar.archiveBaseName = "office_365_calendar-extension"
 group 'app.krista.extensions.essentials.collaboration'
-version '2.0.2'
+version '2.0.3'
 
 
 if (rootProject.file('builder.txt').canRead()) {
@@ -47,18 +47,16 @@ configurations {
 
 dependencies {
 
-    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.72'
-    compileOnly 'app.krista:krista-apis:1.0.72'
-    compileOnly 'org.glassfish.hk2:hk2-api:3.0.3'
+    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.87'
     implementation 'com.microsoft.graph:microsoft-graph:5.20.0'
     implementation 'com.microsoft.graph:microsoft-graph-auth:0.3.0'
     implementation 'com.azure:azure-identity:1.5.4'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'
     implementation 'org.glassfish.jersey.media:jersey-media-multipart:2.35'
-
-    testImplementation 'com.kristasoft.common:common-test:1.0.35'
-    testImplementation 'com.mockrunner:mockrunner-jdbc:2.0.6'
-    testImplementation 'app.krista:krista-apis:1.0.72'
+    implementation 'com.kristasoft.common:common-test:1.0.37'
+    implementation 'app.krista:krista-apis:1.0.72'
+    compileOnly 'app.krista:krista-apis:1.0.72'
+    compileOnly 'org.glassfish.hk2:hk2-api:3.0.3'
 
 }
 
