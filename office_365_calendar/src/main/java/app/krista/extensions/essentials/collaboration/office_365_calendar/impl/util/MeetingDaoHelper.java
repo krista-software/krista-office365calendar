@@ -24,6 +24,7 @@ public final class MeetingDaoHelper {
     public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
     public static final String YYYY_MM_DD_T_HH_MM_SS = "yyyy-MM-dd'T'HH:mm:ss";
     public static final String UTC = "UTC";
+    public static final String INVALID_TIME_ZONE_PLEASE_PROVIDE_A_VALID_TIME_ZONE_STRING = "Invalid time zone. Please provide a valid time zone string.";
 
     private MeetingDaoHelper() {
     }
@@ -515,7 +516,7 @@ public final class MeetingDaoHelper {
             ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
             return zonedDateTime.toInstant().toEpochMilli();
         } catch (ZoneRulesException cause) {
-            throw new IllegalStateException("Invalid time zone. Please provide a valid time zone string.");
+            throw new IllegalStateException(INVALID_TIME_ZONE_PLEASE_PROVIDE_A_VALID_TIME_ZONE_STRING);
         }
 
     }
