@@ -10,6 +10,8 @@ import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.zone.ZoneRulesException;
 import java.util.Calendar;
 import java.util.List;
@@ -521,8 +523,35 @@ public final class MeetingDaoHelper {
         } catch (DateTimeException cause) {
             throw new IllegalStateException(cause.getMessage());
         }
-
     }
+
+    public static void convertDateTimeUTCToTimeZone(Event event, String timeZone, boolean isStart) throws ParseException {
+        DateTimeTimeZone dateTimeTimeZone;
+        if (isStart) {
+            dateTimeTimeZone = event.start;
+        } else {
+            dateTimeTimeZone = event.end;
+        }
+        Objects.requireNonNull(dateTimeTimeZone).dateTime = convertUTCDateTimeToTimeZone(dateTimeTimeZone.dateTime, timeZone);
+        dateTimeTimeZone.timeZone = timeZone;
+    }
+
+    public static String convertUTCDateTimeToTimeZone(String date, String timeZone) throws ParseException {
+        SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
+        formatter.setTimeZone(TimeZone.getTimeZone(UTC));
+        Date parsedDate = formatter.parse(date);
+        try {
+            ZoneId zoneId = ZoneId.of(timeZone);
+            ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
+            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
+            return zonedDateTime.format(outputFormatter);
+        } catch (ZoneRulesException cause) {
+            throw new IllegalStateException("Failed: " + cause.getMessage());
+        } catch (DateTimeParseException cause) {
+            throw new IllegalStateException("Invalid date-time format: " + cause.getMessage());
+        }
+    }
+
 
     public static String convertDateToFormattedString(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);

@@ -394,6 +394,12 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
+            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
+                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
+            }
+            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
+                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
+            }
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
