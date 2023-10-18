@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.zone.ZoneRulesException;
 import java.util.Calendar;
 import java.util.List;
 import java.util.*;
@@ -20,6 +21,9 @@ public final class MeetingDaoHelper {
     public static final String NUMBERED_OCCURRENCES = "Numbered occurrences";
     public static final String ABSOLUTE_RECURRENCE = "Absolute recurrence";
     public static final String RELATIVE_RECURRENCE = "Relative recurrence";
+    public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
+    public static final String YYYY_MM_DD_T_HH_MM_SS = "yyyy-MM-dd'T'HH:mm:ss";
+    public static final String UTC = "UTC";
 
     private MeetingDaoHelper() {
     }
@@ -91,7 +95,7 @@ public final class MeetingDaoHelper {
      */
     private static Date getEventDate(Event event) {
         Date eventDate;
-        SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        SimpleDateFormat sfd = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
         try {
             eventDate = sfd.parse(Objects.requireNonNull(event.start).dateTime);
         } catch (ParseException parseException) {
@@ -106,7 +110,7 @@ public final class MeetingDaoHelper {
      * @return time stamp
      */
     private static long getCurrentDateCorrespondingToUTCTZ() {
-        ZoneId sourceTimeZone = ZoneId.ofOffset("UTC", ZoneOffset.UTC);
+        ZoneId sourceTimeZone = ZoneId.ofOffset(UTC, ZoneOffset.UTC);
         return new Date().toInstant().atZone(sourceTimeZone).toEpochSecond();
     }
 
@@ -494,7 +498,7 @@ public final class MeetingDaoHelper {
      * @return {@link DateTimeTimeZone} object
      */
     public static DateTimeTimeZone getDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
-        SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        SimpleDateFormat sfd = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
         dateTimeTimeZone.dateTime = sfd.format(timeStamp);
@@ -502,17 +506,22 @@ public final class MeetingDaoHelper {
         return dateTimeTimeZone;
     }
 
-    public static long convertDateTimeToEpoch(String date, String timeZone) throws ParseException {
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+    public static long convertDateTimeToEpochInTimeZone(String date, String timeZone) throws ParseException {
+        SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
+        formatter.setTimeZone(TimeZone.getTimeZone(UTC));
         Date parsedDate = formatter.parse(date);
-        ZoneId zoneId = ZoneId.of(timeZone);
-        ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
-        return zonedDateTime.toInstant().toEpochMilli();
+        try {
+            ZoneId zoneId = ZoneId.of(timeZone);
+            ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
+            return zonedDateTime.toInstant().toEpochMilli();
+        } catch (ZoneRulesException cause) {
+            throw new IllegalStateException("Invalid time zone. Please provide a valid time zone string.");
+        }
+
     }
 
-    public static String convertDateToString(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    public static String convertDateToFormattedString(Date date) {
+        SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
         return formatter.format(date);
     }
 

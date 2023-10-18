@@ -363,15 +363,15 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
-            String timeZoneTemp = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
             Event oldEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .get();
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
-            long eventStart = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
+            long eventStart = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
             date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
-            long eventEnd = convertDateTimeToEpoch(convertDateToString(date), timeZoneTemp);
+            long eventEnd = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
             if (isAllDay != null && isAllDay && dateFrom == null) {
                 dateFrom = eventStart;
             }
