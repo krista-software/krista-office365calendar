@@ -121,7 +121,7 @@ public final class MeetingsArea {
             @Field.Desc(name = "Repeat Day", type = "PickOne(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)", required = false) String repeatDay,
             @Field.Desc(name = "Repeat Month", type = "PickOne(January|February|March|April|May|June|July|August|September|October|November|December)", required = false) String repeatMonth,
             @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false) String endRecurrence,
-            @Field(name = "End Date", type = "Date", required = false) Long endDate,
+            @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
             @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
             @Field(name = "Attachments", type = "File", required = false) List<File> attachments,
             @Field(name = "Details", type = "RichText", required = false) String details,
@@ -182,7 +182,7 @@ public final class MeetingsArea {
             @Field.Desc(name = "Repeat Day", type = "PickOne(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)", required = false) String repeatDay,
             @Field.Desc(name = "Repeat Month", type = "PickOne(January|February|March|April|May|June|July|August|September|October|November|December)", required = false) String repeatMonth,
             @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false) String endRecurrence,
-            @Field(name = "End Date", type = "Date", required = false) Long endDate,
+            @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
             @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
             @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting) {
 
