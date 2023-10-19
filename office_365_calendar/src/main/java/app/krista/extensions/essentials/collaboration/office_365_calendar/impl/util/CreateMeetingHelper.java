@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.UUID;
 
-import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.getDateTimeTimeZone;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.buildDateTimeTimeZone;
 
 public class CreateMeetingHelper {
     public static final String DOES_NOT_REPEAT = "Does Not Repeat";
@@ -172,19 +172,19 @@ public class CreateMeetingHelper {
             simpleDateFormat.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
             String dateString = simpleDateFormat.format(dateFrom);
             Date newDate = simpleDateFormat.parse(dateString);
-            event.start = getDateTimeTimeZone(newDate.getTime(), timeZone, clientTimeZone);
-            event.end = getDateTimeTimeZone(newDate.getTime() + 86400000, timeZone, clientTimeZone);
+            event.start = buildDateTimeTimeZone(newDate.getTime(), timeZone, clientTimeZone);
+            event.end = buildDateTimeTimeZone(newDate.getTime() + 86400000, timeZone, clientTimeZone);
         } else if (Boolean.TRUE.equals(isCreateEvent)) {
-            event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
-            event.end = getDateTimeTimeZone(dateTo != null ? dateTo : dateFrom + 1800000, timeZone, clientTimeZone);
+            event.start = buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+            event.end = buildDateTimeTimeZone(dateTo != null ? dateTo : dateFrom + 1800000, timeZone, clientTimeZone);
         } else {
             if (dateFrom != null && dateTo != null) {
-                event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
-                event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+                event.start = buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+                event.end = buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
             } else if (dateFrom != null) {
-                event.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+                event.start = buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
             } else if (dateTo != null) {
-                event.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+                event.end = buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
             }
         }
         event.isAllDay = isAllDay;

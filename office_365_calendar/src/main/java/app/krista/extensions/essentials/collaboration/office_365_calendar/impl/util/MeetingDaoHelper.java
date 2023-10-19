@@ -501,7 +501,7 @@ public final class MeetingDaoHelper {
      * @param clientTimeZone timezone of the client scheduling the event
      * @return {@link DateTimeTimeZone} object
      */
-    public static DateTimeTimeZone getDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
+    public static DateTimeTimeZone buildDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
         SimpleDateFormat sfd = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
@@ -525,15 +525,21 @@ public final class MeetingDaoHelper {
         }
     }
 
-    public static void convertDateTimeUTCToTimeZone(Event event, String timeZone, boolean isStart) throws ParseException {
-        DateTimeTimeZone dateTimeTimeZone;
-        if (isStart) {
-            dateTimeTimeZone = event.start;
-        } else {
-            dateTimeTimeZone = event.end;
+    public static void convertDateTimeUTCToTimeZone(Event event, String timeZone, boolean isStart) {
+        try {
+            DateTimeTimeZone dateTimeTimeZone;
+            if (isStart) {
+                dateTimeTimeZone = event.start;
+            } else {
+                dateTimeTimeZone = event.end;
+            }
+            Objects.requireNonNull(dateTimeTimeZone).dateTime = convertUTCDateTimeToTimeZone(dateTimeTimeZone.dateTime, timeZone);
+            dateTimeTimeZone.timeZone = timeZone;
+        } catch (NullPointerException cause) {
+            throw new IllegalStateException("Start or end date time is null :" + cause.getMessage());
+        } catch (ParseException cause) {
+            throw new IllegalStateException("Error while parsing date :" + cause.getMessage());
         }
-        Objects.requireNonNull(dateTimeTimeZone).dateTime = convertUTCDateTimeToTimeZone(dateTimeTimeZone.dateTime, timeZone);
-        dateTimeTimeZone.timeZone = timeZone;
     }
 
     public static String convertUTCDateTimeToTimeZone(String date, String timeZone) throws ParseException {

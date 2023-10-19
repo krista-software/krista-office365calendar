@@ -75,7 +75,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public List<Meeting> getMeetings() {
         try {
-            String dateTime = getDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
             EventCollectionPage eventCollection = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").get();
             List<Meeting> eventDetails = new ArrayList<>();
             if (eventCollection != null) {
@@ -106,8 +106,8 @@ public class MeetingDaoImpl implements MeetingDao {
                 .getSchedule(CalendarGetScheduleParameterSet
                         .newBuilder()
                         .withSchedules(schedulesList)
-                        .withEndTime(getDateTimeTimeZone(dateTo, timeZone, clientTimeZone))
-                        .withStartTime(getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone))
+                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone))
+                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone))
                         .build())
                 .buildRequest()
                 .post();
@@ -160,7 +160,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 throw new IllegalArgumentException(Constants.NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0);
             }
             List<Meeting> eventDetails = new ArrayList<>();
-            String dateTime = getDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
             EventCollectionPage eventCollPage = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").top(numberOfMeetings).get();
             if (eventCollPage != null && !eventCollPage.getCurrentPage().isEmpty()) {
                 for (Event event : eventCollPage.getCurrentPage()) {
@@ -294,8 +294,8 @@ public class MeetingDaoImpl implements MeetingDao {
         timeConstraint.activityDomain = ActivityDomain.WORK;
         LinkedList<TimeSlot> timeSlotsList = new LinkedList<>();
         TimeSlot timeSlots = new TimeSlot();
-        timeSlots.start = getDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
-        timeSlots.end = getDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+        timeSlots.start = buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
+        timeSlots.end = buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
         timeSlotsList.add(timeSlots);
         timeConstraint.timeSlots = timeSlotsList;
 
@@ -378,15 +378,7 @@ public class MeetingDaoImpl implements MeetingDao {
             if ((dateFrom != null && dateTo == null && dateFrom > eventEnd) || (dateFrom == null && dateTo != null && eventStart > dateTo)) {
                 throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
             }
-//            if(dateFrom==null)
-//            {
-//                String start=Objects.requireNonNull(Objects.requireNonNull(oldEvent.start).dateTime);
-//                dateFrom=convertDateTimeToEpochInTimeZone(convertDateStringToDateFormat(start), selectedTimeZone);
-//            }
-//            if(dateTo==null)
-//            {
-//                dateTo=convertDateTimeToEpochInTimeZone(Objects.requireNonNull(Objects.requireNonNull(oldEvent.end).dateTime), selectedTimeZone);
-//            }
+
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
             event.attendees = oldEvent.attendees;
             if (isOldEventOnline(details, oldEvent, event)) {
@@ -410,7 +402,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
             }
             return new MeetingImpl(newEvent);
-        } catch (GraphServiceException | ParseException | IOException cause) {
+        } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
         }
     }

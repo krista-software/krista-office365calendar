@@ -35,7 +35,7 @@ public class MeetingDaoHelperTest {
 
     @Test
     public void testDateTimeTimeZone() {
-        DateTimeTimeZone dateTimeTimeZone = MeetingDaoHelper.getDateTimeTimeZone(dateFrom, timeZone, timeZone);
+        DateTimeTimeZone dateTimeTimeZone = MeetingDaoHelper.buildDateTimeTimeZone(dateFrom, timeZone, timeZone);
         Assert.assertEquals("2023-01-24T22:09:35", dateTimeTimeZone.dateTime);
         Assert.assertEquals(timeZone, dateTimeTimeZone.timeZone);
     }
