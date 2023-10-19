@@ -552,11 +552,8 @@ public final class MeetingDaoHelper {
         }
     }
 
-
     public static String convertDateToFormattedString(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
         return formatter.format(date);
     }
-
-
 }
