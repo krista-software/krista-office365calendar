@@ -511,9 +511,7 @@ public final class MeetingDaoHelper {
     }
 
     public static long convertDateTimeToEpochInTimeZone(String date, String timeZone) throws ParseException {
-        SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
-        formatter.setTimeZone(TimeZone.getTimeZone(UTC));
-        Date parsedDate = formatter.parse(date);
+        Date parsedDate = convertStringDate(date, YYYY_MM_DD_HH_MM_SS, UTC);
         try {
             ZoneId zoneId = ZoneId.of(timeZone);
             ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
@@ -543,16 +541,16 @@ public final class MeetingDaoHelper {
     }
 
     public static String convertUTCDateTimeToTimeZone(String date, String timeZone) throws ParseException {
-        SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
-        formatter.setTimeZone(TimeZone.getTimeZone(UTC));
-        Date parsedDate = formatter.parse(date);
+
+        Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, UTC);
+
         try {
             ZoneId zoneId = ZoneId.of(timeZone);
             ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
             DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
             return zonedDateTime.format(outputFormatter);
         } catch (ZoneRulesException cause) {
-            throw new IllegalStateException("Failed: " + cause.getMessage());
+            throw new IllegalStateException("Failed to parse into given timezone : " + timeZone + " because of : " + cause.getMessage());
         } catch (DateTimeParseException cause) {
             throw new IllegalStateException("Invalid date-time format: " + cause.getMessage());
         }
@@ -561,5 +559,11 @@ public final class MeetingDaoHelper {
     public static String convertDateToFormattedString(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
         return formatter.format(date);
+    }
+
+    public static Date convertStringDate(String date, String dateFormat, String timeZone) throws ParseException {
+        SimpleDateFormat formatter = new SimpleDateFormat(dateFormat);
+        formatter.setTimeZone(TimeZone.getTimeZone(timeZone));
+        return formatter.parse(date);
     }
 }
