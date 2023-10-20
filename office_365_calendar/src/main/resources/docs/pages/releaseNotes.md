@@ -11,6 +11,7 @@
 
 * [KE-1249](https://antbrains.atlassian.net/browse/KE-1249) Get Free slots request showing invalid time zone error
   message.
+* [KE-1247](https://antbrains.atlassian.net/browse/KE-1247) Update event request unable to update the date of an event.
 
 ### Known Issues
 
