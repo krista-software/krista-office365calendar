@@ -391,6 +391,9 @@ public class MeetingDaoImpl implements MeetingDao {
             }
 
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
+            if (event.attendees == null) {
+                event.attendees = oldEvent.attendees;
+            }
             if (isOldEventOnline(details, oldEvent, event)) {
                 Pattern regex = Pattern.compile("\\.{137}");
                 String[] result = new String[3];
@@ -405,11 +408,6 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
-            if (event.attendees != null) {
-                newEvent.attendees = event.attendees;
-            } else {
-                newEvent.attendees = oldEvent.attendees;
-            }
             if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
                 convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
             } else {
