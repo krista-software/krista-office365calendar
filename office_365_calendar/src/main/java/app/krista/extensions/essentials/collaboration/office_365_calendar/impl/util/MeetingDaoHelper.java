@@ -540,6 +540,39 @@ public final class MeetingDaoHelper {
         }
     }
 
+    public static void convertDateTimeTimeZoneToUTC(Event event, String timeZone, boolean isStart) {
+        try {
+            DateTimeTimeZone dateTimeTimeZone;
+            if (isStart) {
+                dateTimeTimeZone = event.start;
+            } else {
+                dateTimeTimeZone = event.end;
+            }
+            Objects.requireNonNull(dateTimeTimeZone).dateTime = convertDateTimeToUTC(dateTimeTimeZone.dateTime, timeZone);
+            dateTimeTimeZone.timeZone = timeZone;
+        } catch (NullPointerException cause) {
+            throw new IllegalStateException("Start or end date time is null :" + cause.getMessage());
+        } catch (ParseException cause) {
+            throw new IllegalStateException("Error while parsing date :" + cause.getMessage());
+        }
+    }
+
+    public static String convertDateTimeToUTC(String date, String timeZone) throws ParseException {
+
+        Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, timeZone);
+
+        try {
+            ZoneId zoneId = ZoneId.of(UTC);
+            ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
+            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
+            return zonedDateTime.format(outputFormatter);
+        } catch (ZoneRulesException cause) {
+            throw new IllegalStateException("Failed to parse into given timezone : " + timeZone + " because of : " + cause.getMessage());
+        } catch (DateTimeParseException cause) {
+            throw new IllegalStateException("Invalid date-time format: " + cause.getMessage());
+        }
+    }
+
     public static String convertUTCDateTimeToTimeZone(String date, String timeZone) throws ParseException {
 
         Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, UTC);
