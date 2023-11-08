@@ -66,7 +66,6 @@ The Office 365 Calendar Extension supports the following catalog requests.
 | Numbered Occurrences    | Number             | No            | 25                                                                                                                                                       |
 
 Note: Detail description of fields is [here](pages/details.md).
-      We are not supporting adding or removing attendees in contacts.   
 
 - **Output Parameters**:
 
