@@ -329,16 +329,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events()
                     .buildRequest()
                     .post(event);
-            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
-                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
-            } else {
-                convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.start).timeZone, true);
-            }
-            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
-                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
-            } else {
-                convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.end).timeZone, false);
-            }
+            getTimeZone(selectedTimeZone, newEvent);
             assert newEvent.id != null;
             for (Attachment attachment : attachments) {
                 getCalendarRequestBuilder().events(newEvent.id).attachments().buildRequest().post(attachment);
@@ -349,6 +340,19 @@ public class MeetingDaoImpl implements MeetingDao {
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
+        }
+    }
+
+    private static void getTimeZone(String selectedTimeZone, Event newEvent) {
+        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
+            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
+        } else {
+            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.start).timeZone, true);
+        }
+        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
+            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
+        } else {
+            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.end).timeZone, false);
         }
     }
 
@@ -391,7 +395,7 @@ public class MeetingDaoImpl implements MeetingDao {
             }
 
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
-            if (event.attendees == null) {
+            if (event.attendees == null || event.attendees.isEmpty()) {
                 event.attendees = oldEvent.attendees;
             }
             if (isOldEventOnline(details, oldEvent, event)) {
@@ -408,16 +412,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
-            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
-                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
-            } else {
-                convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.start).timeZone, true);
-            }
-            if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
-                convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
-            } else {
-                convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.end).timeZone, false);
-            }
+            getTimeZone(selectedTimeZone, newEvent);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
