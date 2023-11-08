@@ -329,7 +329,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events()
                     .buildRequest()
                     .post(event);
-            getTimeZone(selectedTimeZone, newEvent);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
             assert newEvent.id != null;
             for (Attachment attachment : attachments) {
                 getCalendarRequestBuilder().events(newEvent.id).attachments().buildRequest().post(attachment);
@@ -343,7 +343,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private static void getTimeZone(String selectedTimeZone, Event newEvent) {
+    private static void setDateTimeTimeZone(String selectedTimeZone, Event newEvent) {
         if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
             convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
         } else {
@@ -412,7 +412,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
-            getTimeZone(selectedTimeZone, newEvent);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
