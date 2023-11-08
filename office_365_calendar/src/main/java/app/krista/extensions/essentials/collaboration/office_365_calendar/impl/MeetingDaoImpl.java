@@ -405,7 +405,11 @@ public class MeetingDaoImpl implements MeetingDao {
             Event newEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .patch(event);
-            newEvent.attendees=event.attendees;
+            if (event.attendees != null) {
+                newEvent.attendees = event.attendees;
+            } else {
+                newEvent.attendees = oldEvent.attendees;
+            }
             if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
                 convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
             } else {
