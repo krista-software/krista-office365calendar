@@ -41,11 +41,14 @@ public final class Constants {
     public static final String YYYY_DD_MM = "yyyy-dd-MM";
     public static final String STATE = "state";
     public static final String CALLBACK_URI = "/calendar/callback";
+    public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
     private static final String OFFLINE_ACCESS = "offline_access";
     private static final String CALENDARS_READWRITE = "Calendars.ReadWrite";
     private static final String USER_READ = "User.Read";
+    public static final String WS_CONTACT = "wsContact";
+    public static final String IGNORED_EXCEPTION = "Ignored exception";
     public static final String REQUIRED_SCOPE = OPEN_ID + SPACE
             + OFFLINE_ACCESS + SPACE
             + CALENDARS_READWRITE + SPACE

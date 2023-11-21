@@ -10,9 +10,9 @@ import app.krista.ksdk.authentication.AuthorizationListener;
 import app.krista.ksdk.context.AuthorizationContext;
 import com.github.scribejava.core.exceptions.OAuthException;
 import com.github.scribejava.core.model.OAuth2AccessToken;
-import com.microsoft.graph.models.User;
-import com.microsoft.graph.requests.GraphServiceClient;
-import okhttp3.Request;
+import com.microsoft.graph.http.GraphServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -35,6 +35,7 @@ public final class AuthenticationResource {
     private final GraphServiceClientProviderFactory providerFactory;
     private final AuthorizationContext context;
     private final AuthorizationListener authorizationListener;
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationResource.class);
 
     @Inject
     public AuthenticationResource(Office365CalendarAttributeStore office365CalendarAttributeStore, RefreshTokenStore refreshTokenStore, GraphServiceClientProviderFactory providerFactory, AuthorizationContext context, AuthorizationListener authorizationListener) {
@@ -65,7 +66,7 @@ public final class AuthenticationResource {
             }
             OAuth2AccessToken accessToken = clientProvider.getOffice365CalendarAttributes().getOAuth20Service().getAccessToken(code);
             refreshTokenStore.put(key, accessToken.getRefreshToken());
-            if (!key.startsWith("wsContact") && !key.equalsIgnoreCase(getAuthenticatedUserEmail(clientProvider.getGraphServiceClientForAdmin()))) {
+            if (!key.startsWith(Constants.WS_CONTACT) && !hasUserAccess(clientProvider)) {
                 refreshTokenStore.remove(key);
                 return "Unauthorised user. User email '" + key + "'configured in the setup does not match with authenticated user.";
             }
@@ -99,8 +100,16 @@ public final class AuthenticationResource {
         return errorDescription;
     }
 
-    private String getAuthenticatedUserEmail(GraphServiceClient<Request> graphServiceClientForAdmin) {
-        User user = graphServiceClientForAdmin.me().buildRequest().get();
-        return user != null ? user.mail : "";
+    private boolean hasUserAccess(GraphServiceClientProvider graphServiceClientForAdmin) {
+        try {
+            graphServiceClientForAdmin.getUserRequestBuilder(null, null).calendars().buildRequest().get();
+            return true;
+        } catch (GraphServiceException ignore) {
+            LOGGER.debug(Constants.IGNORED_EXCEPTION);
+            return false;
+        }
     }
 }
+
+
+

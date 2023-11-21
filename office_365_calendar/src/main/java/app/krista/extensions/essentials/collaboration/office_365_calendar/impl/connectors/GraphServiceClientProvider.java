@@ -10,6 +10,7 @@ import app.krista.model.field.NamedValuedField;
 import com.microsoft.aad.msal4j.*;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.requests.UserRequestBuilder;
 import okhttp3.Request;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -83,12 +84,9 @@ public final class GraphServiceClientProvider {
             RefreshTokenParameters refreshTokenStoreParameters = RefreshTokenParameters.builder(scopeSet, refreshToken).build();
             IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
             String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
-            ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder
-                    (office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
+            ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
             IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
-            return GraphServiceClient.builder()
-                    .authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken()))
-                    .buildClient();
+            return GraphServiceClient.builder().authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken())).buildClient();
         } catch (IOException | ExecutionException cause) {
             throw createMustAuthorizationException(userId, true);
         } catch (InterruptedException interruptedException) {
@@ -110,14 +108,97 @@ public final class GraphServiceClientProvider {
     }
 
     private String getUserId(boolean calledFromValidateAttributes) {
-        String userId = calledFromValidateAttributes || !requestContext.invokeAsUser()
-                ? office365CalendarAttributes.getEmail()
-                : authorizationContext.getAuthorizedAccount().getAccountId();
+        String userId = calledFromValidateAttributes || !requestContext.invokeAsUser() ? office365CalendarAttributes.getEmail() : authorizationContext.getAuthorizedAccount().getAccountId();
         if (userId == null) {
             throw new IllegalStateException(FAILED_TO_GET_ACCOUNT);
         }
         return userId;
     }
+
+    /**
+     * Retrieves a UserRequestBuilder based on the provided parameters, allowing interaction with Microsoft Graph API
+     * for user-related operations.
+     *
+     * @param useEmail  A Boolean flag indicating whether to use email for user identification. If true, the 'accountID'
+     *                  parameter is used; if false, the current user's information is retrieved.
+     * @param accountID The account ID of the user when 'useEmail' is true. Ignored if 'useEmail' is false.
+     * @return A UserRequestBuilder instance configured for the specified user or the current user, depending on the
+     * 'useEmail' and 'accountID' parameters.
+     * @throws IllegalStateException If an IOException occurs while trying to build the request or if there is an issue
+     *                               with the underlying state.
+     */
+    public UserRequestBuilder getUserRequestBuilder(Boolean useEmail, String accountID) {
+        try {
+            if (useEmail != null) {
+                return useEmail ? getGraphServiceClientForUser(useEmail, accountID).users(office365CalendarAttributes.getEmail())
+                        : getGraphServiceClientForUser(useEmail, null).me();
+            }
+            return requestContext.invokeAsUser() ? getGraphServiceClientForUser(null, null).me() : getGraphServiceClientForUser(null, null).users(office365CalendarAttributes.getEmail());
+        } catch (IOException cause) {
+            throw new IllegalStateException(cause);
+        }
+    }
+
+    /**
+     * Gets a GraphServiceClient for user-related operations based on the specified parameters.
+     *
+     * @param useEmail  A Boolean flag indicating whether to use email for user identification. If true, the 'accountID'
+     *                  parameter is ignored.
+     * @param accountID The account ID of the user when 'useEmail' is true; ignored if 'useEmail' is false.
+     * @return A GraphServiceClient configured for the specified user or the current user, depending on the 'useEmail'
+     * and 'accountID' parameters.
+     * @throws IOException If an error occurs while obtaining or configuring the GraphServiceClient.
+     */
+    public GraphServiceClient<Request> getGraphServiceClientForUser(Boolean useEmail, String accountID) throws IOException {
+        if (useEmail != null) {
+            return getGraphServiceClientForUsers(useEmail, useEmail ? null : accountID);
+        } else {
+            return getGraphServiceClientForUsers(!requestContext.invokeAsUser(), null);
+        }
+    }
+
+    /**
+     * Gets a GraphServiceClient for user-related operations using the specified parameters.
+     *
+     * @param useEmail  A boolean indicating whether to use email for user identification. If false, 'accountID' is used.
+     * @param accountID The account ID of the user; ignored if 'useEmail' is true.
+     * @return A GraphServiceClient configured for the specified user.
+     * @throws IOException If an error occurs while obtaining or configuring the GraphServiceClient.
+     */
+    private GraphServiceClient<Request> getGraphServiceClientForUsers(boolean useEmail, String accountID) {
+        try {
+            String userId = getUserId(useEmail, accountID);
+            String refreshToken = refreshTokenStore.get(userId);
+            if (refreshToken == null) {
+                throw createMustAuthorizationException(userId, false);
+            }
+            return getGraphServiceClient(userId, refreshToken);
+        } catch (RuntimeException cause) {
+            throw cause;
+        }
+    }
+
+    /**
+     * Gets the user ID based on the specified parameters.
+     *
+     * @param calledFromValidateAttributes A boolean indicating whether the method is called from validateAttributes.
+     * @param accountID The account ID of the user; used if 'calledFromValidateAttributes' is false.
+     * @return The user ID.
+     * @throws IllegalStateException If the user ID cannot be determined.
+     */
+    private String getUserId(boolean calledFromValidateAttributes, String accountID) {
+        String userId;
+        if (calledFromValidateAttributes) {
+            userId = office365CalendarAttributes.getEmail();
+        } else {
+            userId = (accountID != null) ? accountID : authorizationContext.getAuthorizedAccount().getAccountId();
+        }
+        if (userId == null) {
+            throw new IllegalStateException(Constants.FAILED_TO_GET_ACCOUNT);
+        }
+        return userId;
+    }
+
 
     public static class GraphServiceClientAuthenticationProvider implements IAuthenticationProvider {
 
@@ -138,3 +219,6 @@ public final class GraphServiceClientProvider {
     }
 
 }
+
+
+
