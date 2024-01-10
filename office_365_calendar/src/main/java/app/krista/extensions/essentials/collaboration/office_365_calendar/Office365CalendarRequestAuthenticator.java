@@ -101,7 +101,7 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         }
         OAuth20Service oAuth20Service = effectiveOffice365CalendarAttributes.getOAuth20Service();
         String url = oAuth20Service.getAuthorizationUrl(state);
-        String urlQueryParam = "&access_type=offline&approval_prompt=force";
+        String urlQueryParam = "&access_type=offline&approval_prompt=force&prompt=login";
         return new AuthorizationResponse(url + urlQueryParam, List.of());
     }
 
