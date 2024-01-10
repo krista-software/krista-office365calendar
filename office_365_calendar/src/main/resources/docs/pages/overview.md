@@ -11,3 +11,6 @@
 
 * You must have the appropriate access and privileges to obtain
   * Client ID, Tenant ID, and Client Secret.
+
+### Limitation
+* If the invoker remains unused for a period exceeding 90 days, re-authentication will be necessary.

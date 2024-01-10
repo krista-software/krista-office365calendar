@@ -7,6 +7,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import app.krista.model.field.NamedValuedField;
+import com.google.gson.JsonObject;
 import com.microsoft.aad.msal4j.*;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.requests.GraphServiceClient;
@@ -86,6 +87,8 @@ public final class GraphServiceClientProvider {
             String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
             ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
             IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
+            final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
+            updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
             return GraphServiceClient.builder().authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken())).buildClient();
         } catch (IOException | ExecutionException cause) {
             throw createMustAuthorizationException(userId, true);
@@ -93,6 +96,15 @@ public final class GraphServiceClientProvider {
             Thread.currentThread().interrupt();
             throw createMustAuthorizationException(userId, true);
         }
+    }
+
+    private void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
+        JsonObject refreshToken = jsonTokenCache.get("RefreshToken").getAsJsonObject();
+        String firstKey = refreshToken.keySet().iterator().next();
+        JsonObject tokenData = refreshToken.getAsJsonObject(firstKey);
+        String secret = tokenData.get("secret").getAsString();
+        refreshTokenStore.put(userId, secret);
+        System.out.println("Updated Refresh Token.");
     }
 
     private MustAuthorizeException createMustAuthorizationException(String userId, boolean reAuthentication) {

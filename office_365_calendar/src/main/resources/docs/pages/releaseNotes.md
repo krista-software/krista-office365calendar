@@ -10,6 +10,7 @@
 ### Resolved Bugs
 
 * [KE-715](https://antbrains.atlassian.net/browse/KE-KS-715) Issue in Office 365 Calendar in shared mail authentication.
+* [KE-1323](https://antbrains.atlassian.net/browse/KE-1323) Extend refresh token validity for Office 365 Calendar.
 
 ### Known Issues
 
