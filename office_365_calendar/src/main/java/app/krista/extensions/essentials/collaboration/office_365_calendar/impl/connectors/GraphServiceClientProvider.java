@@ -179,7 +179,7 @@ public final class GraphServiceClientProvider {
      */
     private GraphServiceClient<Request> getGraphServiceClientForUsers(boolean useEmail, String accountID) {
         try {
-            String userId = getUserId(useEmail, accountID);
+            String userId = getUserId(useEmail);
             String refreshToken = refreshTokenStore.get(userId);
             if (refreshToken == null) {
                 throw createMustAuthorizationException(userId, false);
