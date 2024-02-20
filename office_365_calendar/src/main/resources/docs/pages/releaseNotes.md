@@ -3,13 +3,13 @@
 ### Version 2.0.6
 
 - **Developer Name** : Vaibhav Choudhary
-- **Krista Service APIs Java** : 1.0.95
-- **Global Catalog Version** : 1.0.41
-- **Appliance Release Version** : 3.2.5
+- **Krista Service APIs Java** : 1.0.96
+- **Global Catalog Version** : 1.0.42
+- **Appliance Release Version** : 3.2.6
 
 ### Resolved Bugs
 
-* [KS-757](https://antbrains.atlassian.net/browse/KS-757) Ask a System request to O365 Calendar prompts user for authentication even when extension is authenticated and the step is not configured to prompt each user.
+* [KC-1865](https://antbrains.atlassian.net/browse/KC-1865) Office 365 Calender Better error Message to User In configure Extension Screen
 
 ### Known Issues
 
