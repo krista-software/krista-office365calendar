@@ -54,6 +54,9 @@ public final class Constants {
             + CALENDARS_READWRITE + SPACE
             + USER_READ;
 
+    public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
+
+
     private Constants() {
     }
 }

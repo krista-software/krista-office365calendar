@@ -116,7 +116,7 @@ public final class GraphServiceClientProvider {
             NamedValuedField contextIdField = new NamedValuedField("authContextId", "Text", authContextId, new HashMap<>(), new HashMap<>());
             details.add(contextIdField);
         }
-        return new MustAuthorizeException(reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : "You are not authorized. Please authorize yourself", details);
+        return new MustAuthorizeException(reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : Constants.AUTHORIZATION_PROMPT, details);
     }
 
     private String getUserId(boolean calledFromValidateAttributes) {
