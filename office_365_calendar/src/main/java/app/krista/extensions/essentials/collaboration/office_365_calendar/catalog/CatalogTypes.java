@@ -94,9 +94,6 @@ public final class CatalogTypes {
      * @throws IOException if there is any error in input file
      */
     private java.io.File getFileObject(File file) throws IOException {
-//        MediaClient mediaClient = MediaClient.getInstance();
-//        String mediaURI = MediaClient.createMediaUrl(file.getMediaId());
-//        return mediaClient.download(mediaURI, file.getFileName());
         return kristaMediaClient.toJavaFile(file);
     }
 
