@@ -1,14 +1,16 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.MediaClient;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.KristaMediaClient;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.model.base.File;
 import com.google.gson.reflect.TypeToken;
 import com.microsoft.graph.models.Attachment;
 import com.microsoft.graph.models.FileAttachment;
+import org.jvnet.hk2.annotations.Service;
 
+import javax.inject.Inject;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -17,9 +19,13 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+@Service
 public final class CatalogTypes {
+    private final KristaMediaClient kristaMediaClient;
 
-    private CatalogTypes() {
+    @Inject
+    public CatalogTypes(KristaMediaClient kristaMediaClient) {
+        this.kristaMediaClient = kristaMediaClient;
     }
 
     /**
@@ -49,7 +55,7 @@ public final class CatalogTypes {
      * @param attachments list of {@link File}
      * @return list of {@link Attachment}
      */
-    public static List<Attachment> toAttachment(List<File> attachments) {
+    public List<Attachment> toAttachment(List<File> attachments) {
         List<Attachment> attachmentsList = new LinkedList<>();
         List<File> filesToAttach = getAttachmentsByParsingIntoJsonMapper(attachments);
         for (File file : filesToAttach) {
@@ -87,10 +93,8 @@ public final class CatalogTypes {
      * @return {@link java.io.File}
      * @throws IOException if there is any error in input file
      */
-    private static java.io.File getFileObject(File file) throws IOException {
-        MediaClient mediaClient = MediaClient.getInstance();
-        String mediaURI = MediaClient.createMediaUrl(file.getMediaId());
-        return mediaClient.download(mediaURI, file.getFileName());
+    private java.io.File getFileObject(File file) throws IOException {
+        return kristaMediaClient.toJavaFile(file);
     }
 
     /**

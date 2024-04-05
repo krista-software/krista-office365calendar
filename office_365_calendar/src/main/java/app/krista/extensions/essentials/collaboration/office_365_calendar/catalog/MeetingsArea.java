@@ -23,10 +23,12 @@ import java.util.stream.Collectors;
 public final class MeetingsArea {
 
     private final MeetingDaoImpl meetingDao;
+    private final CatalogTypes catalogTypes;
 
     @Inject
-    public MeetingsArea(MeetingDaoImpl meetingDao) {
+    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes) {
         this.meetingDao = meetingDao;
+        this.catalogTypes = catalogTypes;
     }
 
     @CatalogRequest(
@@ -126,7 +128,7 @@ public final class MeetingsArea {
             @Field(name = "Attachments", type = "File", required = false) List<File> attachments,
             @Field(name = "Details", type = "RichText", required = false) String details,
             @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting) {
-        return CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, CatalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+        return CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
     }
 
     @CatalogRequest(
