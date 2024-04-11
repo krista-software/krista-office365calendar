@@ -276,4 +276,18 @@ public final class MeetingsArea {
         return meetingDao.getQueryResults(searchTerms);
     }
 
+    @CatalogRequest(
+            id = "localDomainRequest_de835fdf-8e63-4a72-be82-a758166a4a5d",
+            name = "Get Events for a given User",
+            description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]", required = false)
+    public List<EventDetails> getEventsForAGivenUser(
+            @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
+            @Field.Date(name = "From", required = false, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
+            @Field.Date(name = "To", required = false, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to) {
+        return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+    }
+
 }
