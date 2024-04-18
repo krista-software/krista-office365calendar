@@ -52,12 +52,16 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
 
 * Click on **Add Permissions**.
 
-* Again click on Add Permission then navigate Application Permissions.
+      Note: Adding Application Permissions is optional.This is required only for few System Requests where the user interaction is not needed.
 
-* Now  search for **Calendars.Read** and add permissions.
-* Now Provide **Grant Admin Consent**.
+* Again click on Add Permission again and then navigate Application Permissions.
 
-      - Note: Adding Application Permissions is optional.This is required only for few System Requests where the user interaction is not needed.
+* Now  search for **Calendars.ReadBasic.All** and add permissions.
+  ![Select Application Permission](../_media/select_application_permission.png)
+
+* Now click on **Grant Admin Consent for your organization** and provide the admin consent.
+  ![Grant Admin Consent](../_media/grant_permission.png)
+
 
 * Click **Certificates & secrets**, go to and click **New client secret**.
   ![Certificates & Secrets](../_media/certificates&Secrets.png)
