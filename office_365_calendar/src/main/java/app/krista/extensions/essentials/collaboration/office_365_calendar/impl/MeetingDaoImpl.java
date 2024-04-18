@@ -222,7 +222,7 @@ public class MeetingDaoImpl implements MeetingDao {
             }
             return eventDetails;
         } catch (GraphServiceException cause) {
-            String errorMessage = null;
+            String errorMessage = "";
             if (cause.getError() != null && cause.getError().error != null) {
                 errorMessage = cause.getError().error.message;
             }
