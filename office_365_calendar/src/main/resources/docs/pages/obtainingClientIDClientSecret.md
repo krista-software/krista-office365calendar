@@ -1,7 +1,6 @@
 # Obtaining Client ID, Tenant ID, and Client Secret
 
 
-
 For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenant ID, and Client Secret from the Azure Portal.
 
 
@@ -51,7 +50,17 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
 
   ![Select Permission](../_media/selectPermissions.png)
 
-* Click on **Add Prermission**.
+* Click on **Add Permissions**.
+
+      Note: Adding Application Permissions is optional.This is required only for few System Requests where the user interaction is not needed.
+
+* Again click on Add Permission again and then navigate Application Permissions.
+
+* Now  search for **Calendars.ReadBasic.All** and add permissions.
+  ![Select Application Permission](../_media/select_application_permission.png)
+
+* Now click on **Grant Admin Consent for your organization** and provide the admin consent.
+  ![Grant Admin Consent](../_media/grant_permission.png)
 
 
 * Click **Certificates & secrets**, go to and click **New client secret**.

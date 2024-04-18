@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 public final class GraphServiceClientProvider {
 
     public static final String REQUIRED_SCOPE = Constants.REQUIRED_SCOPE;
+    public static final String CLIENT_CREDENTIAL_SCOPES = "https://graph.microsoft.com/.default";
     public static final String SCOPE_SEPARATOR = " ";
     public static final String AUTHORITY = "https://login.microsoftonline.com/";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
@@ -60,9 +61,41 @@ public final class GraphServiceClientProvider {
         return getGraphServiceClient(!requestContext.invokeAsUser());
     }
 
+    public GraphServiceClient<Request> getGraphServiceClientForSystem() {
+        return getGraphServiceClientWithClientCredentials();
+    }
+
     public GraphServiceClient<Request> getGraphServiceClientForAdmin() {
         return getGraphServiceClient(true);
     }
+
+    private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
+        try {
+            IClientCredential clientCredential = ClientCredentialFactory
+                    .createFromSecret(office365CalendarAttributes.getClientSecret());
+            String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+
+            ConfidentialClientApplication cca = ConfidentialClientApplication.builder(
+                            office365CalendarAttributes.getClientId(),
+                            clientCredential)
+                    .authority(authority)
+                    .build();
+
+            ClientCredentialParameters parameters = ClientCredentialParameters.builder(
+                            Collections.singleton(GraphServiceClientProvider.CLIENT_CREDENTIAL_SCOPES))
+                    .build();
+
+            IAuthenticationResult result = cca.acquireToken(parameters).get();
+
+            return GraphServiceClient.builder()
+                    .authenticationProvider(new GraphServiceClientAuthenticationProvider(result.accessToken()))
+                    .buildClient();
+        } catch (Exception cause) {
+            LOGGER.error("Error creating GraphServiceClient with client credentials", cause);
+            throw new RuntimeException("Error creating GraphServiceClient with client credentials", cause);
+        }
+    }
+
 
     private GraphServiceClient<Request> getGraphServiceClient(boolean useEmail) {
         try {
@@ -231,6 +264,3 @@ public final class GraphServiceClientProvider {
     }
 
 }
-
-
-

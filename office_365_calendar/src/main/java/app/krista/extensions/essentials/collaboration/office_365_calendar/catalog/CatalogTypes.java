@@ -49,31 +49,6 @@ public final class CatalogTypes {
         return eventDetails;
     }
 
-    /**
-     * This function will return list of krista files to list of microsoft attachments
-     *
-     * @param attachments list of {@link File}
-     * @return list of {@link Attachment}
-     */
-    public List<Attachment> toAttachment(List<File> attachments) {
-        List<Attachment> attachmentsList = new LinkedList<>();
-        List<File> filesToAttach = getAttachmentsByParsingIntoJsonMapper(attachments);
-        for (File file : filesToAttach) {
-            FileAttachment fileAttachments = new FileAttachment();
-            fileAttachments.name = file.getFileName();
-            try {
-                java.io.File ioFile = getFileObject(file);
-                fileAttachments.contentType = getFileType(ioFile);
-                fileAttachments.contentBytes = readContentOfTheFile(ioFile);
-                fileAttachments.oDataType = Constants.MICROSOFT_GRAPH_FILE_ATTACHMENT;
-            } catch (IOException ioException) {
-                throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT, ioException.getCause());
-            }
-            attachmentsList.add(fileAttachments);
-        }
-        return attachmentsList;
-    }
-
     private static List<File> getAttachmentsByParsingIntoJsonMapper(List<File> attachments) {
         if (attachments == null || attachments.isEmpty()) {
             return List.of();
@@ -84,17 +59,6 @@ public final class CatalogTypes {
         }.getType();
         attachments = Constants.GSON.fromJson(Constants.GSON.toJson(attachments), fileListType);
         return attachments;
-    }
-
-    /**
-     * This function will return java file for given krista file
-     *
-     * @param file {@link File}
-     * @return {@link java.io.File}
-     * @throws IOException if there is any error in input file
-     */
-    private java.io.File getFileObject(File file) throws IOException {
-        return kristaMediaClient.toJavaFile(file);
     }
 
     /**
@@ -126,5 +90,41 @@ public final class CatalogTypes {
                 throw new IOException(Constants.ERROR_OCCURRED_WHILE_READING_FILE);
             }
         }
+    }
+
+    /**
+     * This function will return list of krista files to list of microsoft attachments
+     *
+     * @param attachments list of {@link File}
+     * @return list of {@link Attachment}
+     */
+    public List<Attachment> toAttachment(List<File> attachments) {
+        List<Attachment> attachmentsList = new LinkedList<>();
+        List<File> filesToAttach = getAttachmentsByParsingIntoJsonMapper(attachments);
+        for (File file : filesToAttach) {
+            FileAttachment fileAttachments = new FileAttachment();
+            fileAttachments.name = file.getFileName();
+            try {
+                java.io.File ioFile = getFileObject(file);
+                fileAttachments.contentType = getFileType(ioFile);
+                fileAttachments.contentBytes = readContentOfTheFile(ioFile);
+                fileAttachments.oDataType = Constants.MICROSOFT_GRAPH_FILE_ATTACHMENT;
+            } catch (IOException ioException) {
+                throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_UPLOADING_ATTACHMENT, ioException.getCause());
+            }
+            attachmentsList.add(fileAttachments);
+        }
+        return attachmentsList;
+    }
+
+    /**
+     * This function will return java file for given krista file
+     *
+     * @param file {@link File}
+     * @return {@link java.io.File}
+     * @throws IOException if there is any error in input file
+     */
+    private java.io.File getFileObject(File file) throws IOException {
+        return kristaMediaClient.toJavaFile(file);
     }
 }
