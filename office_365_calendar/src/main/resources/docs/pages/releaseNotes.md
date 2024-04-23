@@ -9,7 +9,6 @@
 
 ### Resolved Bugs
 
-* [KE-1554](https://antbrains.atlassian.net/browse/KE-1554) Office 365 Calendar Extension Adding support of New Media Server.
 * [KE-1609](https://antbrains.atlassian.net/browse/KE-1609) Office 365 calendar: Unable to send multiple attachments.
 * [KE-1618](https://antbrains.atlassian.net/browse/KE-1618) Office 365 calendar:Displayed an invalid percentage of confidence.
 
