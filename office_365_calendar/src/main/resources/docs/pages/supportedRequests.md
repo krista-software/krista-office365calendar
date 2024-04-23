@@ -108,8 +108,8 @@ Note: Detail description of fields is [here](pages/details.md).
 | Events             | Event Details      |
 
 
-#### Schedule Event
-- **Description**: This request is used to schedule an event.
+#### Schedule Meeting
+- **Description**: Schedule meeting with given details.
 - **Input Parameters**:
 
 | **Parameter Name**      | **Parameter Type** | **Mandatory** | **Description & Example**                                                                                                        |
@@ -136,6 +136,7 @@ Note: Detail description of fields is [here](pages/details.md).
 | End Date                | Date               | No            | If you want to end on specific date. For example: 25 Apr 2025                                                                    |
 | Numbered Occurrences    | Number             | No            | If you want to end after specific occurrence. For example: 25, 56                                                                |
 | Attachments             | File               | No            | Any type of file                                                                                                                 |
+| Is Teams Meeting        | Yes/No             | No            | True/False                                                                                                                       |
 
 Notes:
 * Refer to the list of supported time zones, [here](https://learn.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0).<br>
