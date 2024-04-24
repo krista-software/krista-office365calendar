@@ -66,6 +66,19 @@ public class MeetingDaoImpl implements MeetingDao {
         return oldEvent.isOnlineMeeting != null && oldEvent.isOnlineMeeting && event.isOnlineMeeting != null && !event.isOnlineMeeting && (details == null || details.isBlank());
     }
 
+    private static void setDateTimeTimeZone(String selectedTimeZone, Event newEvent) {
+        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
+            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
+        } else {
+            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.start).timeZone, true);
+        }
+        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
+            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
+        } else {
+            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.end).timeZone, false);
+        }
+    }
+
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -190,6 +203,31 @@ public class MeetingDaoImpl implements MeetingDao {
             searchHits = getResultFromSearchResponse(numberOfHits, searchEntityQueryCollectionPage.getCurrentPage().get(0));
         }
         return searchHits;
+    }
+
+    @Override
+    public List<Meeting> getEventsForUser(String userEmail, Long from, Long to) {
+        try {
+            String startTime = buildDateTimeTimeZone(from, null, clientTimeZone).dateTime;
+            String endTime = buildDateTimeTimeZone(to, null, clientTimeZone).dateTime;
+            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
+                    .users(userEmail).events().buildRequest()
+                    .filter("start/dateTime ge '" + startTime + "' and end/dateTime le '" + endTime + "'")
+                    .get();
+            List<Meeting> eventDetails = new ArrayList<>();
+            if (eventCollection != null) {
+                for (Event event : eventCollection.getCurrentPage()) {
+                    eventDetails.add(new MeetingImpl(event));
+                }
+            }
+            return eventDetails;
+        } catch (GraphServiceException cause) {
+            String errorMessage = "";
+            if (cause.getError() != null && cause.getError().error != null) {
+                errorMessage = cause.getError().error.message;
+            }
+            throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
+        }
     }
 
     @NotNull
@@ -340,19 +378,6 @@ public class MeetingDaoImpl implements MeetingDao {
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
-        }
-    }
-
-    private static void setDateTimeTimeZone(String selectedTimeZone, Event newEvent) {
-        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).start).timeZone)) {
-            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, true);
-        } else {
-            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.start).timeZone, true);
-        }
-        if ("UTC".equals(Objects.requireNonNull(Objects.requireNonNull(newEvent).end).timeZone)) {
-            convertDateTimeUTCToTimeZone(newEvent, selectedTimeZone, false);
-        } else {
-            convertDateTimeTimeZoneToUTC(newEvent, Objects.requireNonNull(newEvent.end).timeZone, false);
         }
     }
 
@@ -537,4 +562,3 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
 }
-

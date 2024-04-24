@@ -55,6 +55,7 @@ public final class Constants {
             + USER_READ;
 
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
+    public static final String FAILED_TO_GET_USER_EVENTS = "Failed to get user events. ";
 
 
     private Constants() {

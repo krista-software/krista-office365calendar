@@ -185,4 +185,13 @@ public interface MeetingDao {
      */
     List<Map<String, Object>> getQueryResults(String query) throws IOException;
 
+    /**
+     * This request will return the list of events scheduled for the given user.
+     *
+     * @param userEmail email of the user whose events need to be fetched
+     * @param from date from which the events needed to be fetched
+     * @param to date till which the events needed to be fetched
+     * @return {@link List} of {@link Meeting}
+     */
+    List<Meeting> getEventsForUser(String userEmail, Long from, Long to);
 }
