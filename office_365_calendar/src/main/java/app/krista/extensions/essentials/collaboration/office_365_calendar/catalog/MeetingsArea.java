@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
         name = "Collaboration",
         ecosystemId = "catEntryEcosystem_84b53163-327b-4b1b-8c96-9334d292f9f5",
         ecosystemName = "Essentials",
-        ecosystemVersion = "7ecfd34e-b2f0-44a7-97f8-71b9a9e517f7")
+        ecosystemVersion = "2329f537-825e-4037-8a7e-cdc1f223419c")
 public final class MeetingsArea {
 
     private final MeetingDaoImpl meetingDao;
@@ -277,12 +277,12 @@ public final class MeetingsArea {
     }
 
     @CatalogRequest(
-            id = "localDomainRequest_de835fdf-8e63-4a72-be82-a758166a4a5d",
+            id = "localDomainRequest_74cb78ed-7c37-4234-850b-29069186c9a8",
             name = "Get Events for a given User",
             description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]", required = false)
+    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]",required = false)
     public List<EventDetails> getEventsForAGivenUser(
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = false, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
