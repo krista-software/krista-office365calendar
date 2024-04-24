@@ -319,7 +319,7 @@ public class MeetingDaoImpl implements MeetingDao {
         if (meetingTimeSuggestion.attendeeAvailability != null) {
             meetingTimeSlot.put("Attendee Availability", getAttendeesAvailability(meetingTimeSuggestion.attendeeAvailability));
         }
-        meetingTimeSlot.put("Confidence", meetingTimeSuggestion.confidence);
+        meetingTimeSlot.put("Confidence", meetingTimeSuggestion.confidence == null ? null : meetingTimeSuggestion.confidence / 100);
         meetingTimeSlot.put("Organizer Availability", meetingTimeSuggestion.organizerAvailability);
         meetingTimeSlot.put("Suggestion Reason", meetingTimeSuggestion.suggestionReason);
 

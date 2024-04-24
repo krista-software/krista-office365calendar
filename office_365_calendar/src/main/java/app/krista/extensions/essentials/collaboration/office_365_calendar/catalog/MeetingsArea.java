@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
         name = "Collaboration",
         ecosystemId = "catEntryEcosystem_84b53163-327b-4b1b-8c96-9334d292f9f5",
         ecosystemName = "Essentials",
-        ecosystemVersion = "7ecfd34e-b2f0-44a7-97f8-71b9a9e517f7")
+        ecosystemVersion = "2329f537-825e-4037-8a7e-cdc1f223419c")
 public final class MeetingsArea {
 
     private final MeetingDaoImpl meetingDao;
@@ -105,29 +105,29 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public EventDetails scheduleMeeting(
-            @Field(name = "Title", type = "Text", required = false) String title,
-            @Field(name = "Location", type = "Text", required = false) String location,
-            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
-            @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long dateTo,
+            @Field.Text(name = "Title", required = false, attributes = {}, options = {}) String title,
+            @Field.Text(name = "Location", required = false, attributes = {}, options = {}) String location,
+            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = false, allowFuture = false, attributes = {}, options = {}) Long dateFrom,
+            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = false, allowFuture = false, attributes = {}, options = {}) Long dateTo,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
-            @Field(name = "Is All Day", type = "Switch", required = false) Boolean isAllDay,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
-            @Field.Desc(name = "Reminder", type = "PickOne(None|Don't remind me|At event start|At time of event|5 minutes before|15 minutes before|30 minutes before|1 hour before|2 hours before|4 hours before|12 hours before|1 day before|1 week before)", required = false) String reminder,
-            @Field.Desc(name = "Recurrence", type = "PickOne(Never|Does Not Repeat|Daily|Weekly|Monthly|Yearly)", required = false) String recurrence,
-            @Field(name = "Recurrence Interval", type = "Number", required = false) Double recurrenceInterval,
+            @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isAllDay,
+            @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String timeZone,
+            @Field.PickOne(name = "Reminder", values = {"None", "Don't remind me", "At event start", "At time of event", "5 minutes before", "15 minutes before", "30 minutes before", "1 hour before", "2 hours before", "4 hours before", "12 hours before", "1 day before", "1 week before"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String reminder,
+            @Field.PickOne(name = "Recurrence", values = {"Never", "Does Not Repeat", "Daily", "Weekly", "Monthly", "Yearly"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String recurrence,
+            @Field(name = "Recurrence Interval", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double recurrenceInterval,
             @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false) List<String> daysOfWeek,
-            @Field.Desc(name = "Recurrence Type", type = "PickOne(Absolute recurrence|Relative recurrence)", required = false) String recurrenceType,
-            @Field(name = "Day Of Month", type = "Number", required = false) Double dayOfMonth,
-            @Field.Desc(name = "Repeat Index", type = "PickOne(First|Second|Third|Fourth|Last)", required = false) String repeatIndex,
-            @Field.Desc(name = "Repeat Day", type = "PickOne(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)", required = false) String repeatDay,
-            @Field.Desc(name = "Repeat Month", type = "PickOne(January|February|March|April|May|June|July|August|September|October|November|December)", required = false) String repeatMonth,
-            @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false) String endRecurrence,
-            @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
-            @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
-            @Field(name = "Attachments", type = "File", required = false) List<File> attachments,
-            @Field(name = "Details", type = "RichText", required = false) String details,
-            @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting) {
+            @Field.PickOne(name = "Recurrence Type", values = {"Absolute recurrence", "Relative recurrence"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String recurrenceType,
+            @Field(name = "Day Of Month", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double dayOfMonth,
+            @Field.PickOne(name = "Repeat Index", values = {"First", "Second", "Third", "Fourth", "Last"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatIndex,
+            @Field.PickOne(name = "Repeat Day", values = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatDay,
+            @Field.PickOne(name = "Repeat Month", values = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatMonth,
+            @Field.PickOne(name = "End Recurrence", values = {"End date", "Numbered occurrences", "No end"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String endRecurrence,
+            @Field.Date(name = "End Date", required = false, includeTimeOfDay = true, allowPast = false, allowToday = false, allowFuture = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long endDate,
+            @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double numberedOccurrences,
+            @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) List<File> attachments,
+            @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L")}, options = {}) String details,
+            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isTeamsMeeting) {
         return CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
     }
 
@@ -277,12 +277,12 @@ public final class MeetingsArea {
     }
 
     @CatalogRequest(
-            id = "localDomainRequest_de835fdf-8e63-4a72-be82-a758166a4a5d",
+            id = "localDomainRequest_74cb78ed-7c37-4234-850b-29069186c9a8",
             name = "Get Events for a given User",
             description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]", required = false)
+    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]",required = false)
     public List<EventDetails> getEventsForAGivenUser(
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = false, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
