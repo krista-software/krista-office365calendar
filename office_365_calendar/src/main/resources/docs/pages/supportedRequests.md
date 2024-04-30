@@ -310,6 +310,8 @@ click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get
 | **Parameter Name** | **Parameter Type** | **Mandatory** | **Example**      |
 |--------------------|--------------------|---------------|------------------|
 | User Email         | Email              | Yes           | mail@example.com |
+| From               | Date               | Yes           | 5 Jun 2022 10:00 |
+| To                 | Date               | Yes           | 5 Jun 2022 17:00 |
 
 - **Output Parameters**:
 
