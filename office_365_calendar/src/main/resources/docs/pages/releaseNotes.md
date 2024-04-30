@@ -13,6 +13,7 @@
 * [KE-1609](https://antbrains.atlassian.net/browse/KE-1609) Office 365 calendar: Unable to send multiple attachments.
 * [KE-1618](https://antbrains.atlassian.net/browse/KE-1618) Office 365 calendar:Displayed an invalid percentage of confidence.
 * [KE-1576](https://antbrains.atlassian.net/browse/KE-1576) Add Client Credential Flow in Office 365 Calendar Extension.
+* [KE-1635](https://antbrains.atlassian.net/browse/KE-1635) Office 365 calendar: Add the date field as mandatory field.
 
 ### Known Issues
 
