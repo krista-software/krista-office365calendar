@@ -46,12 +46,14 @@ public final class Constants {
     private static final String OPEN_ID = "openid";
     private static final String OFFLINE_ACCESS = "offline_access";
     private static final String CALENDARS_READWRITE = "Calendars.ReadWrite";
+    private static final String CALENDARS_READWRITE_SHARED = "Calendars.ReadWrite.Shared";
     private static final String USER_READ = "User.Read";
     public static final String WS_CONTACT = "wsContact";
     public static final String IGNORED_EXCEPTION = "Ignored exception";
     public static final String REQUIRED_SCOPE = OPEN_ID + SPACE
             + OFFLINE_ACCESS + SPACE
             + CALENDARS_READWRITE + SPACE
+            + CALENDARS_READWRITE_SHARED + SPACE
             + USER_READ;
 
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";

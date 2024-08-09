@@ -212,7 +212,7 @@ public final class GraphServiceClientProvider {
      */
     private GraphServiceClient<Request> getGraphServiceClientForUsers(boolean useEmail, String accountID) {
         try {
-            String userId = getUserId(useEmail);
+            String userId = getUserId(useEmail, accountID);
             String refreshToken = refreshTokenStore.get(userId);
             if (refreshToken == null) {
                 throw createMustAuthorizationException(userId, false);
@@ -227,7 +227,7 @@ public final class GraphServiceClientProvider {
      * Gets the user ID based on the specified parameters.
      *
      * @param calledFromValidateAttributes A boolean indicating whether the method is called from validateAttributes.
-     * @param accountID The account ID of the user; used if 'calledFromValidateAttributes' is false.
+     * @param accountID                    The account ID of the user; used if 'calledFromValidateAttributes' is false.
      * @return The user ID.
      * @throws IllegalStateException If the user ID cannot be determined.
      */
