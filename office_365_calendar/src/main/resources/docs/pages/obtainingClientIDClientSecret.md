@@ -47,7 +47,7 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
   * **offline_access**
   * **Calendars.ReadWrite**
   * **User.read**
-  * **Calendars.ReadWrite.Shared**
+
 
   ![Select Permission](../_media/selectPermissions.png)
 
