@@ -1,20 +1,16 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2.0.8
+### Version 2.0.9
 
-- **Developer Name** : Srushti Ekmode
+- **Developer Name** : Aradhya Gudadhe
 - **Krista Service APIs Java** : 1.0.96
 - **Global Catalog Version** : 1.0.44
 - **Appliance Release Version** : 3.3.1
 
 ### Resolved Bugs
 
-* [KE-1554](https://antbrains.atlassian.net/browse/KE-1554) Office 365 Calendar Extension Adding support of New Media Server.
-* [KE-1609](https://antbrains.atlassian.net/browse/KE-1609) Office 365 calendar: Unable to send multiple attachments.
-* [KE-1618](https://antbrains.atlassian.net/browse/KE-1618) Office 365 calendar:Displayed an invalid percentage of confidence.
-* [KE-1576](https://antbrains.atlassian.net/browse/KE-1576) Add Client Credential Flow in Office 365 Calendar Extension.
-* [KE-1635](https://antbrains.atlassian.net/browse/KE-1635) Office 365 calendar: Add the date field as mandatory field.
-* [KE-1638](https://antbrains.atlassian.net/browse/KE-1638) Office 365 calendar: Accepting past date in "date to" field.
+* [KS-765] O365 Calendar Extension does not support shared calendars
+
 
 ### Known Issues
 
