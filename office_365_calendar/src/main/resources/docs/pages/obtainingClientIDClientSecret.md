@@ -29,32 +29,11 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
 * After registration, in **Overview**, under **Essentials**, you will find the Client ID and Tenant ID.
   ![Client Id and Tenant Id](../_media/clientIDtenantID.png)
 
-
-* Click **API Permissions**. Under **Configured permissions**, click **Add a permission**.
-  ![Add a Permission](../_media/addAPermission.png)
-
-
-* On the **Request API permissions** page, select **Microsoft Graph**.
-  ![Microsoft Graph](../_media/microsoftGraph.png)
-
-
-* Select **Delegated Permissions**.
-  ![Delegated Permissions](../_media/delegatedPermissions.png)
-
-
-* Start typing permission name and select the following permissions after you see.
-  * **openid**
-  * **offline_access**
-  * **Calendars.ReadWrite**
-  * **User.read**
-
-  ![Select Permission](../_media/selectPermissions.png)
-
 * Click on **Add Permissions**.
 
       Note: Adding Application Permissions is optional.This is required only for few System Requests where the user interaction is not needed.
 
-* Again click on Add Permission again and then navigate Application Permissions.
+*  Now navigate to Application Permissions.
 
 * Now  search for **Calendars.ReadBasic.All** and add permissions.
   ![Select Application Permission](../_media/select_application_permission.png)
