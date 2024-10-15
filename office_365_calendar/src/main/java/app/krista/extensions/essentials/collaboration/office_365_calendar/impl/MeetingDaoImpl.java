@@ -34,6 +34,7 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
 @Service
 public class MeetingDaoImpl implements MeetingDao {
 
+    public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
     private final String clientTimeZone;
 
@@ -236,11 +237,13 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalStateException(Constants.SEARCH_RESPONSE_IS_EMPTY);
         } else {
             final SearchHitsContainer searchHitsContainer = searchResponse.hitsContainers.get(0);
-            int numberOfHits = searchHitsContainer.hits != null ? searchHitsContainer.hits.size() : 0;
-            numberOfHits = Math.min(numberOfHits, 25);
-            for (int i = 0; i < numberOfHits; i++) {
-                assert searchHitsContainer.hits != null;
-                searchHits.add(getSearchHitContent(searchHitsContainer.hits.get(i)));
+            if (searchHitsContainer.hits != null) {
+                int numberOfHits = searchHitsContainer.hits.size();
+                numberOfHits = Math.min(numberOfHits, MAX_SIZE);
+
+                for (int i = 0; i < numberOfHits; i++) {
+                    searchHits.add(getSearchHitContent(searchHitsContainer.hits.get(i)));
+                }
             }
         }
         return searchHits;
