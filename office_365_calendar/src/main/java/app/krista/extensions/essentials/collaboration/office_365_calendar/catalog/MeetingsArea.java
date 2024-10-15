@@ -8,6 +8,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.catalo
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
+import com.microsoft.graph.http.GraphServiceException;
 
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -260,8 +261,14 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public EventDetails getEvent(
-            @Field(name = "Event ID", type = "Text") String eventID) throws IOException {
-        return CatalogTypes.fromEvent(meetingDao.getMeetingById(eventID));
+            @Field(name = "Event ID", type = "Text") String eventID) {
+        try {
+            return CatalogTypes.fromEvent(meetingDao.getMeetingById(eventID));
+        } catch (IOException | GraphServiceException cause) {
+            System.out.println("Failed to fetch the event, provided event id does not exist - " + cause.getMessage());
+            cause.printStackTrace();
+            return null;
+        }
     }
 
 
@@ -283,7 +290,7 @@ public final class MeetingsArea {
             description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]",required = false)
+    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]", required = false)
     public List<EventDetails> getEventsForAGivenUser(
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
