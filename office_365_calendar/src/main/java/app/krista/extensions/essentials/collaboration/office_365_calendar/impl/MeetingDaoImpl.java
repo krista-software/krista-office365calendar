@@ -34,6 +34,7 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
 @Service
 public class MeetingDaoImpl implements MeetingDao {
 
+    public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
     private final String clientTimeZone;
 
@@ -198,9 +199,8 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new RuntimeException(e);
         }
         if (searchEntityQueryCollectionPage != null && !searchEntityQueryCollectionPage.getCurrentPage().isEmpty()) {
-            int numberOfHits = searchEntityQueryCollectionPage.getCurrentPage().get(0).hitsContainers.get(0).total;
-            numberOfHits = Math.min(numberOfHits, 25);
-            searchHits = getResultFromSearchResponse(numberOfHits, searchEntityQueryCollectionPage.getCurrentPage().get(0));
+
+            searchHits = getResultFromSearchResponse(searchEntityQueryCollectionPage.getCurrentPage().get(0));
         }
         return searchHits;
     }
@@ -231,15 +231,19 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @NotNull
-    private List<Map<String, Object>> getResultFromSearchResponse(int numberOfHits, SearchResponse searchResponse) {
+    private List<Map<String, Object>> getResultFromSearchResponse(SearchResponse searchResponse) {
         List<Map<String, Object>> searchHits = new ArrayList<>();
         if (searchResponse.hitsContainers == null || searchResponse.hitsContainers.isEmpty()) {
             throw new IllegalStateException(Constants.SEARCH_RESPONSE_IS_EMPTY);
         } else {
             final SearchHitsContainer searchHitsContainer = searchResponse.hitsContainers.get(0);
-            for (int i = 0; i < numberOfHits; i++) {
-                assert searchHitsContainer.hits != null;
-                searchHits.add(getSearchHitContent(searchHitsContainer.hits.get(i)));
+            if (searchHitsContainer.hits != null) {
+                int numberOfHits = searchHitsContainer.hits.size();
+                numberOfHits = Math.min(numberOfHits, MAX_SIZE);
+
+                for (int i = 0; i < numberOfHits; i++) {
+                    searchHits.add(getSearchHitContent(searchHitsContainer.hits.get(i)));
+                }
             }
         }
         return searchHits;
