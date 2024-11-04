@@ -9,8 +9,6 @@
 
 ### Resolved Bugs
 
-* [KS-765] O365 Calendar Extension does not support shared calendars
-* [KS-900] Office 365 calendar extension throws Index out of bound error while searching meeting with quotes.
 * [KS-916] Office 365 calendar extension throws error while accepting meeting invite using.
 
 
