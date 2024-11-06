@@ -452,7 +452,7 @@ public class MeetingDaoImpl implements MeetingDao {
     public Meeting acceptMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
         try {
-            getCalendarRequestBuilder().events(id).accept(EventAcceptParameterSet.newBuilder().withSendResponse(true).build()).buildRequest().post();
+            getCalendarRequestBuilder().events(id).accept(EventAcceptParameterSet.newBuilder().withSendResponse(isSendResponse(id)).build()).buildRequest().post();
             return getMeetingById(id);
         } catch (IOException | GraphServiceException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_ACCEPT_INVITATION + cause.getMessage());
@@ -464,7 +464,7 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(id, Constants.MEETING_ID);
         try {
             Event event = clientProvider.getUserRequestBuilder(false, null).events(id).buildRequest().get();
-            getCalendarRequestBuilder().events(id).decline(EventDeclineParameterSet.newBuilder().withSendResponse(true).build()).buildRequest().post();
+            getCalendarRequestBuilder().events(id).decline(EventDeclineParameterSet.newBuilder().withSendResponse(isSendResponse(id)).build()).buildRequest().post();
             return new MeetingImpl(event);
         } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_DECLINE_INVITATION + cause.getMessage());
@@ -475,7 +475,7 @@ public class MeetingDaoImpl implements MeetingDao {
     public Meeting tentativeMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
         try {
-            getCalendarRequestBuilder().events(id).tentativelyAccept(EventTentativelyAcceptParameterSet.newBuilder().withSendResponse(true).build()).buildRequest().post();
+            getCalendarRequestBuilder().events(id).tentativelyAccept(EventTentativelyAcceptParameterSet.newBuilder().withSendResponse(isSendResponse(id)).build()).buildRequest().post();
             return getMeetingById(id);
         } catch (IOException | GraphServiceException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_GET_TENTATIVE_INVITATIONS + cause.getMessage());
@@ -565,4 +565,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    private boolean isSendResponse(String eventId) throws IOException {
+        Event event = getCalendarRequestBuilder().events(eventId).buildRequest().get();
+        boolean sendResponse = true;
+        if (event != null) {
+            sendResponse = Boolean.TRUE.equals(event.responseRequested);
+        }
+        return sendResponse;
+    }
 }
