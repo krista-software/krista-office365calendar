@@ -1,5 +1,6 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity;
 
+import java.util.List;
 
 import app.krista.extension.impl.anno.*;
 
@@ -7,8 +8,8 @@ import app.krista.extension.impl.anno.*;
         name = "Collaboration",
         ecosystemId = "catEntryEcosystem_84b53163-327b-4b1b-8c96-9334d292f9f5",
         ecosystemName = "Essentials",
-        ecosystemVersion = "7ecfd34e-b2f0-44a7-97f8-71b9a9e517f7")
-@Entity(name = "Event Details", id = "localDomainEntity_b13aad88-786e-440a-8131-84351124a9cf", primaryKey = "Event Id")
+        ecosystemVersion = "2ab5b937-0a80-4bb4-894a-cd72104f864a")
+@Entity(name = "Event Details", id = "localDomainEntity_b13aad88-786e-440a-8131-84351124a9cf", primaryKey = "Event Id", supportStore = false)
 public class EventDetails {
 
     @Field(name = "Event Id", type = "Text", required = false)
@@ -21,8 +22,8 @@ public class EventDetails {
     @Field(name = "Title", type = "Text", required = false)
     public String title;
 
-    @Field(name = "Contacts", type = "Checkboxes", required = false)
-    public Object contacts;
+    @Field.Desc(name = "Contacts", type = "[ Text ]", required = false)
+    public List<String> contacts;
 
     @Field(name = "Details", type = "RichText", required = false)
     public String details;
