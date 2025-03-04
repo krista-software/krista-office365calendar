@@ -301,4 +301,14 @@ public final class MeetingsArea {
         return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
+    @CatalogRequest(
+            id = "localDomainRequest_e0f748a2-17df-4e29-84e0-a1d0d06934ff",
+            name = "Get All Unaccepted Events New",
+            description = "Get list of all unaccepted events",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+    public List<EventDetails> getAllUnacceptedEventsNew() {
+        return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+    }
 }

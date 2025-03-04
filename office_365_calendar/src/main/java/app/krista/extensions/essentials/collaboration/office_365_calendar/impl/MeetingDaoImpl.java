@@ -13,6 +13,7 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +26,8 @@ import javax.xml.datatype.Duration;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -572,5 +575,77 @@ public class MeetingDaoImpl implements MeetingDao {
             sendResponse = Boolean.TRUE.equals(event.responseRequested);
         }
         return sendResponse;
+    }
+
+    public List<Meeting> getUnAcceptedMeetings() {
+        try {
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
+//            EventCollectionPage eventCollection = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "' and responseStatus/response eq 'tentativelyAccepted' or responseStatus/response eq 'none'").get();
+
+//            List<QueryOption> queryOptions = Arrays.asList(
+//                    new QueryOption("startDateTime", "2025-02-22T00:00:00Z"),
+//                    new QueryOption("endDateTime", "2025-02-23T23:59:59Z"),
+//                    new QueryOption("$filter", "responseStatus/response eq 'tentativelyAccepted'")
+//            );
+//
+//            EventCollectionPage eventCollection = getCalendarRequestBuilder().calendarView()
+//                    .buildRequest(queryOptions)
+//                    .top(50)
+//                    .get();
+
+//            System.out.println("*** Current date time - " + dateTime);
+//            List<QueryOption> queryOptions = Arrays.asList(
+//                    new QueryOption("$expand", "instances"), // Expand recurring event instances
+//                    new QueryOption("$top", "50"), // Fetch up to 50 events
+//                    new QueryOption("$filter", "start/dateTime ge '" + dateTime + "' and responseStatus/response ne 'accepted' or responseStatus/response ne 'declined'")
+//            );
+////            new QueryOption("$filter", "start/dateTime ge '" + dateTime + "' and responseStatus/response eq 'tentativelyAccepted' or responseStatus/response eq 'none'")
+//
+//            // Fetch events with expanded instances
+//            EventCollectionPage eventCollection = getCalendarRequestBuilder()
+//                    .events()
+//                    .buildRequest(queryOptions) // Pass query options
+//                    .get();
+
+            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+
+            // Define query parameters
+            List<QueryOption> queryOptions = Arrays.asList(
+                    new QueryOption("startDateTime", currentTime), // Get future events
+                    new QueryOption("endDateTime", "2025-02-28T23:59:59Z"), // Set a reasonable future limit
+                    new QueryOption("$filter", "responseStatus/response ne 'accepted'"), // Unaccepted events
+                    new QueryOption("$expand", "instances"), // Include recurring instances
+                    new QueryOption("$orderby", "start/dateTime"), // Order by start time
+                    new QueryOption("$top", "50") // Limit results per request
+            );
+
+            // Fetch events
+            EventCollectionPage eventCollection = getCalendarRequestBuilder()
+                    .calendarView()
+                    .buildRequest(queryOptions)
+                    .get();
+            List<Meeting> eventDetails = new ArrayList<>();
+            if (eventCollection != null) {
+                User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
+                while(eventCollection != null) {
+                    for (Event event : eventCollection.getCurrentPage()) {
+                        if (currentUser != null && MeetingDaoHelper.isUpcomingEvent(event) && MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                            eventDetails.add(new MeetingImpl(event));
+                        } else {
+                            System.out.println("*** skip event due to validation ... " + event.subject);
+                        }
+                    }
+
+                    if (eventCollection.getNextPage() != null) {
+                        eventCollection = eventCollection.getNextPage().buildRequest().get();
+                    } else {
+                        eventCollection = null;
+                    }
+                }
+            }
+            return eventDetails;
+        } catch (GraphServiceException | IOException cause) {
+            throw new IllegalStateException(Constants.FAILED_TO_GET_ALL_UNACCEPTED_EVENTS + cause.getMessage());
+        }
     }
 }
