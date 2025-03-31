@@ -105,28 +105,6 @@ public class MeetingDaoImplTest {
         meetingDaoImpl.getQueryResults(null);
     }
 
-
-//    @Test
-//    public void testGetOptions_ValidTimestamps() {
-//        long from = 1700000000000L;
-//        long to = 1700000005000L;
-//        List<Option> options = MeetingDaoImpl.getOptions(from, to);
-//
-//        assertNotNull(options);
-//        assertEquals(4, options.size());
-//
-//        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of("UTC"));
-//        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of("UTC"));
-//        String expectedStartTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-//        String expectedEndTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-//
-//        // Validate individual options
-//        assertTrue(options.contains(new QueryOption("startDateTime", expectedStartTime)));
-//        assertTrue(options.contains(new QueryOption("endDateTime", expectedEndTime)));
-//        assertTrue(options.contains(new QueryOption("$top", "100")));
-//        assertTrue(options.contains(new QueryOption("$orderby", "start/dateTime asc")));
-//    }
-
     @Test
     public void testGetOptions_ValidTimestamps() {
         Long from = 1700000000000L;
