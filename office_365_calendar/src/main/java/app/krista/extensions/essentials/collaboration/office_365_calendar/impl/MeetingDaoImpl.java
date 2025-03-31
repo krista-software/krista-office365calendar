@@ -1,3 +1,5 @@
+
+
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
@@ -27,8 +29,12 @@ import javax.xml.datatype.Duration;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
@@ -210,12 +216,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long from, Long to) {
         try {
-            String startTime = buildDateTimeTimeZone(from, null, clientTimeZone).dateTime;
-            String endTime = buildDateTimeTimeZone(to, null, clientTimeZone).dateTime;
-            List<Option> options = new ArrayList<>();
-            options.add(new QueryOption("startDateTime", startTime));
-            options.add(new QueryOption("endDateTime", endTime));
-            options.add(new QueryOption("$top", "1000"));
+            List<Option> options = getOptions(from, to);
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
@@ -224,10 +225,11 @@ public class MeetingDaoImpl implements MeetingDao {
                     .select("subject,start,end,organizer,location,attendees,body,bodyPreview,isAllDay,id,type,recurrence")
                     .get();
             List<Meeting> eventDetails = new ArrayList<>();
-            if (eventCollection != null) {
+            while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
                     eventDetails.add(new MeetingImpl(event));
                 }
+                eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
             }
             return eventDetails;
         } catch (GraphServiceException cause) {
@@ -238,6 +240,25 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
         }
     }
+
+    @NotNull
+    public static List<Option> getOptions(Long from, Long to) {
+        List<Option> options = new ArrayList<>();
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("Timestamps cannot be null");
+        }
+        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of("UTC"));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of("UTC"));
+        String startTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String endTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+        options.add(new QueryOption("startDateTime", startTime));
+        options.add(new QueryOption("endDateTime", endTime));
+        options.add(new QueryOption("$top", "100"));
+        options.add(new QueryOption("$orderby", "start/dateTime asc"));
+        return options;
+    }
+
     @NotNull
     private List<Map<String, Object>> getResultFromSearchResponse(SearchResponse searchResponse) {
         List<Map<String, Object>> searchHits = new ArrayList<>();
