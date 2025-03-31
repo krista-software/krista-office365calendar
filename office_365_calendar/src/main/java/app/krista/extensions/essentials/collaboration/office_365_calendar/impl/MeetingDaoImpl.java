@@ -13,6 +13,8 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.Option;
+import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -210,9 +212,16 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             String startTime = buildDateTimeTimeZone(from, null, clientTimeZone).dateTime;
             String endTime = buildDateTimeTimeZone(to, null, clientTimeZone).dateTime;
+            List<Option> options = new ArrayList<>();
+            options.add(new QueryOption("startDateTime", startTime));
+            options.add(new QueryOption("endDateTime", endTime));
+            options.add(new QueryOption("$top", "1000"));
+
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
-                    .users(userEmail).events().buildRequest()
-                    .filter("start/dateTime ge '" + startTime + "' and end/dateTime le '" + endTime + "'")
+                    .users(userEmail)
+                    .calendarView()
+                    .buildRequest(options)
+                    .select("subject,start,end,organizer,location,attendees,body,bodyPreview,isAllDay,id,type,recurrence")
                     .get();
             List<Meeting> eventDetails = new ArrayList<>();
             if (eventCollection != null) {
@@ -229,7 +238,6 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
         }
     }
-
     @NotNull
     private List<Map<String, Object>> getResultFromSearchResponse(SearchResponse searchResponse) {
         List<Map<String, Object>> searchHits = new ArrayList<>();
