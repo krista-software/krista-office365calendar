@@ -1,5 +1,3 @@
-
-
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
@@ -214,9 +212,9 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @Override
-    public List<Meeting> getEventsForUser(String userEmail, Long from, Long to) {
+    public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
-            List<Option> options = getOptions(from, to);
+            List<Option> options = getOptions(fromDate, toDate);
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
@@ -242,20 +240,20 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @NotNull
-    public static List<Option> getOptions(Long from, Long to) {
+    public static List<Option> getOptions(Long startTimestamp, Long endTimestamp) {
         List<Option> options = new ArrayList<>();
-        if (from == null || to == null) {
+        if (startTimestamp == null || endTimestamp == null) {
             throw new IllegalArgumentException("Timestamps cannot be null");
         }
-        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of("UTC"));
-        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of("UTC"));
+        ZonedDateTime startZoned = Instant.ofEpochMilli(startTimestamp).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(endTimestamp).atZone(ZoneId.of(Constants.UTC));
         String startTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         String endTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-        options.add(new QueryOption("startDateTime", startTime));
-        options.add(new QueryOption("endDateTime", endTime));
-        options.add(new QueryOption("$top", "100"));
-        options.add(new QueryOption("$orderby", "start/dateTime asc"));
+        options.add(new QueryOption(Constants.START_DATE_TIME, startTime));
+        options.add(new QueryOption(Constants.END_DATE_TIME, endTime));
+        options.add(new QueryOption(Constants.TOP, "100"));
+        options.add(new QueryOption(Constants.ORDER_BY, "start/dateTime asc"));
         return options;
     }
 

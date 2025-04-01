@@ -3,8 +3,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import com.microsoft.graph.options.Option;
-import com.microsoft.graph.options.QueryOption;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -114,22 +114,22 @@ public class MeetingDaoImplTest {
         assertNotNull(options);
         assertEquals(4, options.size());
 
-        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of("UTC"));
-        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of("UTC"));
+        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of(Constants.UTC));
         String expectedStartTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         String expectedEndTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         boolean hasStartTime = options.stream()
-                .anyMatch(option -> option.getName().equals("startDateTime") && option.getValue().equals(expectedStartTime));
+                .anyMatch(option -> option.getName().equals(Constants.START_DATE_TIME) && option.getValue().equals(expectedStartTime));
 
         boolean hasEndTime = options.stream()
-                .anyMatch(option -> option.getName().equals("endDateTime") && option.getValue().equals(expectedEndTime));
+                .anyMatch(option -> option.getName().equals(Constants.END_DATE_TIME) && option.getValue().equals(expectedEndTime));
 
         boolean hasTop = options.stream()
-                .anyMatch(option -> option.getName().equals("$top") && option.getValue().equals("100"));
+                .anyMatch(option -> option.getName().equals(Constants.TOP) && option.getValue().equals("100"));
 
         boolean hasOrderBy = options.stream()
-                .anyMatch(option -> option.getName().equals("$orderby") && option.getValue().equals("start/dateTime asc"));
+                .anyMatch(option -> option.getName().equals(Constants.ORDER_BY) && option.getValue().equals("start/dateTime asc"));
 
         assertTrue("startDateTime not found in options", hasStartTime);
         assertTrue("endDateTime not found in options", hasEndTime);
