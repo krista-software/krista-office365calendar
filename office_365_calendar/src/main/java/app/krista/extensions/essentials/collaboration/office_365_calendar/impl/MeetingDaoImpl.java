@@ -220,7 +220,7 @@ public class MeetingDaoImpl implements MeetingDao {
                     .users(userEmail)
                     .calendarView()
                     .buildRequest(options)
-                    .select("subject,start,end,organizer,location,attendees,body,bodyPreview,isAllDay,id,type,recurrence")
+                    .select("id,subject,start,end,location,attendees")
                     .get();
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
