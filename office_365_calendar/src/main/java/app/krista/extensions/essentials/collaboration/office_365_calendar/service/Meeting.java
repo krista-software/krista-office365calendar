@@ -51,4 +51,11 @@ public interface Meeting {
      * @return the end date and time of the meeting
      */
     Long getDateTo();
+
+    /**
+     * Returns the timezone of the Office 365 calendar event
+     *
+     * @return location of the meeting
+     */
+    String getTimezone();
 }

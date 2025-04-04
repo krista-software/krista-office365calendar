@@ -13,6 +13,8 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.Option;
+import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,8 +27,13 @@ import javax.xml.datatype.Duration;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
@@ -206,17 +213,33 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @Override
-    public List<Meeting> getEventsForUser(String userEmail, Long from, Long to) {
+    public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
-            String startTime = buildDateTimeTimeZone(from, null, clientTimeZone).dateTime;
-            String endTime = buildDateTimeTimeZone(to, null, clientTimeZone).dateTime;
+            ZoneId userZone = ZoneId.of(clientTimeZone);
+            List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
+
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
-                    .users(userEmail).events().buildRequest()
-                    .filter("start/dateTime ge '" + startTime + "' and end/dateTime le '" + endTime + "'")
+                    .users(userEmail)
+                    .calendarView()
+                    .buildRequest(options)
+                    .select("id,subject,start,end,location,attendees,originalStartTimeZone")
                     .get();
+
             List<Meeting> eventDetails = new ArrayList<>();
             if (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
+
+                    event.originalStartTimeZone = String.valueOf(userZone);
+
+                    String normalizedStart = normalizeDateTime(event.start.dateTime);
+                    String normalizedEnd = normalizeDateTime(event.end.dateTime);
+
+                    ZonedDateTime userStartTime = ZonedDateTime.parse(normalizedStart).withZoneSameInstant(userZone);
+                    ZonedDateTime userEndTime = ZonedDateTime.parse(normalizedEnd).withZoneSameInstant(userZone);
+
+                    event.start.dateTime = userStartTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                    event.end.dateTime = userEndTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
                     eventDetails.add(new MeetingImpl(event));
                 }
             }
@@ -228,6 +251,30 @@ public class MeetingDaoImpl implements MeetingDao {
             }
             throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
         }
+    }
+
+    private String normalizeDateTime(String DateTime) {
+        if (DateTime == null) return null;
+        return DateTime.split("\\.")[0] + "Z";
+    }
+
+    @NotNull
+    public static List<Option> getTimeRangeQueryOptions(Long startTimestamp, Long endTimestamp) {
+        if (startTimestamp == null || endTimestamp == null) {
+            throw new IllegalArgumentException("Timestamps cannot be null");
+        }
+
+        ZonedDateTime fromUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTimestamp), ZoneOffset.UTC);
+        ZonedDateTime toUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTimestamp), ZoneOffset.UTC);
+        String startTime = fromUtc.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String endTime = toUtc.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        List<Option> options = new ArrayList<>();
+        options.add(new QueryOption(Constants.START_DATE_TIME, startTime));
+        options.add(new QueryOption(Constants.END_DATE_TIME, endTime));
+        options.add(new QueryOption(Constants.TOP, "1000"));
+        options.add(new QueryOption(Constants.ORDER_BY, "start/dateTime asc"));
+
+        return options;
     }
 
     @NotNull

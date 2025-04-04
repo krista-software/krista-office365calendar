@@ -58,7 +58,11 @@ public final class Constants {
 
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
     public static final String FAILED_TO_GET_USER_EVENTS = "Failed to get user events. ";
-
+    public static final String UTC = "UTC";
+    public static final String START_DATE_TIME = "startDateTime";
+    public static final String END_DATE_TIME = "endDateTime";
+    public static final String TOP = "$top";
+    public static final String ORDER_BY = "$orderby";
 
     private Constants() {
     }

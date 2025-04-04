@@ -83,4 +83,9 @@ public class MeetingImpl implements Meeting {
             throw new IllegalStateException("Date :" + dateToParse.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
         }
     }
+
+    @Override
+    public String getTimezone() {
+        return event.originalStartTimeZone != null ? event.originalStartTimeZone : null;
+    }
 }
