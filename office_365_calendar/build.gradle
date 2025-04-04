@@ -9,8 +9,8 @@ compileJava.dependsOn clean
 
 System.setProperty("extensionVersion", version.toString())
 
-sourceCompatibility = '11'
-targetCompatibility = '11'
+sourceCompatibility = '21'
+targetCompatibility = '21'
 
 repositories {
     mavenLocal()

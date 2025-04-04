@@ -109,7 +109,7 @@ public class MeetingDaoImplTest {
     public void testGetOptions_ValidTimestamps() {
         Long from = 1700000000000L;
         Long to = 1700000005000L;
-        List<Option> options = MeetingDaoImpl.getOptions(from, to);
+        List<Option> options = MeetingDaoImpl.getTimeRangeQueryOptions(from, to);
 
         assertNotNull(options);
         assertEquals(4, options.size());
@@ -126,7 +126,7 @@ public class MeetingDaoImplTest {
                 .anyMatch(option -> option.getName().equals(Constants.END_DATE_TIME) && option.getValue().equals(expectedEndTime));
 
         boolean hasTop = options.stream()
-                .anyMatch(option -> option.getName().equals(Constants.TOP) && option.getValue().equals("100"));
+                .anyMatch(option -> option.getName().equals(Constants.TOP) && option.getValue().equals("1000"));
 
         boolean hasOrderBy = options.stream()
                 .anyMatch(option -> option.getName().equals(Constants.ORDER_BY) && option.getValue().equals("start/dateTime asc"));
@@ -139,11 +139,11 @@ public class MeetingDaoImplTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetOptions_NullFromValue() {
-        MeetingDaoImpl.getOptions(null, 1700000005000L);
+        MeetingDaoImpl.getTimeRangeQueryOptions(null, 1700000005000L);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetOptions_NullToValue() {
-        MeetingDaoImpl.getOptions(1700000000000L, null);
+        MeetingDaoImpl.getTimeRangeQueryOptions(1700000000000L, null);
     }
 }

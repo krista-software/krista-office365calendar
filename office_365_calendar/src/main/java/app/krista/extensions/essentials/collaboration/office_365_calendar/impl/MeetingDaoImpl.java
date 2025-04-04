@@ -214,7 +214,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
-            List<Option> options = getOptions(fromDate, toDate);
+            List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
@@ -240,7 +240,7 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @NotNull
-    public static List<Option> getOptions(Long startTimestamp, Long endTimestamp) {
+    public static List<Option> getTimeRangeQueryOptions(Long startTimestamp, Long endTimestamp) {
         List<Option> options = new ArrayList<>();
         if (startTimestamp == null || endTimestamp == null) {
             throw new IllegalArgumentException("Timestamps cannot be null");
@@ -252,7 +252,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
         options.add(new QueryOption(Constants.START_DATE_TIME, startTime));
         options.add(new QueryOption(Constants.END_DATE_TIME, endTime));
-        options.add(new QueryOption(Constants.TOP, "100"));
+        options.add(new QueryOption(Constants.TOP, "1000"));
         options.add(new QueryOption(Constants.ORDER_BY, "start/dateTime asc"));
         return options;
     }
