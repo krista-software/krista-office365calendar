@@ -2,10 +2,7 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar;
 
 import app.krista.extension.authorization.RequestAuthenticator;
 import app.krista.extension.executor.Invoker;
-import app.krista.extension.impl.anno.Extension;
-import app.krista.extension.impl.anno.Field;
-import app.krista.extension.impl.anno.InvokerRequest;
-import app.krista.extension.impl.anno.StaticResource;
+import app.krista.extension.impl.anno.*;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Validators;
@@ -19,8 +16,9 @@ import java.util.Map;
 @Field.Text(value = Office365CalendarAttributes.TENANT_ID, isSecured = true)
 @Field.Text(value = Office365CalendarAttributes.EMAIL)
 @Field.Text(value = Office365CalendarAttributes.TIMEZONE)
-@Extension(version = "2.0.11")
+@Extension(version = "2.0.12-rc1")
 @StaticResource(path = "docs", file = "docs")
+@Java(version = Java.Version.JAVA_21)
 public final class Office365CalendarExtension {
 
     private final Invoker invoker;

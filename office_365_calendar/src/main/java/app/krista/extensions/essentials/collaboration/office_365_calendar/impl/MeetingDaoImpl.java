@@ -13,6 +13,8 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.Option;
+import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,8 +27,12 @@ import javax.xml.datatype.Duration;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
@@ -206,19 +212,22 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     @Override
-    public List<Meeting> getEventsForUser(String userEmail, Long from, Long to) {
+    public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
-            String startTime = buildDateTimeTimeZone(from, null, clientTimeZone).dateTime;
-            String endTime = buildDateTimeTimeZone(to, null, clientTimeZone).dateTime;
+            List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
+
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
-                    .users(userEmail).events().buildRequest()
-                    .filter("start/dateTime ge '" + startTime + "' and end/dateTime le '" + endTime + "'")
+                    .users(userEmail)
+                    .calendarView()
+                    .buildRequest(options)
+                    .select("id,subject,start,end,location,attendees")
                     .get();
             List<Meeting> eventDetails = new ArrayList<>();
-            if (eventCollection != null) {
+            while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
                     eventDetails.add(new MeetingImpl(event));
                 }
+                eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
             }
             return eventDetails;
         } catch (GraphServiceException cause) {
@@ -228,6 +237,24 @@ public class MeetingDaoImpl implements MeetingDao {
             }
             throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
         }
+    }
+
+    @NotNull
+    public static List<Option> getTimeRangeQueryOptions(Long startTimestamp, Long endTimestamp) {
+        List<Option> options = new ArrayList<>();
+        if (startTimestamp == null || endTimestamp == null) {
+            throw new IllegalArgumentException("Timestamps cannot be null");
+        }
+        ZonedDateTime startZoned = Instant.ofEpochMilli(startTimestamp).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(endTimestamp).atZone(ZoneId.of(Constants.UTC));
+        String startTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String endTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+        options.add(new QueryOption(Constants.START_DATE_TIME, startTime));
+        options.add(new QueryOption(Constants.END_DATE_TIME, endTime));
+        options.add(new QueryOption(Constants.TOP, "1000"));
+        options.add(new QueryOption(Constants.ORDER_BY, "start/dateTime asc"));
+        return options;
     }
 
     @NotNull

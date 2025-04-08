@@ -3,6 +3,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import com.microsoft.graph.options.Option;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -12,7 +14,13 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+
+import static org.junit.Assert.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MeetingDaoImplTest {
@@ -95,5 +103,47 @@ public class MeetingDaoImplTest {
     @Test(expected = IllegalArgumentException.class)
     public void testGetQueryResults() {
         meetingDaoImpl.getQueryResults(null);
+    }
+
+    @Test
+    public void testGetOptions_ValidTimestamps() {
+        Long from = 1700000000000L;
+        Long to = 1700000005000L;
+        List<Option> options = MeetingDaoImpl.getTimeRangeQueryOptions(from, to);
+
+        assertNotNull(options);
+        assertEquals(4, options.size());
+
+        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of(Constants.UTC));
+        String expectedStartTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String expectedEndTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+        boolean hasStartTime = options.stream()
+                .anyMatch(option -> option.getName().equals(Constants.START_DATE_TIME) && option.getValue().equals(expectedStartTime));
+
+        boolean hasEndTime = options.stream()
+                .anyMatch(option -> option.getName().equals(Constants.END_DATE_TIME) && option.getValue().equals(expectedEndTime));
+
+        boolean hasTop = options.stream()
+                .anyMatch(option -> option.getName().equals(Constants.TOP) && option.getValue().equals("1000"));
+
+        boolean hasOrderBy = options.stream()
+                .anyMatch(option -> option.getName().equals(Constants.ORDER_BY) && option.getValue().equals("start/dateTime asc"));
+
+        assertTrue("startDateTime not found in options", hasStartTime);
+        assertTrue("endDateTime not found in options", hasEndTime);
+        assertTrue("$top not found in options", hasTop);
+        assertTrue("$orderby not found in options", hasOrderBy);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetOptions_NullFromValue() {
+        MeetingDaoImpl.getTimeRangeQueryOptions(null, 1700000005000L);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetOptions_NullToValue() {
+        MeetingDaoImpl.getTimeRangeQueryOptions(1700000000000L, null);
     }
 }

@@ -26,7 +26,6 @@ public final class MeetingDaoHelper {
     public static final String RELATIVE_RECURRENCE = "Relative recurrence";
     public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
     public static final String YYYY_MM_DD_T_HH_MM_SS = "yyyy-MM-dd'T'HH:mm:ss";
-    public static final String UTC = "UTC";
     public static final String INVALID_TIME_ZONE_PLEASE_PROVIDE_A_VALID_TIME_ZONE = "Invalid time zone. Please provide a valid time zone.";
 
     private MeetingDaoHelper() {
@@ -114,7 +113,7 @@ public final class MeetingDaoHelper {
      * @return time stamp
      */
     private static long getCurrentDateCorrespondingToUTCTZ() {
-        ZoneId sourceTimeZone = ZoneId.ofOffset(UTC, ZoneOffset.UTC);
+        ZoneId sourceTimeZone = ZoneId.ofOffset(Constants.UTC, ZoneOffset.UTC);
         return new Date().toInstant().atZone(sourceTimeZone).toEpochSecond();
     }
 
@@ -511,7 +510,7 @@ public final class MeetingDaoHelper {
     }
 
     public static long convertDateTimeToEpochInTimeZone(String date, String timeZone) throws ParseException {
-        Date parsedDate = convertStringDate(date, YYYY_MM_DD_HH_MM_SS, UTC);
+        Date parsedDate = convertStringDate(date, YYYY_MM_DD_HH_MM_SS, Constants.UTC);
         try {
             ZoneId zoneId = ZoneId.of(timeZone);
             ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
@@ -562,7 +561,7 @@ public final class MeetingDaoHelper {
         Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, timeZone);
 
         try {
-            ZoneId zoneId = ZoneId.of(UTC);
+            ZoneId zoneId = ZoneId.of(Constants.UTC);
             ZonedDateTime zonedDateTime = parsedDate.toInstant().atZone(zoneId);
             DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
             return zonedDateTime.format(outputFormatter);
@@ -575,7 +574,7 @@ public final class MeetingDaoHelper {
 
     public static String convertUTCDateTimeToTimeZone(String date, String timeZone) throws ParseException {
 
-        Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, UTC);
+        Date parsedDate = convertStringDate(date, YYYY_MM_DD_T_HH_MM_SS, Constants.UTC);
 
         try {
             ZoneId zoneId = ZoneId.of(timeZone);
