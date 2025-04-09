@@ -57,5 +57,5 @@ public interface Meeting {
      *
      * @return location of the meeting
      */
-    String getTimezone();
+    String getTimeZone();
 }
