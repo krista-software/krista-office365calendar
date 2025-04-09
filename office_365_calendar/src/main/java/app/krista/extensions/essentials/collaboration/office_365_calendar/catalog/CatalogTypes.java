@@ -47,6 +47,7 @@ public final class CatalogTypes {
         eventDetails.contacts = meeting.getContacts();
         eventDetails.location = meeting.getLocation();
         eventDetails.timeZone = meeting.getTimeZone();
+        eventDetails.organizer = meeting.getOrganizer();
         return eventDetails;
     }
 

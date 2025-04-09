@@ -58,4 +58,11 @@ public interface Meeting {
      * @return location of the meeting
      */
     String getTimeZone();
+
+    /**
+     * Returns the organizer of the Office 365 calendar event
+     *
+     * @return meeting organizer's email
+     */
+    String getOrganizer();
 }

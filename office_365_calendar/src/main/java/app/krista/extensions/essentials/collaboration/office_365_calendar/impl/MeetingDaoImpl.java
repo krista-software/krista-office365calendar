@@ -31,11 +31,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -226,7 +222,7 @@ public class MeetingDaoImpl implements MeetingDao {
                     .users(userEmail)
                     .calendarView()
                     .buildRequest(options)
-                    .select("id,subject,start,end,location,attendees,originalStartTimeZone")
+                    .select("id,subject,start,end,location,attendees,originalStartTimeZone, organizer")
                     .get();
 
             List<Meeting> eventDetails = new ArrayList<>();

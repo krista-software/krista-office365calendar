@@ -88,4 +88,12 @@ public class MeetingImpl implements Meeting {
     public String getTimeZone() {
         return event.originalStartTimeZone != null ? event.originalStartTimeZone : null;
     }
+
+    @Override
+    public String getOrganizer() {
+        if (event.organizer != null && event.organizer.emailAddress != null) {
+            return event.organizer.emailAddress.address;
+        }
+        return null;
+    }
 }

@@ -37,4 +37,7 @@ public class EventDetails {
     @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {})
     public String timeZone;
 
+    @Field.Text(name = "Organizer", attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {})
+    public String organizer;
+
 }

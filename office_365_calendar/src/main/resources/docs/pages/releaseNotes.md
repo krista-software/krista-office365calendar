@@ -9,8 +9,7 @@
 
 ### Resolved Bugs
 
-* [KE-1948] Office 365 calendar: Add original timezone to Event Details.
-
+* [KE-1948] Office 365 calendar: Add original timezone and organizer to Event Details.
 
 ### Known Issues
 
