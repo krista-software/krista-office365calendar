@@ -226,7 +226,7 @@ public class MeetingDaoImpl implements MeetingDao {
                     .get();
 
             List<Meeting> eventDetails = new ArrayList<>();
-            if (eventCollection != null) {
+            while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
 
                     event.originalStartTimeZone = String.valueOf(userZone);
@@ -242,6 +242,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
                     eventDetails.add(new MeetingImpl(event));
                 }
+                eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
             }
             return eventDetails;
         } catch (GraphServiceException cause) {
