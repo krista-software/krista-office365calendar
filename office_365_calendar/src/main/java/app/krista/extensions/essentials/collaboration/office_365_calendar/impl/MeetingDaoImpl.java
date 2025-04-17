@@ -13,6 +13,7 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.HeaderOption;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
@@ -31,7 +32,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -217,6 +217,11 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             ZoneId userZone = ZoneId.of(clientTimeZone);
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
+            ZoneId currentZone = ZoneId.systemDefault();
+            String currentTimeZone = currentZone.getId();
+            if (clientTimeZone.equals(currentTimeZone)) {
+                options.add(new HeaderOption("Prefer", "outlook.timezone=\"" + clientTimeZone + "\""));
+            }
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
@@ -228,18 +233,7 @@ public class MeetingDaoImpl implements MeetingDao {
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
-
                     event.originalStartTimeZone = String.valueOf(userZone);
-
-                    String normalizedStart = normalizeDateTime(event.start.dateTime);
-                    String normalizedEnd = normalizeDateTime(event.end.dateTime);
-
-                    ZonedDateTime userStartTime = ZonedDateTime.parse(normalizedStart).withZoneSameInstant(userZone);
-                    ZonedDateTime userEndTime = ZonedDateTime.parse(normalizedEnd).withZoneSameInstant(userZone);
-
-                    event.start.dateTime = userStartTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-                    event.end.dateTime = userEndTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-
                     eventDetails.add(new MeetingImpl(event));
                 }
                 eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
@@ -254,27 +248,21 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private String normalizeDateTime(String DateTime) {
-        if (DateTime == null) return null;
-        return DateTime.split("\\.")[0] + "Z";
-    }
-
     @NotNull
     public static List<Option> getTimeRangeQueryOptions(Long startTimestamp, Long endTimestamp) {
+        List<Option> options = new ArrayList<>();
         if (startTimestamp == null || endTimestamp == null) {
             throw new IllegalArgumentException("Timestamps cannot be null");
         }
+        ZonedDateTime startZoned = Instant.ofEpochMilli(startTimestamp).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(endTimestamp).atZone(ZoneId.of(Constants.UTC));
+        String startTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String endTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-        ZonedDateTime fromUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTimestamp), ZoneOffset.UTC);
-        ZonedDateTime toUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTimestamp), ZoneOffset.UTC);
-        String startTime = fromUtc.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        String endTime = toUtc.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        List<Option> options = new ArrayList<>();
         options.add(new QueryOption(Constants.START_DATE_TIME, startTime));
         options.add(new QueryOption(Constants.END_DATE_TIME, endTime));
         options.add(new QueryOption(Constants.TOP, "1000"));
         options.add(new QueryOption(Constants.ORDER_BY, "start/dateTime asc"));
-
         return options;
     }
 

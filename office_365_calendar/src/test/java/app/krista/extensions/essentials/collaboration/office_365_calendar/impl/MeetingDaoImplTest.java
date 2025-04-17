@@ -15,7 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -115,9 +115,8 @@ public class MeetingDaoImplTest {
         assertNotNull(options);
         assertEquals(4, options.size());
 
-        ZonedDateTime startZoned = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startTimestamp), ZoneOffset.UTC);
-        ZonedDateTime endZoned = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endTimestamp), ZoneOffset.UTC);
-
+        ZonedDateTime startZoned = Instant.ofEpochMilli(startTimestamp).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(endTimestamp).atZone(ZoneId.of(Constants.UTC));
         String expectedStartTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         String expectedEndTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
