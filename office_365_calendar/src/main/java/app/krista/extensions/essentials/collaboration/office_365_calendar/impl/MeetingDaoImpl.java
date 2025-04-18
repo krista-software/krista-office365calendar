@@ -215,7 +215,6 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
-            ZoneId userZone = ZoneId.of(clientTimeZone);
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
             ZoneId currentZone = ZoneId.systemDefault();
             String currentTimeZone = currentZone.getId();
@@ -233,7 +232,7 @@ public class MeetingDaoImpl implements MeetingDao {
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
-                    event.originalStartTimeZone = String.valueOf(userZone);
+                    event.originalStartTimeZone =  clientTimeZone;
                     eventDetails.add(new MeetingImpl(event));
                 }
                 eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
