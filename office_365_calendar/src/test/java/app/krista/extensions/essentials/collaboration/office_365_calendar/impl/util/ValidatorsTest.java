@@ -1,6 +1,5 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util;
 
-import app.krista.extension.executor.Invoker;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import org.junit.Test;
 
