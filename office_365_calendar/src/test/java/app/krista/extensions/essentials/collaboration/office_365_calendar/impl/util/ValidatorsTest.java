@@ -1,9 +1,13 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util;
 
+import app.krista.extension.executor.Invoker;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
+
+import static org.mockito.Mockito.*;
 
 public class ValidatorsTest {
 
@@ -36,4 +40,11 @@ public class ValidatorsTest {
     public void testInvalidWeeklyRecurrence() {
         Validators.validateRecurrenceValues("Weekly", List.of(), "Absolute Recurrence", null, null);
     }
+    @Test
+    public void testValidateAttributes_UsesLatestTimeZone() throws IOException {
+        Office365CalendarAttributes attributes = mock(Office365CalendarAttributes.class);
+        when(attributes.getTimeZone()).thenReturn("America/Phoenix");
+        Validators.validateTimeZone("America/Phoenix");
+    }
+
 }
