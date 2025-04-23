@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.Assert.*;
 
@@ -106,30 +107,30 @@ public class MeetingDaoImplTest {
     }
 
     @Test
-    public void testGetOptions_ValidTimestamps() {
-        Long from = 1700000000000L;
-        Long to = 1700000005000L;
-        List<Option> options = MeetingDaoImpl.getTimeRangeQueryOptions(from, to);
+    public void testGetTimeRangeQueryOptions() {
+        long startTimestamp = 1700000000000L;
+        long endTimestamp = 1700000005000L;
+        List<Option> options = MeetingDaoImpl.getTimeRangeQueryOptions(startTimestamp, endTimestamp);
 
         assertNotNull(options);
         assertEquals(4, options.size());
 
-        ZonedDateTime startZoned = Instant.ofEpochMilli(from).atZone(ZoneId.of(Constants.UTC));
-        ZonedDateTime endZoned = Instant.ofEpochMilli(to).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime startZoned = Instant.ofEpochMilli(startTimestamp).atZone(ZoneId.of(Constants.UTC));
+        ZonedDateTime endZoned = Instant.ofEpochMilli(endTimestamp).atZone(ZoneId.of(Constants.UTC));
         String expectedStartTime = startZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         String expectedEndTime = endZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         boolean hasStartTime = options.stream()
-                .anyMatch(option -> option.getName().equals(Constants.START_DATE_TIME) && option.getValue().equals(expectedStartTime));
+                .anyMatch(option -> option.getName().equals(Constants.START_DATE_TIME) && Objects.equals(option.getValue(), expectedStartTime));
 
         boolean hasEndTime = options.stream()
-                .anyMatch(option -> option.getName().equals(Constants.END_DATE_TIME) && option.getValue().equals(expectedEndTime));
+                .anyMatch(option -> option.getName().equals(Constants.END_DATE_TIME) && Objects.equals(option.getValue(), expectedEndTime));
 
         boolean hasTop = options.stream()
-                .anyMatch(option -> option.getName().equals(Constants.TOP) && option.getValue().equals("1000"));
+                .anyMatch(option -> option.getName().equals(Constants.TOP) && Objects.equals(option.getValue(), "1000"));
 
         boolean hasOrderBy = options.stream()
-                .anyMatch(option -> option.getName().equals(Constants.ORDER_BY) && option.getValue().equals("start/dateTime asc"));
+                .anyMatch(option -> option.getName().equals(Constants.ORDER_BY) && Objects.equals(option.getValue(), "start/dateTime asc"));
 
         assertTrue("startDateTime not found in options", hasStartTime);
         assertTrue("endDateTime not found in options", hasEndTime);
@@ -138,12 +139,12 @@ public class MeetingDaoImplTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetOptions_NullFromValue() {
+    public void testGetTimeRangeQueryOptions_NullFromValue() {
         MeetingDaoImpl.getTimeRangeQueryOptions(null, 1700000005000L);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetOptions_NullToValue() {
+    public void testGetTimeRangeQueryOptions_NullToValue() {
         MeetingDaoImpl.getTimeRangeQueryOptions(1700000000000L, null);
     }
 }

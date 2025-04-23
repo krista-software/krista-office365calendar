@@ -13,6 +13,7 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
+import com.microsoft.graph.options.HeaderOption;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
@@ -215,16 +216,23 @@ public class MeetingDaoImpl implements MeetingDao {
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
+            ZoneId currentZone = ZoneId.systemDefault();
+            String currentTimeZone = currentZone.getId();
+            if (clientTimeZone.equals(currentTimeZone)) {
+                options.add(new HeaderOption("Prefer", "outlook.timezone=\"" + clientTimeZone + "\""));
+            }
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
                     .calendarView()
                     .buildRequest(options)
-                    .select("id,subject,start,end,location,attendees")
+                    .select("id,subject,start,end,location,body,attendees,originalStartTimeZone, organizer")
                     .get();
+
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
+                    event.originalStartTimeZone =  clientTimeZone;
                     eventDetails.add(new MeetingImpl(event));
                 }
                 eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
