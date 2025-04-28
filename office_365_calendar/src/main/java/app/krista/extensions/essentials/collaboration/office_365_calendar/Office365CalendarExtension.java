@@ -16,7 +16,7 @@ import java.util.Map;
 @Field.Text(value = Office365CalendarAttributes.TENANT_ID, isSecured = true)
 @Field.Text(value = Office365CalendarAttributes.EMAIL)
 @Field.Text(value = Office365CalendarAttributes.TIMEZONE)
-@Extension(version = "2.0.12-rc2")
+@Extension(version = "2.0.12-rc4")
 @Java(version = Java.Version.JAVA_21)
 @StaticResource(path = "docs", file = "docs")
 public final class Office365CalendarExtension {

@@ -43,7 +43,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
     public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
-    private final String clientTimeZone;
+    private final Office365CalendarAttributes office365CalendarAttributes;
 
 
     @Inject
@@ -53,7 +53,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
     public MeetingDaoImpl(GraphServiceClientProvider clientProvider, Office365CalendarAttributes office365CalendarAttributes) {
         this.clientProvider = clientProvider;
-        this.clientTimeZone = office365CalendarAttributes.getTimeZone();
+        this.office365CalendarAttributes = office365CalendarAttributes;
     }
 
     @NotNull
@@ -96,7 +96,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public List<Meeting> getMeetings() {
         try {
-            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, office365CalendarAttributes.getTimeZone()).dateTime;
             EventCollectionPage eventCollection = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").get();
             List<Meeting> eventDetails = new ArrayList<>();
             if (eventCollection != null) {
@@ -127,8 +127,8 @@ public class MeetingDaoImpl implements MeetingDao {
                 .getSchedule(CalendarGetScheduleParameterSet
                         .newBuilder()
                         .withSchedules(schedulesList)
-                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone))
-                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone))
+                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone()))
+                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone()))
                         .build())
                 .buildRequest()
                 .post();
@@ -181,7 +181,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 throw new IllegalArgumentException(Constants.NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0);
             }
             List<Meeting> eventDetails = new ArrayList<>();
-            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, clientTimeZone).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, office365CalendarAttributes.getTimeZone()).dateTime;
             EventCollectionPage eventCollPage = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").top(numberOfMeetings).get();
             if (eventCollPage != null && !eventCollPage.getCurrentPage().isEmpty()) {
                 for (Event event : eventCollPage.getCurrentPage()) {
@@ -207,7 +207,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         if (searchEntityQueryCollectionPage != null && !searchEntityQueryCollectionPage.getCurrentPage().isEmpty()) {
 
-            searchHits = getResultFromSearchResponse(searchEntityQueryCollectionPage.getCurrentPage().get(0));
+            searchHits = getResultFromSearchResponse(searchEntityQueryCollectionPage.getCurrentPage().getFirst());
         }
         return searchHits;
     }
@@ -218,8 +218,9 @@ public class MeetingDaoImpl implements MeetingDao {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
             ZoneId currentZone = ZoneId.systemDefault();
             String currentTimeZone = currentZone.getId();
-            if (clientTimeZone.equals(currentTimeZone)) {
-                options.add(new HeaderOption("Prefer", "outlook.timezone=\"" + clientTimeZone + "\""));
+           String timeZone =  office365CalendarAttributes.getTimeZone();
+            if (timeZone.equals(currentTimeZone)) {
+                options.add(new HeaderOption("Prefer", "outlook.timezone=\"" + timeZone + "\""));
             }
 
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
@@ -232,7 +233,7 @@ public class MeetingDaoImpl implements MeetingDao {
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
-                    event.originalStartTimeZone =  clientTimeZone;
+                    event.originalStartTimeZone =  timeZone;
                     eventDetails.add(new MeetingImpl(event));
                 }
                 eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
@@ -271,7 +272,7 @@ public class MeetingDaoImpl implements MeetingDao {
         if (searchResponse.hitsContainers == null || searchResponse.hitsContainers.isEmpty()) {
             throw new IllegalStateException(Constants.SEARCH_RESPONSE_IS_EMPTY);
         } else {
-            final SearchHitsContainer searchHitsContainer = searchResponse.hitsContainers.get(0);
+            final SearchHitsContainer searchHitsContainer = searchResponse.hitsContainers.getFirst();
             if (searchHitsContainer.hits != null) {
                 int numberOfHits = searchHitsContainer.hits.size();
                 numberOfHits = Math.min(numberOfHits, MAX_SIZE);
@@ -371,8 +372,8 @@ public class MeetingDaoImpl implements MeetingDao {
         timeConstraint.activityDomain = ActivityDomain.WORK;
         LinkedList<TimeSlot> timeSlotsList = new LinkedList<>();
         TimeSlot timeSlots = new TimeSlot();
-        timeSlots.start = buildDateTimeTimeZone(dateFrom, timeZone, clientTimeZone);
-        timeSlots.end = buildDateTimeTimeZone(dateTo, timeZone, clientTimeZone);
+        timeSlots.start = buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone());
+        timeSlots.end = buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone());
         timeSlotsList.add(timeSlots);
         timeConstraint.timeSlots = timeSlotsList;
 
@@ -401,7 +402,7 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
-            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
             Event newEvent = getCalendarRequestBuilder().events()
                     .buildRequest()
@@ -442,7 +443,7 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
-            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
             Event oldEvent = getCalendarRequestBuilder().events(id)
                     .buildRequest()
                     .get();
@@ -468,7 +469,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 if (oldEvent.body != null && oldEvent.body.content != null) {
                     result = oldEvent.body.content.split(String.valueOf(regex), 3);
                 }
-                event.body = MeetingDaoHelper.getItemBody(result[0] + "" + result[2], Constants.HTML);
+                event.body = MeetingDaoHelper.getItemBody(result[0] + result[2], Constants.HTML);
             }
             event.changeKey = oldEvent.changeKey;
             event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
@@ -566,7 +567,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event event = new Event();
             CreateMeetingHelper.setEventSubject(title, event, isCreateEvent);
             CreateMeetingHelper.setEventBody(details, event);
-            CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, clientTimeZone, event);
+            CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, office365CalendarAttributes.getTimeZone(), event);
             CreateMeetingHelper.setEventLocation(location, event);
             CreateMeetingHelper.setEventAttendees(requiredAttendeeEmail, optionalAttendeeEmail, event);
             if (recurrenceValue != null && !recurrenceValue.isBlank()) {
@@ -592,7 +593,7 @@ public class MeetingDaoImpl implements MeetingDao {
             sfd.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date date = sfd.parse(dateToParse.dateTime);
             SimpleDateFormat customFormat = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            customFormat.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
+            customFormat.setTimeZone(TimeZone.getTimeZone(office365CalendarAttributes.getTimeZone()));
             Date newDate = customFormat.parse(customFormat.format(date));
             return newDate.getTime();
         } catch (ParseException parseException) {
