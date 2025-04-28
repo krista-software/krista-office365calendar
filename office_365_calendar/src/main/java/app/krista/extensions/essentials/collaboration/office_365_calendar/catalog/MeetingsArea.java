@@ -9,6 +9,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.M
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
 import com.microsoft.graph.http.GraphServiceException;
+import com.microsoft.graph.models.FileAttachment;
 
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -301,4 +302,40 @@ public final class MeetingsArea {
         return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
+    @CatalogRequest(
+            id = "localDomainRequest_1be1993a-8abe-4993-96cb-231025d92f13",
+            name = "Get Attachments for a given User",
+            description = "This request will return all attachments for a specific meeting for a given user given that the setup is done using a system account.",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
+    public List<File> getAttachmentsForAGivenUser(
+            @Field.Text(name = "User Email", required = true, attributes = {
+                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
+            @Field.Text(name = "Event ID", required = true, attributes = {
+                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
+        try {
+            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForGivenUser(userEmail, eventID);
+            return catalogTypes.fromAttachments(fileAttachments);
+        } catch (IllegalStateException e) {
+            throw new IllegalStateException("Failed to get attachments for event: " + e.getMessage(), e);
+        }
+    }
+
+    @CatalogRequest(
+            id = "localDomainRequest_a9483149-0a01-4f0f-b7a8-5ed475dc5871",
+            name = "Get Attachments",
+            description = "This request will return all attachments for a specific meeting for a current logged in user given that the setup is done using a system account.",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
+    public List<File> getAttachments(
+            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
+        try {
+            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+            return catalogTypes.fromAttachments(fileAttachments);
+        } catch (IllegalStateException e) {
+            throw new IllegalStateException("Failed to get attachments for event: " + e.getMessage(), e);
+        }
+    }
 }

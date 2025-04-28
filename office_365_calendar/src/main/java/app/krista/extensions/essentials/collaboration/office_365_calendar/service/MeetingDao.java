@@ -1,6 +1,7 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.service;
 
 import com.microsoft.graph.models.Attachment;
+import com.microsoft.graph.models.FileAttachment;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
@@ -194,4 +195,18 @@ public interface MeetingDao {
      * @return {@link List} of {@link Meeting}
      */
     List<Meeting> getEventsForUser(String userEmail, Long from, Long to);
+
+    /**
+     * This request will return the list of attachment for the event for given user.
+     *
+     * @param userEmail email of the user whose events need to be fetched
+     * @return {@link List} of {@link Attachment}
+     */
+    List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId);
+    /**
+     * This request will return the list of attachment for the event for current user.
+     *
+     * @return {@link List} of {@link Attachment}
+     */
+    List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId);
 }

@@ -13,13 +13,14 @@ import app.krista.model.base.DateRange;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
-import com.microsoft.graph.options.HeaderOption;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -44,7 +45,7 @@ public class MeetingDaoImpl implements MeetingDao {
     public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
     private final Office365CalendarAttributes office365CalendarAttributes;
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
 
     @Inject
     public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory, Office365CalendarAttributes office365CalendarAttributes) {
@@ -216,24 +217,16 @@ public class MeetingDaoImpl implements MeetingDao {
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
-            ZoneId currentZone = ZoneId.systemDefault();
-            String currentTimeZone = currentZone.getId();
-           String timeZone =  office365CalendarAttributes.getTimeZone();
-            if (timeZone.equals(currentTimeZone)) {
-                options.add(new HeaderOption("Prefer", "outlook.timezone=\"" + timeZone + "\""));
-            }
-
             EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
                     .users(userEmail)
                     .calendarView()
                     .buildRequest(options)
-                    .select("id,subject,start,end,location,body,attendees,originalStartTimeZone, organizer")
+                    .select("id,subject,start,end,location,body,attendees,originalStartTimeZone,originalEndTimeZone,organizer")
                     .get();
 
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
                 for (Event event : eventCollection.getCurrentPage()) {
-                    event.originalStartTimeZone =  timeZone;
                     eventDetails.add(new MeetingImpl(event));
                 }
                 eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
@@ -608,5 +601,107 @@ public class MeetingDaoImpl implements MeetingDao {
             sendResponse = Boolean.TRUE.equals(event.responseRequested);
         }
         return sendResponse;
+    }
+
+    @Override
+    public List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId) {
+        return fetchAttachments(userEmail, eventId, false);
+    }
+
+    @Override
+    public List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId) {
+        return fetchAttachments(null, eventId, true);
+    }
+
+    private List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
+        int maxRetries = 3;
+        long retryDelayMs = 1000;
+
+        for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
+            try {
+                return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
+            } catch (ClientException ex) {
+                if (!handleClientException(ex, retryCount, maxRetries, retryDelayMs)) {
+                    LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "Giving up after {} retries.", maxRetries);
+                    return Collections.emptyList();
+                }
+            }
+        }
+
+        LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "Max retries exceeded.");
+        return Collections.emptyList();
+    }
+
+    private List<FileAttachment> getFileAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
+        List<FileAttachment> fileAttachments = new ArrayList<>();
+        AttachmentCollectionPage attachmentCollection = buildAttachmentCollectionRequest(userEmail, eventId, isAuthenticatedUser);
+
+        while (attachmentCollection != null) {
+            for (Attachment attachment : attachmentCollection.getCurrentPage()) {
+                if (attachment instanceof FileAttachment) {
+                    fileAttachments.add((FileAttachment) attachment);
+                }
+            }
+            attachmentCollection = attachmentCollection.getNextPage() != null
+                    ? attachmentCollection.getNextPage().buildRequest().get()
+                    : null;
+        }
+        return fileAttachments;
+    }
+
+    private AttachmentCollectionPage buildAttachmentCollectionRequest(String userEmail, String eventId, boolean isAuthenticatedUser) {
+        if (isAuthenticatedUser) {
+            return clientProvider.getGraphServiceClient()
+                    .me()
+                    .events(eventId)
+                    .attachments()
+                    .buildRequest()
+                    .get();
+        } else {
+            return clientProvider.getGraphServiceClientForSystem()
+                    .users(userEmail)
+                    .events(eventId)
+                    .attachments()
+                    .buildRequest()
+                    .get();
+        }
+    }
+
+    private boolean handleClientException(ClientException ex, int retryCount, int maxRetries, long retryDelayMs) {
+        if (isTimeoutException(ex)) {
+            LOGGER.warn(Constants.TIMEOUT_OCCURRED + "Retrying request ({}/{})", retryCount + 1, maxRetries);
+            try {
+                Thread.sleep(retryDelayMs * (retryCount + 1));
+                return true;
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                LOGGER.warn(Constants.RETRY_WAS_INTERRUPTED + "{} ", ie.getMessage());
+                return false;
+            }
+        } else {
+            String errorMessage = extractErrorMessage(ex);
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", errorMessage);
+            return false;
+        }
+    }
+
+    private boolean isTimeoutException(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof java.net.SocketTimeoutException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    private String extractErrorMessage(ClientException cause) {
+        if (cause instanceof GraphServiceException gse) {
+            if (gse.getError() != null && gse.getError().error != null) {
+                return gse.getError().error.message;
+            }
+        }
+        return cause.getMessage();
     }
 }

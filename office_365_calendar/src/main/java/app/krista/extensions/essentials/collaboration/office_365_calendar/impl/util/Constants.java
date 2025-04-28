@@ -42,6 +42,10 @@ public final class Constants {
     public static final String STATE = "state";
     public static final String CALLBACK_URI = "/calendar/callback";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
+    public static final String FAILED_TO_GET_EVENT_ATTACHMENTS = "Failed to get event attachments " ;
+    public static final String RETRY_WAS_INTERRUPTED = "Retry was interrupted " ;
+    public static final String TIMEOUT_OCCURRED = "Timeout occurred. " ;
+    public static final String ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT = "Error occurred while processing attachment ";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
     private static final String OFFLINE_ACCESS = "offline_access";

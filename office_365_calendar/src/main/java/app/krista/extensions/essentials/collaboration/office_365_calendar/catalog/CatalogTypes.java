@@ -9,9 +9,12 @@ import com.google.gson.reflect.TypeToken;
 import com.microsoft.graph.models.Attachment;
 import com.microsoft.graph.models.FileAttachment;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
@@ -21,6 +24,8 @@ import java.util.List;
 
 @Service
 public final class CatalogTypes {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CatalogTypes.class);
     private final KristaMediaClient kristaMediaClient;
 
     @Inject
@@ -46,7 +51,7 @@ public final class CatalogTypes {
         eventDetails.dateTo = meeting.getDateTo();
         eventDetails.contacts = meeting.getContacts();
         eventDetails.location = meeting.getLocation();
-        eventDetails.timeZone = meeting.getTimeZone();
+        eventDetails.originalTimeZone = meeting.getTimeZone();
         eventDetails.organizer = meeting.getOrganizer();
         return eventDetails;
     }
@@ -128,5 +133,56 @@ public final class CatalogTypes {
      */
     private java.io.File getFileObject(File file) throws IOException {
         return kristaMediaClient.toJavaFile(file);
+    }
+
+    /**
+     * This function will convert a list of Microsoft Graph FileAttachments to a
+     * list of Krista Files
+     *
+     * @param fileAttachments List of Microsoft Graph {@link FileAttachment}
+     * @return List of {@link File} Krista File objects
+     */
+    public List<File> fromAttachments(List<FileAttachment> fileAttachments) {
+        if (fileAttachments == null || fileAttachments.isEmpty()) {
+            return List.of();
+        }
+
+        List<File> files = new ArrayList<>();
+        for (FileAttachment attachment : fileAttachments) {
+            File file = fromAttachment(attachment);
+            if (file != null) {
+                files.add(file);
+            }
+        }
+        return files;
+    }
+
+    /**
+     * This function will convert a Microsoft Graph FileAttachment to a Krista File
+     *
+     * @param fileAttachment Microsoft Graph {@link FileAttachment}
+     * @return {@link File} Krista File object
+     */
+    private File fromAttachment(FileAttachment fileAttachment) {
+        if (fileAttachment == null || fileAttachment.contentBytes == null) {
+            return null;
+        }
+
+        try {
+            java.io.File tempDir = new java.io.File(System.getProperty("java.io.tmpdir"));
+
+            assert fileAttachment.name != null;
+            java.io.File tempFile = new java.io.File(tempDir, fileAttachment.name);
+
+            try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
+                outputStream.write(fileAttachment.contentBytes);
+            } catch (IOException e) {
+                LOGGER.error("Error while writing attachment to temp file: {}", e.getMessage(), e);
+            }
+            tempFile.deleteOnExit();
+            return kristaMediaClient.toKristaFile(tempFile);
+        } catch (IOException e) {
+            throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT, e);
+        }
     }
 }
