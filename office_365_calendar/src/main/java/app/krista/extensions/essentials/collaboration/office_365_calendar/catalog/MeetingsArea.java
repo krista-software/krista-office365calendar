@@ -272,7 +272,6 @@ public final class MeetingsArea {
         }
     }
 
-
     @CatalogRequest(
             id = "localDomainRequest_c5aabea7-b876-471a-964c-37c154a1a5fe",
             name = "Search Events",
