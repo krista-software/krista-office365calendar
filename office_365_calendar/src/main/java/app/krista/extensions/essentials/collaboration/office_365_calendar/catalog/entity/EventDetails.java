@@ -34,8 +34,8 @@ public class EventDetails {
     @Field(name = "Date To", type = "Date", required = false, attributes = @Attribute(name = "includeTimeOfDay", value = "true"))
     public Long dateTo;
 
-    @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {})
-    public String timeZone;
+    @Field.Text(name = "Original Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {})
+    public String originalTimeZone;
 
     @Field.Text(name = "Organizer", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {})
     public String organizer;

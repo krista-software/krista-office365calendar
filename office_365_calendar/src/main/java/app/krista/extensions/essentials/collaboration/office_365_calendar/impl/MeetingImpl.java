@@ -10,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 public class MeetingImpl implements Meeting {
 
@@ -77,6 +78,7 @@ public class MeetingImpl implements Meeting {
     private long getDateInMilliSecond(DateTimeTimeZone dateToParse) {
         try {
             SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            sfd.setTimeZone(TimeZone.getTimeZone(dateToParse.timeZone));
             Date date = sfd.parse(dateToParse.dateTime);
             return date.getTime();
         } catch (ParseException parseException) {
@@ -85,7 +87,7 @@ public class MeetingImpl implements Meeting {
     }
 
     @Override
-    public String getTimeZone() {
+    public String getOriginalTimeZone() {
         return event.originalStartTimeZone != null ? event.originalStartTimeZone : null;
     }
 
