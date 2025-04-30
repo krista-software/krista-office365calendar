@@ -1,17 +1,16 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2.0.12
+### Version 2.0.13
 
 - **Developer Name** : Amruta Pawar
 - **Krista Service APIs Java** : 1.0.112
-- **Global Catalog Version** : GC-1.0.57
-- **Appliance Release Version** : 3.4.6
+- **Global Catalog Version** : GC-1.0.58
+- **Appliance Release Version** : 3.4.7
 
 ### Resolved Bugs
 
-* [KE-1945] Office 365 calendar: Get Events for a given User return partial results.
-* [KE-1948] Office 365 calendar: Add original timezone and organizer to Event Details.
-* [KE-1972] Office 365 calendar: Updated time zone is not saved successfully after validating attributes.
+* [KE-1996] Office 365 calendar: Create a new catalog request 'Get Attachments' for Office 365 Calendar.
+
 
 ### Known Issues
 
