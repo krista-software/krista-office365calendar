@@ -1,8 +1,8 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity;
 
-import app.krista.extension.impl.anno.*;
-
 import java.util.List;
+
+import app.krista.extension.impl.anno.*;
 
 @Domain(id = "catEntryDomain_5fa2fc97-4b17-44cf-b98f-aa91a459a091",
         name = "Collaboration",
@@ -34,8 +34,8 @@ public class EventDetails {
     @Field(name = "Date To", type = "Date", required = false, attributes = @Attribute(name = "includeTimeOfDay", value = "true"))
     public Long dateTo;
 
-    @Field.Text(name = "Original Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")})
-    public String originalTimeZone;
+    @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")})
+    public String timeZone;
 
     @Field.Text(name = "Organizer", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")})
     public String organizer;

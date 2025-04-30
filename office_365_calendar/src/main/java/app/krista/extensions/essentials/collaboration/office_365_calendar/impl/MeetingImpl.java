@@ -85,7 +85,7 @@ public class MeetingImpl implements Meeting {
     }
 
     @Override
-    public String getTimeZone() {
+    public String getOriginalTimeZone() {
         return event.originalStartTimeZone != null ? event.originalStartTimeZone : null;
     }
 
