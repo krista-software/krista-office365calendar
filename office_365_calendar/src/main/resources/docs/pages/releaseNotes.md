@@ -3,7 +3,7 @@
 ### Version 2.0.13
 
 - **Developer Name** : Amruta Pawar
-- **Krista Service APIs Java** : 1.0.112
+- **Krista Service APIs Java** : 1.0.113
 - **Global Catalog Version** : GC-1.0.58
 - **Appliance Release Version** : 3.4.7
 

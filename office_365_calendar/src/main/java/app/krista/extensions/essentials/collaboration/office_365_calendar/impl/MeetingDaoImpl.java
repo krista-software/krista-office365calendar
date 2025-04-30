@@ -621,8 +621,8 @@ public class MeetingDaoImpl implements MeetingDao {
         for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
             try {
                 return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
-            } catch (ClientException ex) {
-                if (!handleClientException(ex, retryCount, maxRetries, retryDelayMs)) {
+            } catch (ClientException cause) {
+                if (!handleClientException(cause, retryCount, maxRetries, retryDelayMs)) {
                     LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "Giving up after {} retries.", maxRetries);
                     return Collections.emptyList();
                 }
@@ -668,19 +668,19 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private boolean handleClientException(ClientException ex, int retryCount, int maxRetries, long retryDelayMs) {
-        if (isTimeoutException(ex)) {
-            LOGGER.warn(Constants.TIMEOUT_OCCURRED + "Retrying request ({}/{})", retryCount + 1, maxRetries);
+    private boolean handleClientException(ClientException cause, int retryCount, int maxRetries, long retryDelayMs) {
+        if (isTimeoutException(cause)) {
+            LOGGER.info(Constants.TIMEOUT_OCCURRED + "Retrying request ({}/{})", retryCount + 1, maxRetries);
             try {
                 Thread.sleep(retryDelayMs * (retryCount + 1));
                 return true;
-            } catch (InterruptedException ie) {
+            } catch (InterruptedException interruptedExceptionCause) {
                 Thread.currentThread().interrupt();
-                LOGGER.warn(Constants.RETRY_WAS_INTERRUPTED + "{} ", ie.getMessage());
+                LOGGER.info(Constants.RETRY_WAS_INTERRUPTED + "{} ", interruptedExceptionCause.getMessage());
                 return false;
             }
         } else {
-            String errorMessage = extractErrorMessage(ex);
+            String errorMessage = extractErrorMessage(cause);
             LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", errorMessage);
             return false;
         }
