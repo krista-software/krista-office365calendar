@@ -316,8 +316,8 @@ public final class MeetingsArea {
         try {
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForGivenUser(userEmail, eventID);
             return catalogTypes.fromAttachments(fileAttachments);
-        } catch (IllegalStateException e) {
-            throw new IllegalStateException("Failed to get attachments for event: " + e.getMessage(), e);
+        } catch (IllegalStateException cause) {
+            throw new IllegalStateException("Failed to get attachments for event: " + cause.getMessage(), cause);
         }
     }
 
@@ -333,8 +333,8 @@ public final class MeetingsArea {
         try {
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
             return catalogTypes.fromAttachments(fileAttachments);
-        } catch (IllegalStateException e) {
-            throw new IllegalStateException("Failed to get attachments for event: " + e.getMessage(), e);
+        } catch (IllegalStateException cause) {
+            throw new IllegalStateException("Failed to get attachments for event: " + cause.getMessage(), cause);
         }
     }
 }

@@ -176,13 +176,13 @@ public final class CatalogTypes {
 
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
                 outputStream.write(fileAttachment.contentBytes);
-            } catch (IOException e) {
-                LOGGER.error("Error while writing attachment to temp file: {}", e.getMessage(), e);
+            } catch (IOException cause) {
+                LOGGER.error("Error while writing attachment to temp file: {}", cause.getMessage(), cause);
             }
             tempFile.deleteOnExit();
             return kristaMediaClient.toKristaFile(tempFile);
-        } catch (IOException e) {
-            throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT, e);
+        } catch (IOException cause) {
+            throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT, cause);
         }
     }
 }
