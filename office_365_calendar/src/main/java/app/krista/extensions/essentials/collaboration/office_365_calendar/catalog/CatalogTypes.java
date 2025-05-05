@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public final class CatalogTypes {
@@ -149,7 +150,7 @@ public final class CatalogTypes {
 
         List<File> files = new ArrayList<>();
         for (FileAttachment attachment : fileAttachments) {
-            File file = fromAttachment(attachment);
+            File file = toKristaFile(attachment);
             if (file != null) {
                 files.add(file);
             }
@@ -163,23 +164,29 @@ public final class CatalogTypes {
      * @param fileAttachment Microsoft Graph {@link FileAttachment}
      * @return {@link File} Krista File object
      */
-    private File fromAttachment(FileAttachment fileAttachment) {
+    private File toKristaFile(FileAttachment fileAttachment) {
         if (fileAttachment == null || fileAttachment.contentBytes == null) {
             return null;
         }
 
+        java.io.File  tempFile;
         try {
             java.io.File tempDir = new java.io.File(System.getProperty("java.io.tmpdir"));
 
-            assert fileAttachment.name != null;
-            java.io.File tempFile = new java.io.File(tempDir, fileAttachment.name);
+            String originalName = fileAttachment.name != null ? fileAttachment.name : UUID.randomUUID().toString();
+            String safeFileName = originalName.replaceAll("[^a-zA-Z0-9.\\-]", "_");
+
+            tempFile = new java.io.File(tempDir, safeFileName);
 
             try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
                 outputStream.write(fileAttachment.contentBytes);
             } catch (IOException cause) {
                 LOGGER.error("Error while writing attachment to temp file: {}", cause.getMessage(), cause);
+                return null;
             }
-            tempFile.deleteOnExit();
+            finally {
+                tempFile.deleteOnExit();
+            }
             return kristaMediaClient.toKristaFile(tempFile);
         } catch (IOException cause) {
             throw new IllegalStateException(Constants.ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT, cause);

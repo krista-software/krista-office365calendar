@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder;
 public final class Constants {
 
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final String MEDIA_URL = "http://platform:9991";
     public static final String NEW_EVENT = "New Event";
     public static final String DONT_REMIND_ME = "Don't remind me";
     public static final String NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0 = "Number of meetings should be greater than 0.";

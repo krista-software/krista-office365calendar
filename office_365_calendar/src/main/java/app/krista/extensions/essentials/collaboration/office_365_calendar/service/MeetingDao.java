@@ -190,8 +190,8 @@ public interface MeetingDao {
      * This request will return the list of events scheduled for the given user.
      *
      * @param userEmail email of the user whose events need to be fetched
-     * @param from date from which the events needed to be fetched
-     * @param to date till which the events needed to be fetched
+     * @param from      date from which the events needed to be fetched
+     * @param to        date till which the events needed to be fetched
      * @return {@link List} of {@link Meeting}
      */
     List<Meeting> getEventsForUser(String userEmail, Long from, Long to);
@@ -203,6 +203,7 @@ public interface MeetingDao {
      * @return {@link List} of {@link Attachment}
      */
     List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId);
+
     /**
      * This request will return the list of attachment for the event for current user.
      *
