@@ -21,6 +21,15 @@ public class Validators {
     }
 
     /**
+     * This function will return the empty or input string
+     *
+     * @param inputString input string
+     */
+    public static String getNullOrEmptyDefault(String inputString) {
+        return inputString == null ? "" : inputString;
+    }
+
+    /**
      * This function will validate if the list is null or empty
      *
      * @param inputList input list

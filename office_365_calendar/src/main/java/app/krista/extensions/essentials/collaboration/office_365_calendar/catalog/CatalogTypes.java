@@ -143,7 +143,7 @@ public final class CatalogTypes {
      * @param fileAttachments List of Microsoft Graph {@link FileAttachment}
      * @return List of {@link File} Krista File objects
      */
-    public List<File> fromAttachments(List<FileAttachment> fileAttachments) {
+    public List<File> toListOfKristaFile(List<FileAttachment> fileAttachments) {
         if (fileAttachments == null || fileAttachments.isEmpty()) {
             return List.of();
         }
@@ -168,8 +168,7 @@ public final class CatalogTypes {
         if (fileAttachment == null || fileAttachment.contentBytes == null) {
             return null;
         }
-
-        java.io.File  tempFile;
+        java.io.File tempFile;
         try {
             java.io.File tempDir = new java.io.File(System.getProperty("java.io.tmpdir"));
 
@@ -183,8 +182,7 @@ public final class CatalogTypes {
             } catch (IOException cause) {
                 LOGGER.error("Error while writing attachment to temp file: {}", cause.getMessage(), cause);
                 return null;
-            }
-            finally {
+            } finally {
                 tempFile.deleteOnExit();
             }
             return kristaMediaClient.toKristaFile(tempFile);

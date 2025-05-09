@@ -6,6 +6,7 @@ import com.google.gson.GsonBuilder;
 public final class Constants {
 
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final Gson GSON_OBJECT = new Gson();
     public static final String NEW_EVENT = "New Event";
     public static final String DONT_REMIND_ME = "Don't remind me";
     public static final String NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0 = "Number of meetings should be greater than 0.";
@@ -41,9 +42,9 @@ public final class Constants {
     public static final String STATE = "state";
     public static final String CALLBACK_URI = "/calendar/callback";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
-    public static final String FAILED_TO_GET_EVENT_ATTACHMENTS = "Failed to get event attachments " ;
-    public static final String RETRY_WAS_INTERRUPTED = "Retry was interrupted " ;
-    public static final String TIMEOUT_OCCURRED = "Timeout occurred. " ;
+    public static final String FAILED_TO_GET_EVENT_ATTACHMENTS = "Failed to get event attachments ";
+    public static final String RETRY_WAS_INTERRUPTED = "Retry was interrupted ";
+    public static final String TIMEOUT_OCCURRED = "Timeout occurred. ";
     public static final String ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT = "Error occurred while processing attachment ";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
@@ -66,6 +67,13 @@ public final class Constants {
     public static final String END_DATE_TIME = "endDateTime";
     public static final String TOP = "$top";
     public static final String ORDER_BY = "$orderby";
+    public static final String EMAIL = "email";
+    public static final String ATTACHMENTS = "Attachments";
+    public static final String VALIDATION_RESULTS = "Validation Results";
+    public static final String STATE_ID = "stateId";
+    public static final String EVENT_ID = "eventId";
+    public static final String RE_ENTER = "reEnter";
+    public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
 
     private Constants() {
     }

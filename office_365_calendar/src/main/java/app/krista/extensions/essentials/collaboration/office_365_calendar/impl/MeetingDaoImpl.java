@@ -91,7 +91,11 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
-        return new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
+        System.out.println("Event id is validated");
+        Meeting meeting =  new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
+
+        System.out.println(meeting+ " MEETING");
+        return meeting;
     }
 
     @Override
@@ -615,22 +619,12 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     private List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
-        int maxRetries = 3;
-        long retryDelayMs = 1000;
-
-        for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
-            try {
-                return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
-            } catch (ClientException cause) {
-                if (!handleClientException(cause, retryCount, maxRetries, retryDelayMs)) {
-                    LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "Giving up after {} retries.", maxRetries);
-                    return Collections.emptyList();
-                }
-            }
+        try {
+            return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
+        } catch (ClientException cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", String.valueOf(cause));
+            return Collections.emptyList();
         }
-
-        LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "Max retries exceeded.");
-        return Collections.emptyList();
     }
 
     private List<FileAttachment> getFileAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
@@ -666,43 +660,5 @@ public class MeetingDaoImpl implements MeetingDao {
                     .buildRequest()
                     .get();
         }
-    }
-
-    private boolean handleClientException(ClientException cause, int retryCount, int maxRetries, long retryDelayMs) {
-        if (isTimeoutException(cause)) {
-            LOGGER.info(Constants.TIMEOUT_OCCURRED + "Retrying request ({}/{})", retryCount + 1, maxRetries);
-            try {
-                Thread.sleep(retryDelayMs * (retryCount + 1));
-                return true;
-            } catch (InterruptedException interruptedExceptionCause) {
-                Thread.currentThread().interrupt();
-                LOGGER.info(Constants.RETRY_WAS_INTERRUPTED + "{} ", interruptedExceptionCause.getMessage());
-                return false;
-            }
-        } else {
-            String errorMessage = extractErrorMessage(cause);
-            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", errorMessage);
-            return false;
-        }
-    }
-
-    private boolean isTimeoutException(Exception e) {
-        Throwable cause = e;
-        while (cause != null) {
-            if (cause instanceof java.net.SocketTimeoutException) {
-                return true;
-            }
-            cause = cause.getCause();
-        }
-        return false;
-    }
-
-    private String extractErrorMessage(ClientException cause) {
-        if (cause instanceof GraphServiceException gse) {
-            if (gse.getError() != null && gse.getError().error != null) {
-                return gse.getError().error.message;
-            }
-        }
-        return cause.getMessage();
     }
 }
