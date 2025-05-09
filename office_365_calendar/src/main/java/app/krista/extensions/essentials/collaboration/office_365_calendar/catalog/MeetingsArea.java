@@ -379,11 +379,29 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
     public ExtensionResponse getAttachments(
-            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
+            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(),
+                ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingsArea -> getAttachmentsForAGivenUser");
         try {
-            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-            List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
-            return new ExtensionResponseBuilder().success(Map.of("Attachments", attachments)).build();
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
+                    Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID))
+            );
+            if (validationResults.isEmpty()) {
+                List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+                List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            }
+            else {
+                String stateId = UUID.randomUUID().toString();
+                internalStateManager.put(stateId, Constants.GSON.toJson(Map.of(Constants.VALIDATION_RESULTS, validationResults)));
+
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachments");
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventID)).build();
+            }
         } catch (IllegalCallerException cause) {
             logger.error(cause.getMessage(), cause);
             throw new RuntimeException(cause.getMessage(), cause);
@@ -392,8 +410,7 @@ public final class MeetingsArea {
             throw cause;
         } catch (Exception cause) {
             logger.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", cause.getMessage());
-            return ExtensionResponseFactory.create(cause, Constants.FAILED_TO_GET_EVENT_ATTACHMENTS,
-                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR);
+            return new ExtensionResponseBuilder().failure(error).build();
         }
     }
 }
