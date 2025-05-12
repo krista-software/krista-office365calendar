@@ -13,7 +13,6 @@ import app.krista.extension.impl.anno.Field;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.ExtensionResponseFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
@@ -391,8 +390,7 @@ public final class MeetingsArea {
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
                 List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
-            }
-            else {
+            } else {
                 String stateId = UUID.randomUUID().toString();
                 internalStateManager.put(stateId, Constants.GSON.toJson(Map.of(Constants.VALIDATION_RESULTS, validationResults)));
 

@@ -62,8 +62,8 @@ configurations {
 }
 
 dependencies {
-    implementation 'app.krista:krista-apis:1.0.113'
-    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.113'
+    implementation 'app.krista:krista-apis:1.0.114'
+    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.114'
     implementation 'com.microsoft.graph:microsoft-graph:5.20.0'
     implementation 'com.microsoft.graph:microsoft-graph-auth:0.3.0'
     implementation 'com.azure:azure-identity:1.5.4'

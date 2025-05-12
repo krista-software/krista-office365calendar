@@ -92,9 +92,9 @@ public class MeetingDaoImpl implements MeetingDao {
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
         System.out.println("Event id is validated");
-        Meeting meeting =  new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
+        Meeting meeting = new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
 
-        System.out.println(meeting+ " MEETING");
+        System.out.println(meeting + " MEETING");
         return meeting;
     }
 
@@ -615,7 +615,12 @@ public class MeetingDaoImpl implements MeetingDao {
 
     @Override
     public List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId) {
-        return fetchAttachments(null, eventId, true);
+        try {
+            return fetchAttachments(null, eventId, true);
+        } catch (ClientException cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", String.valueOf(cause));
+            return Collections.emptyList();
+        }
     }
 
     private List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
