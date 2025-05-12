@@ -45,7 +45,6 @@ public final class MeetingsArea {
     private final CatalogTypes catalogTypes;
     private final ValidationOrchestrator validationOrchestrator;
     private final ErrorHandlingStateManager internalStateManager;
-    private final ExtensionResponseGenerator responseGenerator;
 
     private final Logger logger = LoggerFactory.getLogger(MeetingsArea.class);
 
@@ -55,7 +54,6 @@ public final class MeetingsArea {
         this.catalogTypes = catalogTypes;
         this.validationOrchestrator = validationOrchestrator;
         this.internalStateManager = internalStateManager;
-        this.responseGenerator = responseGenerator;
     }
 
     @CatalogRequest(

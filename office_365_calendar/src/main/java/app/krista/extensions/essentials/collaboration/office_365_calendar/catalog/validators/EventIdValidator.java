@@ -12,7 +12,6 @@ import java.util.Map;
 public class EventIdValidator implements Validator {
 
     private final MeetingDaoImpl meetingDao;
-
     private static final Logger logger = LoggerFactory.getLogger(EventIdValidator.class);
 
     public EventIdValidator(MeetingDaoImpl meetingDao) {

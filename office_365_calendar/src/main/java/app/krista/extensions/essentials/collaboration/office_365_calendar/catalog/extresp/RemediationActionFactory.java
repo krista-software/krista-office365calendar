@@ -10,7 +10,6 @@ import java.util.List;
 
 public class RemediationActionFactory {
 
-
     private RemediationActionFactory() {
     }
 
@@ -28,5 +27,4 @@ public class RemediationActionFactory {
                                                                       List<NamedValuedField> fields) {
         return InformAPersonAction.create(message, RemediationAction.RecipientType.ALL_PARTICIPANTS, fields);
     }
-
 }

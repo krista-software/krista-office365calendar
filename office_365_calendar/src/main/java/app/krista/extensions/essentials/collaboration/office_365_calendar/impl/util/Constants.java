@@ -43,8 +43,6 @@ public final class Constants {
     public static final String CALLBACK_URI = "/calendar/callback";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
     public static final String FAILED_TO_GET_EVENT_ATTACHMENTS = "Failed to get event attachments ";
-    public static final String RETRY_WAS_INTERRUPTED = "Retry was interrupted ";
-    public static final String TIMEOUT_OCCURRED = "Timeout occurred. ";
     public static final String ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT = "Error occurred while processing attachment ";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
@@ -59,7 +57,6 @@ public final class Constants {
             + CALENDARS_READWRITE + SPACE
             + CALENDARS_READWRITE_SHARED + SPACE
             + USER_READ;
-
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
     public static final String FAILED_TO_GET_USER_EVENTS = "Failed to get user events. ";
     public static final String UTC = "UTC";

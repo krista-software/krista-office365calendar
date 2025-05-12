@@ -1,6 +1,7 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp;
 
 public class FieldTypes {
+
     private FieldTypes() {
     }
 

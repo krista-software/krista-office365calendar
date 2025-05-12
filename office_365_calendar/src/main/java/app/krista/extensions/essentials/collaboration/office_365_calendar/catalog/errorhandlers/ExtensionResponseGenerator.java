@@ -55,8 +55,7 @@ public class ExtensionResponseGenerator {
             ExtensionResponse.Error.ExceptionType exceptionType,
             List<ValidationOrchestrator.ValidationResult> validationResults,
             String subCatalogRequestName,
-            Map<String, Object> state
-    ) {
+            Map<String, Object> state) {
         LOGGER.info("Validation failed for : {}", validationResults.size());
         LOGGER.info("Validation failed for : {}", validationResults.size());
         Map<String, Object> stringStringMap = generateResponse(validationResults, true);
@@ -69,8 +68,7 @@ public class ExtensionResponseGenerator {
             ExtensionResponse.Error.ExceptionType exceptionType,
             List<ValidationOrchestrator.ValidationResult> validationResults,
             String subCatalogRequestName,
-            Map<String, Object> state
-    ) {
+            Map<String, Object> state) {
         StringJoiner stepMessage = new StringJoiner(", ", "Updated value for ", " were not provided.");
         StringBuilder errMessage = new StringBuilder();
         for (ValidationOrchestrator.ValidationResult validationResult : validationResults) {

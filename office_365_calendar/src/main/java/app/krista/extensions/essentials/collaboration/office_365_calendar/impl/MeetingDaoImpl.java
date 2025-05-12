@@ -91,10 +91,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
-        System.out.println("Event id is validated");
         Meeting meeting = new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
-
-        System.out.println(meeting + " MEETING");
         return meeting;
     }
 
