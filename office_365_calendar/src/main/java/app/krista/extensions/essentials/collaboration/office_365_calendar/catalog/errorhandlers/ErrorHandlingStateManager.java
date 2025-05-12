@@ -9,20 +9,20 @@ import java.util.Map;
 @Service
 public class ErrorHandlingStateManager {
 
-    private final KeyValueStore internalState;
+    private final KeyValueStore errorHandlingStateManager;
 
     @Inject
     public ErrorHandlingStateManager(KeyValueStore internalState) {
-        this.internalState = internalState;
+        this.errorHandlingStateManager = internalState;
     }
 
     public void put(String key, Map<String, Object> value) {
         Object keystoreValue = Constants.GSON.toJson(value);
-        internalState.put(key, keystoreValue);
+        errorHandlingStateManager.put(key, keystoreValue);
     }
 
     public Map<String, Object> get(String key) {
-        final String map = String.valueOf(internalState.get(key));
+        final String map = String.valueOf(errorHandlingStateManager.get(key));
         return Constants.GSON_OBJECT.fromJson(map, Map.class);
     }
 }

@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 public class EmailValidator implements Validator {
 
     @Override
-    public Boolean validate(String resourceId, Map<ValidationResource, String> context) {
+    public Boolean validate(String emailId, Map<ValidationResource, String> context) {
         org.apache.commons.validator.routines.EmailValidator emailValidator = org.apache.commons.validator.routines.EmailValidator.getInstance();
         return emailValidator.isValid(emailExtractor(context.get(ValidationResource.EMAIL)));
     }
@@ -25,13 +25,13 @@ public class EmailValidator implements Validator {
     }
 
     @Override
-    public String getConfirmationStepMessage(String resourceId, Map<ValidationResource, String> context) {
-        return String.format("The provided email: %s does not exist. Please check.", resourceId);
+    public String getConfirmationStepMessage(String emailId, Map<ValidationResource, String> context) {
+        return String.format("The provided email: %s does not exist. Please check.", emailId);
     }
 
     @Override
-    public String getErrMessage(String resourceId) {
-        return String.format("Invalid email: %s", resourceId);
+    public String getErrMessage(String emailId) {
+        return String.format("Invalid email: %s", emailId);
     }
 
     public static String emailExtractor(String email) {
