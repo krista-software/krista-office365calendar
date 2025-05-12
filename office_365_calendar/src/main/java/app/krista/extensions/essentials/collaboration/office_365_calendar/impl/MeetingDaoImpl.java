@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -600,5 +601,54 @@ public class MeetingDaoImpl implements MeetingDao {
             sendResponse = Boolean.TRUE.equals(event.responseRequested);
         }
         return sendResponse;
+    }
+
+    public List<Meeting> getUnAcceptedMeetings() {
+        try {
+            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+
+            // Set endDateTime to 30 days in the future from now
+            String endDateTime = LocalDateTime.now()
+                    .plusDays(30)
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+
+            // Define query parameters
+            List<QueryOption> queryOptions = Arrays.asList(
+                    new QueryOption("startDateTime", currentTime), // Get future events
+                    new QueryOption("endDateTime", endDateTime),
+                    new QueryOption("$filter", "responseStatus/response ne 'accepted'"), // Unaccepted events
+                    new QueryOption("$expand", "instances"), // Include recurring instances
+                    new QueryOption("$orderby", "start/dateTime"), // Order by start time
+                    new QueryOption("$top", "50") // Limit results per request
+            );
+
+            // Fetch events
+            EventCollectionPage eventCollection = getCalendarRequestBuilder()
+                    .calendarView()
+                    .buildRequest(queryOptions)
+                    .get();
+            List<Meeting> eventDetails = new ArrayList<>();
+            if (eventCollection != null) {
+                User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
+                while(eventCollection != null) {
+                    for (Event event : eventCollection.getCurrentPage()) {
+                        if (currentUser != null && MeetingDaoHelper.isUpcomingEvent(event) && MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                            eventDetails.add(new MeetingImpl(event));
+                        } else {
+                            System.out.println("*** skip event due to validation ... " + event.subject);
+                        }
+                    }
+
+                    if (eventCollection.getNextPage() != null) {
+                        eventCollection = eventCollection.getNextPage().buildRequest().get();
+                    } else {
+                        eventCollection = null;
+                    }
+                }
+            }
+            return eventDetails;
+        } catch (GraphServiceException | IOException cause) {
+            throw new IllegalStateException(Constants.FAILED_TO_GET_ALL_UNACCEPTED_EVENTS + cause.getMessage());
+        }
     }
 }

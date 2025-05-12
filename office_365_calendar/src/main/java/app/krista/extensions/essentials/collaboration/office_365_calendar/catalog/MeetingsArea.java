@@ -141,7 +141,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public List<EventDetails> getAllUnacceptedEvents() {
-        return meetingDao.getMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+        return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
     @CatalogRequest(
@@ -299,16 +299,5 @@ public final class MeetingsArea {
             throw new IllegalArgumentException("Failed to Get Events for a given User" + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
-    }
-
-    @CatalogRequest(
-            id = "localDomainRequest_e0f748a2-17df-4e29-84e0-a1d0d06934ff",
-            name = "Get All Unaccepted Events New",
-            description = "Get list of all unaccepted events",
-            area = "Meetings",
-            type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
-    public List<EventDetails> getAllUnacceptedEventsNew() {
-        return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 }
