@@ -300,4 +300,5 @@ public final class MeetingsArea {
         }
         return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
+
 }
