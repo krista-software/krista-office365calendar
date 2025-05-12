@@ -143,7 +143,7 @@ public final class CatalogTypes {
      * @param fileAttachments List of Microsoft Graph {@link FileAttachment}
      * @return List of {@link File} Krista File objects
      */
-    public List<File> toListOfKristaFile(List<FileAttachment> fileAttachments) {
+    public List<File> toKristaFilList(List<FileAttachment> fileAttachments) {
         if (fileAttachments == null || fileAttachments.isEmpty()) {
             return List.of();
         }

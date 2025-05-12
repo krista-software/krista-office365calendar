@@ -91,8 +91,7 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
-        Meeting meeting = new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
-        return meeting;
+        return new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
     }
 
     @Override
@@ -629,6 +628,20 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves all {@link FileAttachment} objects associated with a specific calendar event.
+     * <p>
+     * This method fetches all file attachments for the given event, handling pagination if necessary.
+     * It determines whether to use the authenticated user's context or system context based on the
+     * {@code isAuthenticatedUser} flag.
+     * </p>
+     *
+     * @param userEmail           the email address of the user whose event attachments are to be fetched;
+     *                            may be {@code null} if using the authenticated user's context
+     * @param eventId             the unique identifier of the calendar event
+     * @param isAuthenticatedUser {@code true} to use the authenticated user's context; {@code false} to use system context
+     * @return a list of {@link FileAttachment} objects associated with the specified event; never {@code null}
+     */
     private List<FileAttachment> getFileAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
         List<FileAttachment> fileAttachments = new ArrayList<>();
         AttachmentCollectionPage attachmentCollection = buildAttachmentCollectionRequest(userEmail, eventId, isAuthenticatedUser);
@@ -646,6 +659,19 @@ public class MeetingDaoImpl implements MeetingDao {
         return fileAttachments;
     }
 
+    /**
+     * Builds and executes a request to retrieve the first page of attachments for a given event.
+     * <p>
+     * The method chooses between the authenticated user's context and the system context based on
+     * the {@code isAuthenticatedUser} flag. For system context, the {@code userEmail} must be provided.
+     * </p>
+     *
+     * @param userEmail           the email address of the user whose event attachments are to be fetched;
+     *                            required if {@code isAuthenticatedUser} is {@code false}
+     * @param eventId             the unique identifier of the calendar event
+     * @param isAuthenticatedUser {@code true} to use the authenticated user's context; {@code false} to use system context
+     * @return the first {@link AttachmentCollectionPage} of attachments for the specified event
+     */
     private AttachmentCollectionPage buildAttachmentCollectionRequest(String userEmail, String eventId, boolean isAuthenticatedUser) {
         if (isAuthenticatedUser) {
             return clientProvider.getGraphServiceClient()

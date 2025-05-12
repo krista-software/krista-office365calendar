@@ -25,6 +25,19 @@ public class ExtensionResponseGenerator {
     public static final String STEP_MESSAGE = "StepMessage";
     public static final String FIELD = "Field";
 
+    /**
+     * Generates an {@link ExtensionResponse} for confirmation scenarios based on validation results.
+     * <p>
+     * This response typically prompts the user to confirm or re-enter details after a validation failure.
+     * It includes a remediation action with a switch field for re-entry.
+     * </p>
+     *
+     * @param exceptionType         the type of exception to be included in the response
+     * @param validationResults     a list of validation results indicating what failed
+     * @param subCatalogRequestName the name of the sub-catalog request for context
+     * @param state                 the current state map to be included in the response
+     * @return an {@link ExtensionResponse} prompting the user for confirmation or correction
+     */
     public ExtensionResponse generateConfirmationResponse(
             ExtensionResponse.Error.ExceptionType exceptionType,
             List<ValidationOrchestrator.ValidationResult> validationResults,
@@ -37,6 +50,14 @@ public class ExtensionResponseGenerator {
                 subCatalogRequestName, state);
     }
 
+    /**
+     * Helper method to construct a response map containing step messages, error messages,
+     * and fields based on the provided validation results.
+     *
+     * @param validationResults the list of validation results to process
+     * @param fetchResponse     if true, includes fields for user input; if false, only messages are included
+     * @return a map containing step message, error message, and optionally fields for further input
+     */
     private Map<String, Object> generateResponse(List<ValidationOrchestrator.ValidationResult> validationResults, boolean fetchResponse) {
         StringBuilder stepMessage = new StringBuilder();
         StringBuilder errMessage = new StringBuilder();
@@ -51,12 +72,23 @@ public class ExtensionResponseGenerator {
         return Map.of(STEP_MESSAGE, stepMessage.toString(), ERROR_MESSAGE, errMessage.toString(), FIELD, fields);
     }
 
+    /**
+     * Generates an {@link ExtensionResponse} for fetch scenarios where additional user input is required.
+     * <p>
+     * This response is typically used when validation fails and the user must provide or correct specific fields.
+     * </p>
+     *
+     * @param exceptionType         the type of exception to be included in the response
+     * @param validationResults     a list of validation results indicating what needs to be fetched or corrected
+     * @param subCatalogRequestName the name of the sub-catalog request for context
+     * @param state                 the current state map to be included in the response
+     * @return an {@link ExtensionResponse} prompting the user to provide missing or invalid information
+     */
     public ExtensionResponse generateFetchResponse(
             ExtensionResponse.Error.ExceptionType exceptionType,
             List<ValidationOrchestrator.ValidationResult> validationResults,
             String subCatalogRequestName,
             Map<String, Object> state) {
-        LOGGER.info("Validation failed for : {}", validationResults.size());
         LOGGER.info("Validation failed for : {}", validationResults.size());
         Map<String, Object> stringStringMap = generateResponse(validationResults, true);
         return ExtensionResponseFactory.create((String) stringStringMap.get(ERROR_MESSAGE), exceptionType,
@@ -64,6 +96,18 @@ public class ExtensionResponseGenerator {
                 subCatalogRequestName, state);
     }
 
+    /**
+     * Generates an {@link ExtensionResponse} for scenarios where required fields were not provided by the user.
+     * <p>
+     * This response informs all participants that updated values for certain fields were not supplied.
+     * </p>
+     *
+     * @param exceptionType         the type of exception to be included in the response
+     * @param validationResults     a list of validation results indicating which fields were missing
+     * @param subCatalogRequestName the name of the sub-catalog request for context
+     * @param state                 the current state map to be included in the response
+     * @return an {@link ExtensionResponse} informing all participants about the missing fields
+     */
     public ExtensionResponse generateFetchDenyResponse(
             ExtensionResponse.Error.ExceptionType exceptionType,
             List<ValidationOrchestrator.ValidationResult> validationResults,

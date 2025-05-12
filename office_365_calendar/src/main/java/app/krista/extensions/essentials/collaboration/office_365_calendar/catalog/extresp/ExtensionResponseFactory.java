@@ -11,9 +11,6 @@ import java.util.Map;
 
 public class ExtensionResponseFactory {
 
-    private ExtensionResponseFactory() {
-    }
-
     public static ExtensionResponse create(Map<String, Object> values) {
         return new ExtensionResponse(ExtensionResponse.Result.SUCCESS, values,
                 null, null, null);

@@ -21,17 +21,17 @@ public class EmailValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter valid Email.";
+        return "Please enter valid email.";
     }
 
     @Override
     public String getConfirmationStepMessage(String resourceId, Map<ValidationResource, String> context) {
-        return String.format("The provided Email: %s does not exist. Please check.", resourceId);
+        return String.format("The provided email: %s does not exist. Please check.", resourceId);
     }
 
     @Override
     public String getErrMessage(String resourceId) {
-        return String.format("Invalid Email: %s", resourceId);
+        return String.format("Invalid email: %s", resourceId);
     }
 
     public static String emailExtractor(String email) {

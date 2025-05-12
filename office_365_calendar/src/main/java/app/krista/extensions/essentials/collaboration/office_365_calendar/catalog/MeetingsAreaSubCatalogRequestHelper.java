@@ -58,7 +58,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             String userEmail = (String) map.get(Constants.EMAIL);
             String eventID = (String) map.get(Constants.EVENT_ID);
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForGivenUser(userEmail, eventID);
-            List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
+            List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
             return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
         } catch (Exception cause) {
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
@@ -87,7 +87,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         try {
             String eventID = (String) map.get(Constants.EVENT_ID);
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-            List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
+            List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
             return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
         } catch (Exception cause) {
             System.out.println(cause.getMessage() + " cause.getMessage() ");
@@ -96,6 +96,12 @@ public class MeetingsAreaSubCatalogRequestHelper {
         }
     }
 
+    /**
+     * Processes the provided state map and performs validations, returning a list of validation results.
+     *
+     * @param state a map representing the current state or context for validation, where keys are state names and values are their corresponding objects
+     * @return a list of {@link ValidationOrchestrator.ValidationResult} objects representing the outcome of each validation performed on the state
+     */
     @NotNull
     private static List<ValidationOrchestrator.ValidationResult> getValidationResults(Map<String, Object> state) {
         List<ValidationOrchestrator.ValidationResult> validationResults = new ArrayList<>();

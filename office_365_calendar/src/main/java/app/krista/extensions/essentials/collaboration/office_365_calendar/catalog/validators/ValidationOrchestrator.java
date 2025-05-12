@@ -24,6 +24,17 @@ public class ValidationOrchestrator {
                                    String errMessage) {
     }
 
+    /**
+     * Validates the provided resources using the registered validators for each {@link Validator.ValidationResource}.
+     * <p>
+     * For each resource entry, the corresponding validator is invoked. If validation fails,
+     * a {@link ValidationResult} is created containing messages and field information relevant to the failure.
+     * </p>
+     *
+     * @param resources a map where the key is a {@link Validator.ValidationResource} and the value is the resource string to validate
+     * @return a list of {@link ValidationResult} objects representing the outcome of failed validations;
+     * the list is empty if all resources are valid
+     */
     public List<ValidationResult> validate(Map<Validator.ValidationResource, String> resources) {
         List<ValidationResult> results = new ArrayList<>();
         for (Map.Entry<Validator.ValidationResource, String> entry : resources.entrySet()) {

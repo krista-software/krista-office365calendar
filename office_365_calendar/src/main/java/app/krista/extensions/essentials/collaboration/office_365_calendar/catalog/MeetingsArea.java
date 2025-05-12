@@ -12,7 +12,7 @@ import app.krista.extension.impl.anno.Domain;
 import app.krista.extension.impl.anno.Field;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.ExtensionResponseFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
@@ -44,16 +44,16 @@ public final class MeetingsArea {
     private final MeetingDaoImpl meetingDao;
     private final CatalogTypes catalogTypes;
     private final ValidationOrchestrator validationOrchestrator;
-    private final ErrorHandlingStateManager internalStateManager;
+    private final ErrorHandlingStateManager errorHandlingStateManager;
 
     private final Logger logger = LoggerFactory.getLogger(MeetingsArea.class);
 
     @Inject
-    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager internalStateManager, ExtensionResponseGenerator responseGenerator) {
+    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager) {
         this.meetingDao = meetingDao;
         this.catalogTypes = catalogTypes;
         this.validationOrchestrator = validationOrchestrator;
-        this.internalStateManager = internalStateManager;
+        this.errorHandlingStateManager = errorHandlingStateManager;
     }
 
     @CatalogRequest(
@@ -336,23 +336,20 @@ public final class MeetingsArea {
             @Field.Text(name = "Event ID", required = true, attributes = {
                     @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
-        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(),
-                ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingsArea -> getAttachmentsForAGivenUser");
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingsArea -> getAttachmentsForAGivenUser");
         try {
             List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
                     Map.of(Validator.ValidationResource.EMAIL, Validators.getNullOrEmptyDefault(userEmail), Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID))
             );
             if (validationResults.isEmpty()) {
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForGivenUser(userEmail, eventID);
-                List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 String stateId = UUID.randomUUID().toString();
-                internalStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
-
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
-
                 RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachmentsForAGivenUser");
                 return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EMAIL, userEmail, Constants.EVENT_ID, eventID)).build();
             }
@@ -378,23 +375,20 @@ public final class MeetingsArea {
     public ExtensionResponse getAttachments(
             @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID) {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
-        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(),
-                ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingsArea -> getAttachmentsForAGivenUser");
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingsArea -> getAttachments");
         try {
             List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
                     Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID))
             );
             if (validationResults.isEmpty()) {
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-                List<File> attachments = catalogTypes.toListOfKristaFile(fileAttachments);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 String stateId = UUID.randomUUID().toString();
-                internalStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
-
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
-
                 RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachments");
                 return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventID)).build();
             }

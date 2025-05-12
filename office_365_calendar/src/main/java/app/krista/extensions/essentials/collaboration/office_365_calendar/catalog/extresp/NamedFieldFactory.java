@@ -6,9 +6,6 @@ import java.util.Map;
 
 public class NamedFieldFactory {
 
-    private NamedFieldFactory() {
-    }
-
     public static NamedField createTextField(String fieldName) {
         return new NamedField(fieldName, FieldTypes.TEXT_FIELD, Map.of(), Map.of());
     }
