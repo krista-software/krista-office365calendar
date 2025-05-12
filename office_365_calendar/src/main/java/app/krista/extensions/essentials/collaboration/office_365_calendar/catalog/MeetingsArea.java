@@ -350,7 +350,7 @@ public final class MeetingsArea {
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 String stateId = UUID.randomUUID().toString();
-                internalStateManager.put(stateId, Constants.GSON.toJson(Map.of(Constants.VALIDATION_RESULTS, validationResults)));
+                internalStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
 
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
@@ -392,7 +392,7 @@ public final class MeetingsArea {
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 String stateId = UUID.randomUUID().toString();
-                internalStateManager.put(stateId, Constants.GSON.toJson(Map.of(Constants.VALIDATION_RESULTS, validationResults)));
+                internalStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
 
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);

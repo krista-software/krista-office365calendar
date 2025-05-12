@@ -14,11 +14,11 @@ public class ErrorHandlingStateManager {
     @Inject
     public ErrorHandlingStateManager(KeyValueStore internalState) {
         this.internalState = internalState;
-
     }
 
-    public void put(String key, Object value) {
-        internalState.put(key, value);
+    public void put(String key, Map<String, Object> value) {
+        Object keystoreValue = Constants.GSON.toJson(value);
+        internalState.put(key, keystoreValue);
     }
 
     public Map<String, Object> get(String key) {
