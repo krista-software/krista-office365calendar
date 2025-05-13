@@ -45,7 +45,7 @@ public class MeetingDaoImpl implements MeetingDao {
     public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
     private final Office365CalendarAttributes office365CalendarAttributes;
-    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
+    public static Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
 
     @Inject
     public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory, Office365CalendarAttributes office365CalendarAttributes) {
@@ -619,7 +619,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
-    private List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
+    List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
         try {
             return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
         } catch (ClientException cause) {
