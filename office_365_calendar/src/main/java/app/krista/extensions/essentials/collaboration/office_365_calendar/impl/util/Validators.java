@@ -3,10 +3,20 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Utility class providing common validation methods for Office 365 calendar integration.
+ * <p>
+ * This class contains static helper methods to validate input data such as email addresses,
+ * event IDs, and other parameters required for collaboration and calendar operations.
+ * </p>
+ * <p>
+ * The Validators class is intended to be used throughout the Office 365 calendar extension
+ * to ensure data integrity and prevent invalid input from propagating through the system.
+ * </p>
+ *
+ * <p>All methods are static and stateless.</p>
+ */
 public class Validators {
-
-    private Validators() {
-    }
 
     /**
      * This function will validate if the string is empty or null

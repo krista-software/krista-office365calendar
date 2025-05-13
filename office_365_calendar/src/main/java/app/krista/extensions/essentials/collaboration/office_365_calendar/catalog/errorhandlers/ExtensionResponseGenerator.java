@@ -2,7 +2,7 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.catal
 
 
 import app.krista.extension.executor.ExtensionResponse;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.ExtensionResponseFactory;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.ExtensionResponseBuilder;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.RemediationActionFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
@@ -17,6 +17,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
+/**
+ * Utility class responsible for generating standardized {@link app.krista.extension.executor.ExtensionResponse}
+ * objects for the Office 365 Calendar extension.
+ * <p>
+ * This class centralizes the logic for constructing success and error responses, including
+ * the creation of named fields, remediation actions, and error details. It ensures consistency
+ * in how responses are built and returned throughout the extension, particularly in scenarios
+ * involving validation failures, user prompts, and error handling.
+ * </p>
+ * <p>
+ * ExtensionResponseGenerator is typically used by service and handler classes to encapsulate
+ * response-building logic, making it easier to maintain and extend response formats as the
+ * extension evolves.
+ * </p>
+ */
 @Service
 public class ExtensionResponseGenerator {
 
@@ -38,16 +53,10 @@ public class ExtensionResponseGenerator {
      * @param state                 the current state map to be included in the response
      * @return an {@link ExtensionResponse} prompting the user for confirmation or correction
      */
-    public ExtensionResponse generateConfirmationResponse(
-            ExtensionResponse.Error.ExceptionType exceptionType,
-            List<ValidationOrchestrator.ValidationResult> validationResults,
-            String subCatalogRequestName,
-            Map<String, Object> state) {
+    public ExtensionResponse generateConfirmationResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
         List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
         Map<String, Object> validationResponse = generateResponse(validationResults, false);
-        return ExtensionResponseFactory.create((String) validationResponse.get(ERROR_MESSAGE), exceptionType,
-                List.of(RemediationActionFactory.createAskAction((String) validationResponse.get(STEP_MESSAGE), fields)),
-                subCatalogRequestName, state);
+        return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error((String) validationResponse.get(ERROR_MESSAGE), exceptionType).remediationActions(List.of(RemediationActionFactory.createAskAction((String) validationResponse.get(STEP_MESSAGE), fields)), subCatalogRequestName).state(state).build();
     }
 
     /**
@@ -84,16 +93,10 @@ public class ExtensionResponseGenerator {
      * @param state                 the current state map to be included in the response
      * @return an {@link ExtensionResponse} prompting the user to provide missing or invalid information
      */
-    public ExtensionResponse generateFetchResponse(
-            ExtensionResponse.Error.ExceptionType exceptionType,
-            List<ValidationOrchestrator.ValidationResult> validationResults,
-            String subCatalogRequestName,
-            Map<String, Object> state) {
+    public ExtensionResponse generateFetchResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
         LOGGER.info("Validation failed for : {}", validationResults.size());
         Map<String, Object> stringStringMap = generateResponse(validationResults, true);
-        return ExtensionResponseFactory.create((String) stringStringMap.get(ERROR_MESSAGE), exceptionType,
-                List.of(RemediationActionFactory.createAskAction((String) stringStringMap.get(STEP_MESSAGE), (List<NamedField>) stringStringMap.get(FIELD))),
-                subCatalogRequestName, state);
+        return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error((String) stringStringMap.get(ERROR_MESSAGE), exceptionType).remediationActions(List.of(RemediationActionFactory.createAskAction((String) stringStringMap.get(STEP_MESSAGE), (List<NamedField>) stringStringMap.get(FIELD))), subCatalogRequestName).state(state).build();
     }
 
     /**
@@ -108,19 +111,13 @@ public class ExtensionResponseGenerator {
      * @param state                 the current state map to be included in the response
      * @return an {@link ExtensionResponse} informing all participants about the missing fields
      */
-    public ExtensionResponse generateFetchDenyResponse(
-            ExtensionResponse.Error.ExceptionType exceptionType,
-            List<ValidationOrchestrator.ValidationResult> validationResults,
-            String subCatalogRequestName,
-            Map<String, Object> state) {
+    public ExtensionResponse generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
         StringJoiner stepMessage = new StringJoiner(", ", "Updated value for ", " were not provided.");
         StringBuilder errMessage = new StringBuilder();
         for (ValidationOrchestrator.ValidationResult validationResult : validationResults) {
             stepMessage.add("'" + validationResult.fetchFieldName() + "'");
             errMessage.append(validationResult.errMessage()).append("\n");
         }
-        return ExtensionResponseFactory.create(errMessage.toString(), exceptionType,
-                List.of(RemediationActionFactory.createInformActionALLParticipants(stepMessage.toString(), List.of())),
-                subCatalogRequestName, state);
+        return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error(errMessage.toString(), exceptionType).remediationActions(List.of(RemediationActionFactory.createInformActionALLParticipants(stepMessage.toString(), List.of())), subCatalogRequestName).state(state).build();
     }
 }
