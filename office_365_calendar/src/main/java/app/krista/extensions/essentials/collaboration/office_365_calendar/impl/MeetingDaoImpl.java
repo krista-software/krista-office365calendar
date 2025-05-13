@@ -1,6 +1,17 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
+import app.krista.extension.authorization.MustAuthorizeException;
+import app.krista.extension.executor.ExtensionResponse;
+import app.krista.extension.executor.ExtensionResponseBuilder;
+import app.krista.extension.executor.RemediationAction;
+import app.krista.extension.executor.RemediationActions;
+import app.krista.extension.executor.impl.AskAPersonAction;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.CatalogTypes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
@@ -10,6 +21,8 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.MeetingDao;
 import app.krista.model.base.DateRange;
+import app.krista.model.base.File;
+import app.krista.model.field.NamedField;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
@@ -124,15 +137,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         List<Map<String, Object>> meetingsList = new ArrayList<>();
         LinkedList<String> schedulesList = new LinkedList<>(attendees);
-        CalendarGetScheduleCollectionPage page = getCalendarRequestBuilder()
-                .getSchedule(CalendarGetScheduleParameterSet
-                        .newBuilder()
-                        .withSchedules(schedulesList)
-                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone()))
-                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone()))
-                        .build())
-                .buildRequest()
-                .post();
+        CalendarGetScheduleCollectionPage page = getCalendarRequestBuilder().getSchedule(CalendarGetScheduleParameterSet.newBuilder().withSchedules(schedulesList).withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone())).withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone())).build()).buildRequest().post();
         while (page != null && !page.getCurrentPage().isEmpty()) {
             for (ScheduleInformation scheduleInformation : page.getCurrentPage()) {
                 if (scheduleInformation.scheduleId != null && !scheduleInformation.scheduleId.isEmpty()) {
@@ -218,12 +223,7 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
 
-            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
-                    .users(userEmail)
-                    .calendarView()
-                    .buildRequest(options)
-                    .select("id,subject,start,end,location,body,attendees,originalStartTimeZone,organizer")
-                    .get();
+            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem().users(userEmail).calendarView().buildRequest(options).select("id,subject,start,end,location,body,attendees,originalStartTimeZone,organizer").get();
 
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
@@ -281,14 +281,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
     @Nullable
     private SearchEntityQueryCollectionPage getSearchEntityQueryCollectionPage(LinkedList<SearchRequest> requestsList) throws IOException {
-        return clientProvider.getGraphServiceClient()
-                .search()
-                .query(SearchEntityQueryParameterSet
-                        .newBuilder()
-                        .withRequests(requestsList)
-                        .build())
-                .buildRequest()
-                .post();
+        return clientProvider.getGraphServiceClient().search().query(SearchEntityQueryParameterSet.newBuilder().withRequests(requestsList).build()).buildRequest().post();
     }
 
     private Map<String, Object> getSearchHitContent(SearchHit searchHit) {
@@ -320,17 +313,7 @@ public class MeetingDaoImpl implements MeetingDao {
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
         MeetingTimeSuggestionsResult meetingTimeSuggestionsResult;
-        meetingTimeSuggestionsResult = clientProvider.getUserRequestBuilder(false, null)
-                .findMeetingTimes(UserFindMeetingTimesParameterSet
-                        .newBuilder()
-                        .withAttendees(attendeesList)
-                        .withTimeConstraint(timeConstraint)
-                        .withMeetingDuration(slotDuration)
-                        .withIsOrganizerOptional(isOrganizerOptional)
-                        .withReturnSuggestionReasons(true)
-                        .build())
-                .buildRequest()
-                .post();
+        meetingTimeSuggestionsResult = clientProvider.getUserRequestBuilder(false, null).findMeetingTimes(UserFindMeetingTimesParameterSet.newBuilder().withAttendees(attendeesList).withTimeConstraint(timeConstraint).withMeetingDuration(slotDuration).withIsOrganizerOptional(isOrganizerOptional).withReturnSuggestionReasons(true).build()).buildRequest().post();
 
         if (meetingTimeSuggestionsResult != null && meetingTimeSuggestionsResult.meetingTimeSuggestions != null) {
             for (MeetingTimeSuggestion meetingTimeSuggestion : meetingTimeSuggestionsResult.meetingTimeSuggestions) {
@@ -398,9 +381,7 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
-            Event newEvent = getCalendarRequestBuilder().events()
-                    .buildRequest()
-                    .post(event);
+            Event newEvent = getCalendarRequestBuilder().events().buildRequest().post(event);
             setDateTimeTimeZone(selectedTimeZone, newEvent);
             assert newEvent.id != null;
             for (Attachment attachment : attachments) {
@@ -418,29 +399,17 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public void forwardMeeting(String id, List<String> attendeeEmail) throws IOException {
         List<Recipient> toRecipientsList = MeetingDaoHelper.getRecipient(attendeeEmail);
-        getCalendarRequestBuilder().events(id)
-                .forward(EventForwardParameterSet
-                        .newBuilder()
-                        .withToRecipients(toRecipientsList)
-                        .build())
-                .buildRequest()
-                .post();
+        getCalendarRequestBuilder().events(id).forward(EventForwardParameterSet.newBuilder().withToRecipients(toRecipientsList).build()).buildRequest().post();
     }
 
     @Override
-    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo,
-                                 String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
-                                 Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval,
-                                 List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex,
-                                 String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
         if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
-            Event oldEvent = getCalendarRequestBuilder().events(id)
-                    .buildRequest()
-                    .get();
+            Event oldEvent = getCalendarRequestBuilder().events(id).buildRequest().get();
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
             long eventStart = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
@@ -468,9 +437,7 @@ public class MeetingDaoImpl implements MeetingDao {
             event.changeKey = oldEvent.changeKey;
             event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
             event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
-            Event newEvent = getCalendarRequestBuilder().events(id)
-                    .buildRequest()
-                    .patch(event);
+            Event newEvent = getCalendarRequestBuilder().events(id).buildRequest().patch(event);
             setDateTimeTimeZone(selectedTimeZone, newEvent);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
@@ -604,6 +571,64 @@ public class MeetingDaoImpl implements MeetingDao {
         return sendResponse;
     }
 
+    public ExtensionResponse getAttachmentsForGivenUserWithErrorHandling(String userEmail, String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForGivenUserWithValidation");
+        try {
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EMAIL, Validators.getNullOrEmptyDefault(userEmail), Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)));
+            if (validationResults.isEmpty()) {
+                List<FileAttachment> fileAttachments = getAttachmentsForGivenUser(userEmail, eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachmentsForAGivenUser");
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EMAIL, userEmail, Constants.EVENT_ID, eventID)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + " : {}", String.valueOf(cause));
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    public ExtensionResponse getAttachmentsForAuthenticatedUserWithErrorHandling(String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForAuthenticatedUserWithValidation");
+        try {
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)));
+            if (validationResults.isEmpty()) {
+                List<FileAttachment> fileAttachments = getAttachmentsForAuthenticatedUser(eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachments");
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventID)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
     @Override
     public List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId) {
         return fetchAttachments(userEmail, eventId, false);
@@ -652,9 +677,7 @@ public class MeetingDaoImpl implements MeetingDao {
                     fileAttachments.add((FileAttachment) attachment);
                 }
             }
-            attachmentCollection = attachmentCollection.getNextPage() != null
-                    ? attachmentCollection.getNextPage().buildRequest().get()
-                    : null;
+            attachmentCollection = attachmentCollection.getNextPage() != null ? attachmentCollection.getNextPage().buildRequest().get() : null;
         }
         return fileAttachments;
     }
@@ -674,19 +697,9 @@ public class MeetingDaoImpl implements MeetingDao {
      */
     private AttachmentCollectionPage buildAttachmentCollectionRequest(String userEmail, String eventId, boolean isAuthenticatedUser) {
         if (isAuthenticatedUser) {
-            return clientProvider.getGraphServiceClient()
-                    .me()
-                    .events(eventId)
-                    .attachments()
-                    .buildRequest()
-                    .get();
+            return clientProvider.getGraphServiceClient().me().events(eventId).attachments().buildRequest().get();
         } else {
-            return clientProvider.getGraphServiceClientForSystem()
-                    .users(userEmail)
-                    .events(eventId)
-                    .attachments()
-                    .buildRequest()
-                    .get();
+            return clientProvider.getGraphServiceClientForSystem().users(userEmail).events(eventId).attachments().buildRequest().get();
         }
     }
 }
