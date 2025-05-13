@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -603,49 +602,83 @@ public class MeetingDaoImpl implements MeetingDao {
         return sendResponse;
     }
 
+    /**
+     * Retrieves a list of unaccepted meetings for the current user.
+     * This method fetches calendar events that haven't been accepted yet
+     * and are scheduled within the next 30 days.
+     *
+     * @return List of Meeting objects representing unaccepted meetings
+     */
     public List<Meeting> getUnAcceptedMeetings() {
         try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
+            // Use ZonedDateTime for consistent date/time handling
+            ZoneId userTimeZone = ZoneId.of(office365CalendarAttributes.getTimeZone());
+            ZonedDateTime now = ZonedDateTime.now(userTimeZone);
+            ZonedDateTime endDate = now.plusDays(30);
 
-            String currentTime = LocalDateTime.now().format(formatter);
-            String endDateTime = LocalDateTime.now().plusDays(30).format(formatter);
+            // Format dates in ISO format for Graph API
+            DateTimeFormatter formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+            String currentTime = now.format(formatter);
+            String endDateTime = endDate.format(formatter);
+
             // Define query parameters
             List<QueryOption> queryOptions = Arrays.asList(
-                    new QueryOption("startDateTime", currentTime), // Get future events
+                    new QueryOption("startDateTime", currentTime),
                     new QueryOption("endDateTime", endDateTime),
-                    new QueryOption("$filter", "responseStatus/response ne 'accepted'"), // Unaccepted events
-                    new QueryOption("$expand", "instances"), // Include recurring instances
-                    new QueryOption("$orderby", "start/dateTime"), // Order by start time
-                    new QueryOption("$top", "50") // Limit results per request
+                    new QueryOption("$filter", "responseStatus/response ne 'accepted'"),
+                    new QueryOption("$expand", "instances"),
+                    new QueryOption("$orderby", "start/dateTime"),
+                    new QueryOption("$top", "50")
             );
 
-            // Fetch events
+            // Fetch events with pagination handling
+            List<Meeting> eventDetails = new ArrayList<>();
             EventCollectionPage eventCollection = getCalendarRequestBuilder()
                     .calendarView()
                     .buildRequest(queryOptions)
                     .get();
-            List<Meeting> eventDetails = new ArrayList<>();
+
             if (eventCollection != null) {
                 User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
-                while(eventCollection != null) {
-                    for (Event event : eventCollection.getCurrentPage()) {
-                        if (currentUser != null && MeetingDaoHelper.isUpcomingEvent(event) && MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
-                            eventDetails.add(new MeetingImpl(event));
-                        } else {
-                            System.out.println("*** skip event due to validation ... " + event.subject);
-                        }
-                    }
-
-                    if (eventCollection.getNextPage() != null) {
-                        eventCollection = eventCollection.getNextPage().buildRequest().get();
-                    } else {
-                        eventCollection = null;
-                    }
-                }
+                processEventPages(eventCollection, currentUser, eventDetails);
             }
+
             return eventDetails;
         } catch (GraphServiceException | IOException cause) {
             throw new IllegalStateException(Constants.FAILED_TO_GET_ALL_UNACCEPTED_EVENTS + cause.getMessage());
+        }
+    }
+
+    /**
+     * Helper method to process event pages recursively with proper pagination handling
+     *
+     * @param eventCollection The current page of events
+     * @param currentUser The current user
+     * @param eventDetails The list to populate with meeting details
+     */
+    private void processEventPages(EventCollectionPage eventCollection, User currentUser, List<Meeting> eventDetails) {
+        if (eventCollection == null) {
+            return;
+        }
+
+        // Process current page
+        for (Event event : eventCollection.getCurrentPage()) {
+            if (currentUser != null &&
+                MeetingDaoHelper.isUpcomingEvent(event) &&
+                MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                eventDetails.add(new MeetingImpl(event));
+            }
+        }
+
+        // Process next page if available
+        EventCollectionRequestBuilder nextPageRequest = eventCollection.getNextPage();
+        if (nextPageRequest != null) {
+            try {
+                EventCollectionPage nextPage = nextPageRequest.buildRequest().get();
+                processEventPages(nextPage, currentUser, eventDetails);
+            } catch (GraphServiceException e) {
+                throw new IllegalStateException("Failed to retrieve next page of events: " + e.getMessage(), e);
+            }
         }
     }
 }
