@@ -605,13 +605,10 @@ public class MeetingDaoImpl implements MeetingDao {
 
     public List<Meeting> getUnAcceptedMeetings() {
         try {
-            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(YYYY_MM_DD_T_HH_MM_SS);
 
-            // Set endDateTime to 30 days in the future from now
-            String endDateTime = LocalDateTime.now()
-                    .plusDays(30)
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
-
+            String currentTime = LocalDateTime.now().format(formatter);
+            String endDateTime = LocalDateTime.now().plusDays(30).format(formatter);
             // Define query parameters
             List<QueryOption> queryOptions = Arrays.asList(
                     new QueryOption("startDateTime", currentTime), // Get future events
