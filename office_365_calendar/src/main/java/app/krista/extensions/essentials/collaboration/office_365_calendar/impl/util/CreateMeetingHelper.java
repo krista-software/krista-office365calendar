@@ -12,6 +12,15 @@ import java.util.UUID;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.buildDateTimeTimeZone;
 
+/**
+ * Utility class for setting up and configuring Microsoft Graph {@link Event} objects
+ * for Office 365 calendar integration.
+ * <p>
+ * Provides static helper methods to set reminders, subject, transaction ID, Teams meeting status,
+ * recurrence, attendees, location, body, and date/time for events. This class centralizes
+ * the logic for preparing event objects before creation or update in the Office 365 calendar.
+ * </p>
+ */
 public class CreateMeetingHelper {
     public static final String DOES_NOT_REPEAT = "Does Not Repeat";
     public static final String NEVER = "Never";

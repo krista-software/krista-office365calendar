@@ -11,6 +11,13 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Service class for handling file operations between Krista's media server and the local file system.
+ * <p>
+ * Provides methods to upload Java files to Krista as Krista file objects, download Krista files as Java files,
+ * handle unsupported file formats by compressing them, and utility methods for file conversion and compression.
+ * </p>
+ */
 @Service
 public class KristaMediaClient {
 

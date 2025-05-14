@@ -9,6 +9,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * Implementation of the {@link Meeting} interface that wraps a Microsoft Graph {@link Event} object.
+ * Provides convenient access to event details such as ID, location, title, attendees, description,
+ * start/end times, time zone, and organizer, mapping Microsoft Graph event data to the Meeting interface.
+ */
 public class MeetingImpl implements Meeting {
 
     private final Event event;
@@ -72,6 +77,12 @@ public class MeetingImpl implements Meeting {
         return null;
     }
 
+    /**
+     * Converts a {@link com.microsoft.graph.models.DateTimeTimeZone} object to its corresponding epoch milliseconds.
+     *
+     * @param dateToParse the DateTimeTimeZone object to convert
+     * @return the epoch time in milliseconds representing the given date and time
+     */
     private long getDateInMilliSecond(DateTimeTimeZone dateToParse) {
         try {
             SimpleDateFormat sfd = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");

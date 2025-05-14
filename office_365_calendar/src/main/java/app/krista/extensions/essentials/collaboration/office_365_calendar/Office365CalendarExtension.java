@@ -11,6 +11,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.Map;
 
+
 @Field.Text(value = Office365CalendarAttributes.CLIENT_ID)
 @Field.Text(value = Office365CalendarAttributes.CLIENT_SECRET, isSecured = true)
 @Field.Text(value = Office365CalendarAttributes.TENANT_ID, isSecured = true)

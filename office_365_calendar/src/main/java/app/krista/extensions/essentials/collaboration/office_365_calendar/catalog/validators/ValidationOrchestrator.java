@@ -9,6 +9,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Orchestrates the validation of input resources using a collection of {@link Validator} instances.
+ * <p>
+ * The {@code ValidationOrchestrator} coordinates multiple validators to check the validity of various
+ * input resources required for Office 365 calendar operations.
+ * It aggregates the results of each validator into a list of {@link ValidationResult} objects, which
+ * can then be used for error handling, user feedback, or remediation flows.
+ * </p>
+ * This class is typically used in service or handler layers to ensure that all required
+ * inputs are valid before proceeding with business logic.
+ */
 @Service
 public class ValidationOrchestrator {
 

@@ -8,6 +8,15 @@ import app.krista.model.field.NamedValuedField;
 
 import java.util.List;
 
+/**
+ * Utility class providing static factory methods for creating {@link RemediationAction} instances
+ * for use in Office 365 calendar extension workflows.
+ * <p>
+ * This class simplifies the creation of common remediation actions, such as prompting the active user
+ * for input or informing participants, by encapsulating the construction logic for different action types.
+ * </p>
+ */
+
 public class RemediationActionFactory {
 
     public static RemediationAction createAskAction(String message,

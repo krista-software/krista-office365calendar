@@ -9,12 +9,6 @@ import java.util.List;
  * This class contains static helper methods to validate input data such as email addresses,
  * event IDs, and other parameters required for collaboration and calendar operations.
  * </p>
- * <p>
- * The Validators class is intended to be used throughout the Office 365 calendar extension
- * to ensure data integrity and prevent invalid input from propagating through the system.
- * </p>
- *
- * <p>All methods are static and stateless.</p>
  */
 public class Validators {
 

@@ -20,6 +20,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Helper class for handling sub-catalog requests related to meeting attachments and validation flows
+ * in the Office 365 calendar integration.
+ * <p>
+ * Provides endpoints for confirming re-entry of details, handling user prompts, and retrieving attachments
+ * for both authenticated and specified users. This class is typically used by the Krista platform's
+ * catalog infrastructure to support remediation and error handling flows.
+ * </p>
+ */
 @Service
 public class MeetingsAreaSubCatalogRequestHelper {
 
@@ -28,6 +37,14 @@ public class MeetingsAreaSubCatalogRequestHelper {
     private final ErrorHandlingStateManager internalStateManager;
     private final ExtensionResponseGenerator responseGenerator;
 
+    /**
+     * Constructs a new MeetingsAreaSubCatalogRequestHelper with required dependencies.
+     *
+     * @param meetingDao the meeting DAO for event operations
+     * @param catalogTypes the catalog types utility
+     * @param internalStateManager the error handling state manager
+     * @param responseGenerator the extension response generator
+     */
     @Inject
     public MeetingsAreaSubCatalogRequestHelper(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ErrorHandlingStateManager internalStateManager, ExtensionResponseGenerator responseGenerator) {
         this.meetingDao = meetingDao;
@@ -36,8 +53,15 @@ public class MeetingsAreaSubCatalogRequestHelper {
         this.responseGenerator = responseGenerator;
     }
 
-    @SubCatalogRequest(name = "confirmReenterGetAttachmentsForAGivenUser", description = "Checks if user wants to re enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ reEnter: Boolean, stateId: Text, email: Text, eventId: Text}") Map<String, Object> map) {
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting attachments for a given user.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, email, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterGetAttachmentsForAGivenUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, eventId: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -51,7 +75,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, "handleReEnterGetAttachmentForGivenUser", Map.of(Constants.EMAIL, map.get(Constants.EMAIL), Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
     }
 
-    @SubCatalogRequest(name = "handleReEnterGetAttachmentForGivenUser", description = "Handle reenter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
+    /**
+     * Handles the actual retrieval of attachments after the user has re-entered email and event ID.
+     *
+     * @param map input map containing email and eventId
+     * @return an extension response containing the attachments or an error response
+     */
+    @SubCatalogRequest(name = "handleReEnterGetAttachmentForGivenUser", description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, eventId: Text}") Map<String, Object> map) {
         try {
@@ -66,8 +96,15 @@ public class MeetingsAreaSubCatalogRequestHelper {
         }
     }
 
-    @SubCatalogRequest(name = "confirmReenterGetAttachments", description = "Checks if user wants to re enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{ reEnter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting attachments for the authenticated user.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterGetAttachments", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -81,7 +118,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, "handleReEnterGetAttachments", Map.of(Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
     }
 
-    @SubCatalogRequest(name = "handleReEnterGetAttachments", description = "Handle reenter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
+    /**
+     * Handles the actual retrieval of attachments after the user has re-entered the event ID for the authenticated user.
+     *
+     * @param map input map containing eventId
+     * @return an extension response containing the attachments or an error response
+     */
+    @SubCatalogRequest(name = "handleReEnterGetAttachments", description = "Handle re-enter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
         try {

@@ -23,6 +23,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Utility and service class for converting between Krista and Microsoft Graph types
+ * related to files and events in the Office 365 calendar integration.
+ * <p>
+ * CatalogTypes provides methods to:
+ * - Convert Meeting objects to EventDetails entities
+ * - Convert lists of Krista File objects to Microsoft Graph Attachment objects and vice versa
+ * - Handle file content reading, file type detection, and temporary file management for attachments
+ * <p>
+ * This class is typically used by service and DAO layers to facilitate interoperability
+ * between Krista's internal models and Microsoft Graph API models, especially for
+ * event and attachment management.
+ */
+
 @Service
 public final class CatalogTypes {
 

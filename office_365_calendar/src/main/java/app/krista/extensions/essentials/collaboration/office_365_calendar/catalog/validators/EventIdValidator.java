@@ -9,6 +9,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+/**
+ * Validator implementation for verifying the existence of an event ID within the Office 365 calendar extension.
+ * <p>
+ * This class uses the {@link MeetingDaoImpl} to check if a meeting with the given event ID exists.
+ * It provides user-facing messages for fetch, confirmation, and error steps, and handles authorization
+ * and validation exceptions appropriately.
+ * </p>
+ */
 public class EventIdValidator implements Validator {
 
     private final MeetingDaoImpl meetingDao;
@@ -27,7 +35,7 @@ public class EventIdValidator implements Validator {
             logger.error("Exception thrown while authorizing user : {} {}", cause.getMessage(), cause);
             throw cause;
         } catch (Exception cause) {
-            logger.error("Exception thrown while validating Event ID: {}", cause.getMessage(), cause);
+            logger.error("Exception thrown while validating event id: {}", cause.getMessage(), cause);
             return false;
         }
     }
@@ -39,17 +47,17 @@ public class EventIdValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter valid Event ID.";
+        return "Please enter valid event id.";
     }
 
     @Override
-    public String getConfirmationStepMessage(String resourceId, Map<ValidationResource, String> context) {
-        return String.format("The provided Event ID: %s does not exist.", resourceId);
+    public String getConfirmationStepMessage(String eventId, Map<ValidationResource, String> context) {
+        return String.format("The provided event id: %s does not exist.", eventId);
     }
 
     @Override
-    public String getErrMessage(String resourceId) {
-        return String.format("Invalid Event ID: %s", resourceId);
+    public String getErrMessage(String eventId) {
+        return String.format("Invalid event id: %s", eventId);
     }
 }
 

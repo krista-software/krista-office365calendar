@@ -52,6 +52,16 @@ import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
 
+/**
+ * Implementation of the {@link MeetingDao} interface for Office 365 calendar integration.
+ * <p>
+ * This class provides methods to interact with Microsoft Graph API for managing meetings and events,
+ * including scheduling, updating, canceling, querying, and handling attendees and attachments.
+ * It handles both user and system authentication contexts, manages time zones, recurrence, and
+ * error handling for calendar operations.
+ * </p>
+ */
+
 @Service
 public class MeetingDaoImpl implements MeetingDao {
 
@@ -101,12 +111,24 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves a meeting by its event ID.
+     *
+     * @param id the Office 365 Calendar event ID
+     * @return the Meeting object for the specified event
+     * @throws IOException if there is an error retrieving the event
+     */
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
         return new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
     }
 
+    /**
+     * Retrieves a list of upcoming meetings that are neither accepted nor declined by the current user.
+     *
+     * @return a list of Meeting objects for upcoming events
+     */
     @Override
     public List<Meeting> getMeetings() {
         try {
@@ -127,6 +149,16 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves a list of scheduled meeting slots for the given attendees within a date range.
+     *
+     * @param dateFrom  fetch meeting slots from this date
+     * @param dateTo    fetch meeting slots till this date
+     * @param attendees fetch meeting slots for these attendees
+     * @param timeZone  time zone of the given date and time
+     * @return a list of maps containing attendee and their meeting slots
+     * @throws IOException if there is an error retrieving schedules
+     */
     @Override
     public List<Map<String, Object>> getSchedules(Long dateFrom, Long dateTo, List<String> attendees, String timeZone) throws IOException {
         Validators.validateString(dateFrom.toString(), "date");
@@ -180,6 +212,12 @@ public class MeetingDaoImpl implements MeetingDao {
         return scheduleItemsList;
     }
 
+    /**
+     * Retrieves a list of upcoming meetings, limited to the specified number.
+     *
+     * @param numberOfMeetings the number of meetings to retrieve
+     * @return a list of Meeting objects for upcoming events
+     */
     @Override
     public List<Meeting> getMeetings(int numberOfMeetings) {
         try {
@@ -200,6 +238,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Searches for events matching the given query string.
+     *
+     * @param queryString the search query
+     * @return a list of maps containing event ID, title, and scheduled time
+     */
     @Override
     public List<Map<String, Object>> getQueryResults(String queryString) {
         Validators.validateString(queryString, "query text");
@@ -218,6 +262,14 @@ public class MeetingDaoImpl implements MeetingDao {
         return searchHits;
     }
 
+    /**
+     * Retrieves events for a given user within a specified date range.
+     *
+     * @param userEmail the user's email address
+     * @param fromDate  start date (epoch millis)
+     * @param toDate    end date (epoch millis)
+     * @return a list of Meeting objects for the user
+     */
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
@@ -296,6 +348,19 @@ public class MeetingDaoImpl implements MeetingDao {
         return searchHitData;
     }
 
+    /**
+     * Retrieves a list of free meeting slots based on the provided criteria.
+     *
+     * @param dateFrom            date for which free slots need to be fetched from
+     * @param dateTo              date for which free slots need to be fetched till
+     * @param isOrganizerOptional if the organizer is required for the meeting or optional
+     * @param requiredAttendee    list of required attendee email addresses
+     * @param optionalAttendee    list of optional attendee email addresses
+     * @param timeZone            time zone to get free slots time in required time zones
+     * @param meetingDuration     duration of the free slot required
+     * @return a list of maps with meeting time suggestions
+     * @throws DatatypeConfigurationException if there is an error in dateFrom or dateTo
+     */
     @Override
     public List<Map<String, Object>> getFreeSlot(Long dateFrom, Long dateTo, Boolean isOrganizerOptional, List<String> requiredAttendee, List<String> optionalAttendee, String timeZone, String meetingDuration) throws DatatypeConfigurationException {
         Validators.validateString(dateFrom.toString(), "date");
@@ -372,6 +437,11 @@ public class MeetingDaoImpl implements MeetingDao {
         return attendeesAvailability;
     }
 
+    /**
+     * Schedules a new meeting with the provided details and attachments.
+     *
+     * @return the Meeting object for the scheduled event
+     */
     @Override
     public Meeting addMeeting(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting) {
         Validators.validateString(dateFrom.toString(), "date");
@@ -396,12 +466,24 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Forwards the meeting invitation to the given attendees.
+     *
+     * @param id            event ID of the Office 365 calendar meeting
+     * @param attendeeEmail list of emails for forwarding the meeting invitation
+     * @throws IOException if there is an error in the input
+     */
     @Override
     public void forwardMeeting(String id, List<String> attendeeEmail) throws IOException {
         List<Recipient> toRecipientsList = MeetingDaoHelper.getRecipient(attendeeEmail);
         getCalendarRequestBuilder().events(id).forward(EventForwardParameterSet.newBuilder().withToRecipients(toRecipientsList).build()).buildRequest().post();
     }
 
+    /**
+     * Updates the meeting with the given details.
+     *
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
         if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
@@ -445,6 +527,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Accepts the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting acceptMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -456,6 +544,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Declines the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting declineMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -468,6 +562,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Tentatively accepts the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting tentativeMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -479,6 +579,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Cancels the meeting for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the cancelled Meeting object
+     */
     @Override
     public Meeting cancelMeeting(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -491,6 +597,14 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Adds attendees to the specified meeting.
+     *
+     * @param id                    Office 365 calendar meeting ID
+     * @param requiredAttendeeEmail list of required attendee emails
+     * @param optionalAttendeeEmail list of optional attendee emails
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting addAttendees(String id, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -507,6 +621,13 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Removes attendees from the specified meeting.
+     *
+     * @param id        Office 365 calendar meeting ID
+     * @param attendees list of attendee email addresses to remove
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting removeAttendees(String id, List<String> attendees) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -629,11 +750,24 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves all file attachments for a specific event for a given user.
+     *
+     * @param userEmail the user's email address
+     * @param eventId   the event ID
+     * @return a list of FileAttachment objects
+     */
     @Override
     public List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId) {
         return fetchAttachments(userEmail, eventId, false);
     }
 
+    /**
+     * Retrieves all file attachments for a specific event for the authenticated user.
+     *
+     * @param eventId the event ID
+     * @return a list of FileAttachment objects
+     */
     @Override
     public List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId) {
         try {

@@ -16,6 +16,14 @@ import javax.ws.rs.core.MultivaluedMap;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * Authenticator implementation for Office 365 Calendar integration.
+ * <p>
+ * Handles authentication and authorization flows for Office 365 calendar requests,
+ * including extracting authenticated account IDs from callback requests and generating
+ * authorization URLs for user consent.
+ * </p>
+ */
 public class Office365CalendarRequestAuthenticator implements RequestAuthenticator {
 
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
@@ -36,6 +44,13 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         return Set.of();
     }
 
+    /**
+     * Extracts the authenticated account ID from the given ProtoRequest, if present.
+     * Used primarily for handling OAuth callback requests.
+     *
+     * @param protoRequest the incoming ProtoRequest
+     * @return the authenticated account ID, or null if not found
+     */
     @Override
     public String getAuthenticatedAccountId(ProtoRequest protoRequest) {
         try {
@@ -45,10 +60,10 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
                 MultivaluedMap<String, String> queryParameters = httpRequest.getQueryParameters();
                 if (queryParameters == null ||
                         queryParameters.get(Constants.STATE) == null ||
-                        queryParameters.get(Constants.STATE).get(0) == null) {
+                        queryParameters.get(Constants.STATE).getFirst() == null) {
                     return null;
                 }
-                String state = String.valueOf(queryParameters.get(Constants.STATE).get(0));
+                String state = String.valueOf(queryParameters.get(Constants.STATE).getFirst());
                 String[] parts = state.split("&");
                 return parts[0];
             } else {
@@ -84,9 +99,15 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         return null;
     }
 
+    /**
+     * Returns an AuthorizationResponse for must-authorize scenarios, generating an OAuth authorization URL.
+     *
+     * @param cause the MustAuthorizeException
+     * @return an AuthorizationResponse containing the authorization URL
+     */
     @Override
     public AuthorizationResponse getMustAuthorizeResponse(MustAuthorizeException cause) {
-        String userId = (String) cause.getDetails().get(0).getValue();
+        String userId = (String) cause.getDetails().getFirst().getValue();
         Optional<NamedValuedField> authContextIdField = cause.getDetails().stream().filter(f -> Objects.equals(f.getName(), "authContextId")).findFirst();
 
         Office365CalendarAttributes effectiveOffice365CalendarAttributes;
