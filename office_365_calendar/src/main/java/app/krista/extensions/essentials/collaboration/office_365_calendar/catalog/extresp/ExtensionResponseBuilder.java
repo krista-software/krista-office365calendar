@@ -21,9 +21,6 @@ public class ExtensionResponseBuilder {
     private RemediationActions remediationActions;
     private Map<String, Object> state;
 
-    public ExtensionResponseBuilder() {
-    }
-
     public ExtensionResponseBuilder result(ExtensionResponse.Result result) {
         this.result = result;
         return this;
