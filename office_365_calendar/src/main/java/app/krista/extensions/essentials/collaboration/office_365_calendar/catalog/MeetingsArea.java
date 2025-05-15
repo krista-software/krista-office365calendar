@@ -200,7 +200,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public List<EventDetails> getAllUnacceptedEvents() {
-        return meetingDao.getMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+        return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
     /**

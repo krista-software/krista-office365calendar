@@ -169,7 +169,15 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         List<Map<String, Object>> meetingsList = new ArrayList<>();
         LinkedList<String> schedulesList = new LinkedList<>(attendees);
-        CalendarGetScheduleCollectionPage page = getCalendarRequestBuilder().getSchedule(CalendarGetScheduleParameterSet.newBuilder().withSchedules(schedulesList).withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone())).withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone())).build()).buildRequest().post();
+        CalendarGetScheduleCollectionPage page = getCalendarRequestBuilder()
+                .getSchedule(CalendarGetScheduleParameterSet
+                        .newBuilder()
+                        .withSchedules(schedulesList)
+                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone()))
+                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone()))
+                        .build())
+                .buildRequest()
+                .post();
         while (page != null && !page.getCurrentPage().isEmpty()) {
             for (ScheduleInformation scheduleInformation : page.getCurrentPage()) {
                 if (scheduleInformation.scheduleId != null && !scheduleInformation.scheduleId.isEmpty()) {
@@ -275,7 +283,12 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
 
-            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem().users(userEmail).calendarView().buildRequest(options).select("id,subject,start,end,location,body,attendees,originalStartTimeZone,organizer").get();
+            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
+                    .users(userEmail)
+                    .calendarView()
+                    .buildRequest(options)
+                    .select("id,subject,start,end,location,body,attendees,originalStartTimeZone,organizer")
+                    .get();
 
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
@@ -333,7 +346,14 @@ public class MeetingDaoImpl implements MeetingDao {
 
     @Nullable
     private SearchEntityQueryCollectionPage getSearchEntityQueryCollectionPage(LinkedList<SearchRequest> requestsList) throws IOException {
-        return clientProvider.getGraphServiceClient().search().query(SearchEntityQueryParameterSet.newBuilder().withRequests(requestsList).build()).buildRequest().post();
+        return clientProvider.getGraphServiceClient()
+                .search()
+                .query(SearchEntityQueryParameterSet
+                        .newBuilder()
+                        .withRequests(requestsList)
+                        .build())
+                .buildRequest()
+                .post();
     }
 
     private Map<String, Object> getSearchHitContent(SearchHit searchHit) {
@@ -378,7 +398,17 @@ public class MeetingDaoImpl implements MeetingDao {
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
         MeetingTimeSuggestionsResult meetingTimeSuggestionsResult;
-        meetingTimeSuggestionsResult = clientProvider.getUserRequestBuilder(false, null).findMeetingTimes(UserFindMeetingTimesParameterSet.newBuilder().withAttendees(attendeesList).withTimeConstraint(timeConstraint).withMeetingDuration(slotDuration).withIsOrganizerOptional(isOrganizerOptional).withReturnSuggestionReasons(true).build()).buildRequest().post();
+        meetingTimeSuggestionsResult = clientProvider.getUserRequestBuilder(false, null)
+                .findMeetingTimes(UserFindMeetingTimesParameterSet
+                        .newBuilder()
+                        .withAttendees(attendeesList)
+                        .withTimeConstraint(timeConstraint)
+                        .withMeetingDuration(slotDuration)
+                        .withIsOrganizerOptional(isOrganizerOptional)
+                        .withReturnSuggestionReasons(true)
+                        .build())
+                .buildRequest()
+                .post();
 
         if (meetingTimeSuggestionsResult != null && meetingTimeSuggestionsResult.meetingTimeSuggestions != null) {
             for (MeetingTimeSuggestion meetingTimeSuggestion : meetingTimeSuggestionsResult.meetingTimeSuggestions) {
@@ -451,7 +481,9 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
-            Event newEvent = getCalendarRequestBuilder().events().buildRequest().post(event);
+            Event newEvent = getCalendarRequestBuilder().events()
+                    .buildRequest()
+                    .post(event);
             setDateTimeTimeZone(selectedTimeZone, newEvent);
             assert newEvent.id != null;
             for (Attachment attachment : attachments) {
@@ -476,7 +508,13 @@ public class MeetingDaoImpl implements MeetingDao {
     @Override
     public void forwardMeeting(String id, List<String> attendeeEmail) throws IOException {
         List<Recipient> toRecipientsList = MeetingDaoHelper.getRecipient(attendeeEmail);
-        getCalendarRequestBuilder().events(id).forward(EventForwardParameterSet.newBuilder().withToRecipients(toRecipientsList).build()).buildRequest().post();
+        getCalendarRequestBuilder().events(id)
+                .forward(EventForwardParameterSet
+                        .newBuilder()
+                        .withToRecipients(toRecipientsList)
+                        .build())
+                .buildRequest()
+                .post();
     }
 
     /**
@@ -485,13 +523,19 @@ public class MeetingDaoImpl implements MeetingDao {
      * @return the updated Meeting object
      */
     @Override
-    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+    public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo,
+                                 String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
+                                 Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval,
+                                 List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex,
+                                 String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
         if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
             throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
         }
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
-            Event oldEvent = getCalendarRequestBuilder().events(id).buildRequest().get();
+            Event oldEvent = getCalendarRequestBuilder().events(id)
+                    .buildRequest()
+                    .get();
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
             long eventStart = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
@@ -519,7 +563,9 @@ public class MeetingDaoImpl implements MeetingDao {
             event.changeKey = oldEvent.changeKey;
             event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
             event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
-            Event newEvent = getCalendarRequestBuilder().events(id).buildRequest().patch(event);
+            Event newEvent = getCalendarRequestBuilder().events(id)
+                    .buildRequest()
+                    .patch(event);
             setDateTimeTimeZone(selectedTimeZone, newEvent);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
@@ -834,6 +880,86 @@ public class MeetingDaoImpl implements MeetingDao {
             return clientProvider.getGraphServiceClient().me().events(eventId).attachments().buildRequest().get();
         } else {
             return clientProvider.getGraphServiceClientForSystem().users(userEmail).events(eventId).attachments().buildRequest().get();
+        }
+    }
+
+    /**
+     * Retrieves a list of unaccepted meetings for the current user.
+     * This method fetches calendar events that haven't been accepted yet
+     * and are scheduled within the next 30 days.
+     *
+     * @return List of Meeting objects representing unaccepted meetings
+     */
+    public List<Meeting> getUnAcceptedMeetings() {
+        try {
+            // Use ZonedDateTime for consistent date/time handling
+            ZoneId userTimeZone = ZoneId.of(office365CalendarAttributes.getTimeZone());
+            ZonedDateTime now = ZonedDateTime.now(userTimeZone);
+            ZonedDateTime endDate = now.plusDays(30);
+
+            // Format dates in ISO format for Graph API
+            DateTimeFormatter formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+            String currentTime = now.format(formatter);
+            String endDateTime = endDate.format(formatter);
+
+            // Define query parameters
+            List<QueryOption> queryOptions = Arrays.asList(
+                    new QueryOption("startDateTime", currentTime),
+                    new QueryOption("endDateTime", endDateTime),
+                    new QueryOption("$filter", "responseStatus/response ne 'accepted'"),
+                    new QueryOption("$expand", "instances"),
+                    new QueryOption("$orderby", "start/dateTime"),
+                    new QueryOption("$top", "50")
+            );
+
+            // Fetch events with pagination handling
+            List<Meeting> eventDetails = new ArrayList<>();
+            EventCollectionPage eventCollection = getCalendarRequestBuilder()
+                    .calendarView()
+                    .buildRequest(queryOptions)
+                    .get();
+
+            if (eventCollection != null) {
+                User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
+                processEventPages(eventCollection, currentUser, eventDetails);
+            }
+
+            return eventDetails;
+        } catch (GraphServiceException | IOException cause) {
+            throw new IllegalStateException(Constants.FAILED_TO_GET_ALL_UNACCEPTED_EVENTS + cause.getMessage());
+        }
+    }
+
+    /**
+     * Helper method to process event pages recursively with proper pagination handling
+     *
+     * @param eventCollection The current page of events
+     * @param currentUser The current user
+     * @param eventDetails The list to populate with meeting details
+     */
+    private void processEventPages(EventCollectionPage eventCollection, User currentUser, List<Meeting> eventDetails) {
+        if (eventCollection == null) {
+            return;
+        }
+
+        // Process current page
+        for (Event event : eventCollection.getCurrentPage()) {
+            if (currentUser != null &&
+                MeetingDaoHelper.isUpcomingEvent(event) &&
+                MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                eventDetails.add(new MeetingImpl(event));
+            }
+        }
+
+        // Process next page if available
+        EventCollectionRequestBuilder nextPageRequest = eventCollection.getNextPage();
+        if (nextPageRequest != null) {
+            try {
+                EventCollectionPage nextPage = nextPageRequest.buildRequest().get();
+                processEventPages(nextPage, currentUser, eventDetails);
+            } catch (GraphServiceException e) {
+                throw new IllegalStateException("Failed to retrieve next page of events: " + e.getMessage(), e);
+            }
         }
     }
 }
