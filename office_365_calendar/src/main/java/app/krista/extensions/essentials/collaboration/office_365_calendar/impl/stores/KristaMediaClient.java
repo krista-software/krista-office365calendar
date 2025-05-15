@@ -23,7 +23,7 @@ public class KristaMediaClient {
 
     private static final String zipDir = "/tmp/";
     @Inject
-    private FileRepository fileRepository;
+    public FileRepository fileRepository;
 
     private final List<String> unSupportedFileFormats = Arrays.asList("html", "php5", "pht", "phtml", "shtml", "asa", "cer", "asax", "swf", "xap", "jsp", "exe", "js");
 
