@@ -12,7 +12,6 @@ import com.microsoft.graph.requests.GraphServiceClient;
 import okhttp3.Request;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -37,19 +36,17 @@ public class GraphServiceClientProviderTest {
     private GraphServiceClientProvider clientProvider;
 
     private final String testUserId = "test-user";
-    private final String testRefreshToken = "test-refresh-token";
-    private final String clientId = "client-id";
-    private final String clientSecret = "client-secret";
-    private final String tenantId = "tenant-id";
     private final String email = "test@example.com";
-    private final String dummyToken = "dummy-refresh-token";
 
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
 
+        String clientId = "client-id";
         when(attributes.getClientId()).thenReturn(clientId);
+        String clientSecret = "client-secret";
         when(attributes.getClientSecret()).thenReturn(clientSecret);
+        String tenantId = "tenant-id";
         when(attributes.getTenantId()).thenReturn(tenantId);
         when(attributes.getEmail()).thenReturn(email);
 
@@ -78,6 +75,7 @@ public class GraphServiceClientProviderTest {
     @Test
     public void testGetGraphServiceClient_whenRefreshTokenExists_returnsClient() {
         when(requestContext.invokeAsUser()).thenReturn(true);
+        String testRefreshToken = "test-refresh-token";
         when(refreshTokenStore.get(testUserId)).thenReturn(testRefreshToken);
 
         doReturn(mockClient).when(clientProvider).getGraphServiceClient(eq(testUserId), eq(testRefreshToken));

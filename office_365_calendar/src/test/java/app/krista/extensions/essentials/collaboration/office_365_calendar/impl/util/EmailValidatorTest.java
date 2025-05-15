@@ -17,8 +17,7 @@ public class EmailValidatorTest {
 
     @Test
     public void test_handle_null_input() {
-        String input = null;
-        String result = EmailValidator.emailExtractor(input);
+        String result = EmailValidator.emailExtractor(null);
         assertNull(result);
     }
 
