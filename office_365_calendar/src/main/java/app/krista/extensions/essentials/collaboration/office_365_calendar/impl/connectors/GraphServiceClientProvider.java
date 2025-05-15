@@ -47,10 +47,10 @@ public final class GraphServiceClientProvider {
     /**
      * Constructs a new GraphServiceClientProvider with required dependencies.
      *
-     * @param refreshTokenStore the store for managing refresh tokens
+     * @param refreshTokenStore           the store for managing refresh tokens
      * @param office365CalendarAttributes Office 365 calendar configuration and credentials
-     * @param requestContext the request context
-     * @param authorizationContext the authorization context
+     * @param requestContext              the request context
+     * @param authorizationContext        the authorization context
      */
     @Inject
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
@@ -60,11 +60,11 @@ public final class GraphServiceClientProvider {
     /**
      * Constructs a new GraphServiceClientProvider with an optional authentication context ID.
      *
-     * @param refreshTokenStore the store for managing refresh tokens
+     * @param refreshTokenStore           the store for managing refresh tokens
      * @param office365CalendarAttributes Office 365 calendar configuration and credentials
-     * @param requestContext the request context
-     * @param authorizationContext the authorization context
-     * @param authContextId optional authentication context ID
+     * @param requestContext              the request context
+     * @param authorizationContext        the authorization context
+     * @param authContextId               optional authentication context ID
      */
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
         this.refreshTokenStore = refreshTokenStore;
@@ -159,11 +159,11 @@ public final class GraphServiceClientProvider {
     /**
      * Returns a GraphServiceClient for the specified user, using the provided refresh token.
      *
-     * @param userId the user ID
+     * @param userId       the user ID
      * @param refreshToken the refresh token for the user
      * @return a configured GraphServiceClient instance
      */
-    private GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
+    public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
         try {
 
             String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
@@ -187,10 +187,10 @@ public final class GraphServiceClientProvider {
     /**
      * Updates the refresh token for the specified user in the refresh token store.
      *
-     * @param userId the user ID
+     * @param userId         the user ID
      * @param jsonTokenCache the token cache as a JsonObject
      */
-    private void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
+    public void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
         JsonObject refreshToken = jsonTokenCache.get("RefreshToken").getAsJsonObject();
         String firstKey = refreshToken.keySet().iterator().next();
         JsonObject tokenData = refreshToken.getAsJsonObject(firstKey);
@@ -202,7 +202,7 @@ public final class GraphServiceClientProvider {
     /**
      * Creates a MustAuthorizeException for the specified user, indicating that re-authorization is required.
      *
-     * @param userId the user ID
+     * @param userId           the user ID
      * @param reAuthentication whether re-authentication is required
      * @return a MustAuthorizeException with details
      */
@@ -225,7 +225,7 @@ public final class GraphServiceClientProvider {
      * @return the user ID
      * @throws IllegalStateException if the user ID cannot be determined
      */
-    private String getUserId(boolean calledFromValidateAttributes) {
+    public String getUserId(boolean calledFromValidateAttributes) {
         String userId = calledFromValidateAttributes || !requestContext.invokeAsUser() ? office365CalendarAttributes.getEmail() : authorizationContext.getAuthorizedAccount().getAccountId();
         if (userId == null) {
             throw new IllegalStateException(FAILED_TO_GET_ACCOUNT);
@@ -300,7 +300,7 @@ public final class GraphServiceClientProvider {
      * Gets the user ID based on the specified parameters.
      *
      * @param calledFromValidateAttributes A boolean indicating whether the method is called from validateAttributes.
-     * @param accountID The account ID of the user; used if 'calledFromValidateAttributes' is false.
+     * @param accountID                    The account ID of the user; used if 'calledFromValidateAttributes' is false.
      * @return The user ID.
      * @throws IllegalStateException If the user ID cannot be determined.
      */

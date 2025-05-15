@@ -93,6 +93,7 @@ public class ExtensionResponseGenerator {
      * @param state                 the current state map to be included in the response
      * @return an {@link ExtensionResponse} prompting the user to provide missing or invalid information
      */
+    @SuppressWarnings("unchecked")
     public ExtensionResponse generateFetchResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
         LOGGER.info("Validation failed for : {}", validationResults.size());
         Map<String, Object> stringStringMap = generateResponse(validationResults, true);

@@ -51,10 +51,13 @@ public class EmailValidator implements Validator {
     public static String emailExtractor(String email) {
         String emailPattern = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}";
         Pattern pattern = Pattern.compile(emailPattern);
-        Matcher matcher = pattern.matcher(email);
-        if (matcher.find()) {
-            return matcher.group();
+        if (email != null) {
+            Matcher matcher = pattern.matcher(email);
+            if (matcher.find()) {
+                return matcher.group();
+            }
+            return email;
         }
-        return email;
+        return null;
     }
 }

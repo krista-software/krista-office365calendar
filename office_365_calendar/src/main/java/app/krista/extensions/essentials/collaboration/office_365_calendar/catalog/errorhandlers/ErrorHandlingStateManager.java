@@ -33,6 +33,7 @@ public class ErrorHandlingStateManager {
         entries.put(key, keystoreValue);
     }
 
+    @SuppressWarnings("unchecked")
     public Map<String, Object> get(String key) {
         final String value = String.valueOf(entries.get(key));
         return Constants.GSON_OBJECT.fromJson(value, Map.class);
