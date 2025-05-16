@@ -6,8 +6,6 @@ import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
 import java.io.*;
-import java.util.Arrays;
-import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -24,9 +22,6 @@ public class KristaMediaClient {
     private static final String zipDir = "/tmp/";
     @Inject
     public FileRepository fileRepository;
-
-    private final List<String> unSupportedFileFormats = Arrays.asList("html", "php5", "pht", "phtml", "shtml", "asa", "cer", "asax", "swf", "xap", "jsp", "exe", "js");
-
     /**
      * Uploads a file to Krista's media server. it will take java.io.File object as input and returns krista's file object
      *
@@ -68,8 +63,11 @@ public class KristaMediaClient {
      * @return True if the file format is unsupported, otherwise false.
      */
     private boolean isUnsupportedFileFormat(String fileName) {
+        if (fileName.lastIndexOf(".") == -1) {
+            return false;
+        }
         String fileExtension = getFileExtension(fileName);
-        return unSupportedFileFormats.contains(fileExtension);
+        return fileRepository.getBlackListedFileExtensions().contains(fileExtension);
     }
 
     /**
