@@ -72,7 +72,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, "handleReEnterGetAttachmentForGivenUser", Map.of(Constants.EMAIL, map.get(Constants.EMAIL), Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, Map.of(Constants.EMAIL, map.get(Constants.EMAIL), Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
     }
 
     /**
@@ -81,7 +81,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @param map input map containing email and eventId
      * @return an extension response containing the attachments or an error response
      */
-    @SubCatalogRequest(name = "handleReEnterGetAttachmentForGivenUser", description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, eventId: Text}") Map<String, Object> map) {
         try {
@@ -115,7 +115,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, "handleReEnterGetAttachments", Map.of(Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_ATTACHMENT, Map.of(Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
     }
 
     /**
@@ -124,7 +124,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @param map input map containing eventId
      * @return an extension response containing the attachments or an error response
      */
-    @SubCatalogRequest(name = "handleReEnterGetAttachments", description = "Handle re-enter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT, description = "Handle re-enter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
         try {

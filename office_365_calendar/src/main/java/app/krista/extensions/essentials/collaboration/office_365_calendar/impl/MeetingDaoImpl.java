@@ -752,7 +752,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
-                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachmentsForAGivenUser");
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER);
                 return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EMAIL, userEmail, Constants.EVENT_ID, eventID)).build();
             }
         } catch (IllegalCallerException cause) {
@@ -781,7 +781,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
                 List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
                 AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
-                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), "confirmReenterGetAttachments");
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_ATTACHMENTS);
                 return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventID)).build();
             }
         } catch (IllegalCallerException cause) {

@@ -71,6 +71,10 @@ public final class Constants {
     public static final String EVENT_ID = "eventId";
     public static final String RE_ENTER = "re-enter";
     public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
+    public static final String HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER = "handleReEnterGetAttachmentForGivenUser";
+    public static final String HANDLE_RE_ENTER_GET_ATTACHMENT = "handleReEnterGetAttachments";
+    public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER = "confirmReenterGetAttachmentsForAGivenUser";
+    public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
 
     private Constants() {
     }
