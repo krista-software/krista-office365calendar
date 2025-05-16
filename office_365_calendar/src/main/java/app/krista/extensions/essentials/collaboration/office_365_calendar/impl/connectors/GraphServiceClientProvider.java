@@ -196,7 +196,7 @@ public final class GraphServiceClientProvider {
         JsonObject tokenData = refreshToken.getAsJsonObject(firstKey);
         String secret = tokenData.get("secret").getAsString();
         refreshTokenStore.put(userId, secret);
-        System.out.println("Updated Refresh Token.");
+        LOGGER.info("Updated Refresh Token.");
     }
 
     /**
