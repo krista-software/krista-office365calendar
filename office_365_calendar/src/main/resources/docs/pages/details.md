@@ -231,7 +231,15 @@ values:
 | Tonga Standard Time             | (UTC+13:00) Nuku'alofa                                        |
 | Line Islands Standard Time      | (UTC+14:00) Kiritimati Island                                 |
 
+### Attachment Details
 
+This section describes the fields returned by the **Get Attachments** and **Get Attachments For A Given User** requests. Each attachment object contains the following properties:
+
+* **type**: The fully qualified Java class name of the attachment object. Example: `"com.krista.net.model.fieldschemas.File"`.
+* **length**: The size of the attachment in bytes. Example: `25517`.
+* **fileName**: The name of the attachment file, including extension. Example: `"FDC KE-1948.docx"`.
+* **extension**: The file extension of the attachment. Example: `"docx"`.
+* **mediaId**: The unique identifier for the media resource associated with the attachment. Example: `"media_ws_e382f7cd-6a47-4520-9e27-7f77d11f3810"`.
 
 
 

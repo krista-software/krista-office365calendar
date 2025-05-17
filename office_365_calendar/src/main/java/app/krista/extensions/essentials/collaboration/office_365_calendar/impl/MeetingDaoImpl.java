@@ -1,6 +1,17 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
+import app.krista.extension.authorization.MustAuthorizeException;
+import app.krista.extension.executor.ExtensionResponse;
+import app.krista.extension.executor.ExtensionResponseBuilder;
+import app.krista.extension.executor.RemediationAction;
+import app.krista.extension.executor.RemediationActions;
+import app.krista.extension.executor.impl.AskAPersonAction;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.CatalogTypes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
@@ -10,6 +21,8 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.MeetingDao;
 import app.krista.model.base.DateRange;
+import app.krista.model.base.File;
+import app.krista.model.field.NamedField;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
@@ -19,6 +32,8 @@ import com.microsoft.graph.requests.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -37,13 +52,23 @@ import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
 
+/**
+ * Implementation of the {@link MeetingDao} interface for Office 365 calendar integration.
+ * <p>
+ * This class provides methods to interact with Microsoft Graph API for managing meetings and events,
+ * including scheduling, updating, canceling, querying, and handling attendees and attachments.
+ * It handles both user and system authentication contexts, manages time zones, recurrence, and
+ * error handling for calendar operations.
+ * </p>
+ */
+
 @Service
 public class MeetingDaoImpl implements MeetingDao {
 
     public static final int MAX_SIZE = 25;
     private final GraphServiceClientProvider clientProvider;
     private final Office365CalendarAttributes office365CalendarAttributes;
-
+    public static Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
 
     @Inject
     public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory, Office365CalendarAttributes office365CalendarAttributes) {
@@ -86,12 +111,24 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves a meeting by its event ID.
+     *
+     * @param id the Office 365 Calendar event ID
+     * @return the Meeting object for the specified event
+     * @throws IOException if there is an error retrieving the event
+     */
     @Override
     public Meeting getMeetingById(String id) throws IOException {
         Validators.validateString(id, Constants.MEETING_ID);
         return new MeetingImpl(getCalendarRequestBuilder().events(id).buildRequest().get());
     }
 
+    /**
+     * Retrieves a list of upcoming meetings that are neither accepted nor declined by the current user.
+     *
+     * @return a list of Meeting objects for upcoming events
+     */
     @Override
     public List<Meeting> getMeetings() {
         try {
@@ -112,6 +149,16 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Retrieves a list of scheduled meeting slots for the given attendees within a date range.
+     *
+     * @param dateFrom  fetch meeting slots from this date
+     * @param dateTo    fetch meeting slots till this date
+     * @param attendees fetch meeting slots for these attendees
+     * @param timeZone  time zone of the given date and time
+     * @return a list of maps containing attendee and their meeting slots
+     * @throws IOException if there is an error retrieving schedules
+     */
     @Override
     public List<Map<String, Object>> getSchedules(Long dateFrom, Long dateTo, List<String> attendees, String timeZone) throws IOException {
         Validators.validateString(dateFrom.toString(), "date");
@@ -173,6 +220,12 @@ public class MeetingDaoImpl implements MeetingDao {
         return scheduleItemsList;
     }
 
+    /**
+     * Retrieves a list of upcoming meetings, limited to the specified number.
+     *
+     * @param numberOfMeetings the number of meetings to retrieve
+     * @return a list of Meeting objects for upcoming events
+     */
     @Override
     public List<Meeting> getMeetings(int numberOfMeetings) {
         try {
@@ -193,6 +246,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Searches for events matching the given query string.
+     *
+     * @param queryString the search query
+     * @return a list of maps containing event ID, title, and scheduled time
+     */
     @Override
     public List<Map<String, Object>> getQueryResults(String queryString) {
         Validators.validateString(queryString, "query text");
@@ -211,6 +270,14 @@ public class MeetingDaoImpl implements MeetingDao {
         return searchHits;
     }
 
+    /**
+     * Retrieves events for a given user within a specified date range.
+     *
+     * @param userEmail the user's email address
+     * @param fromDate  start date (epoch millis)
+     * @param toDate    end date (epoch millis)
+     * @return a list of Meeting objects for the user
+     */
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
         try {
@@ -301,6 +368,19 @@ public class MeetingDaoImpl implements MeetingDao {
         return searchHitData;
     }
 
+    /**
+     * Retrieves a list of free meeting slots based on the provided criteria.
+     *
+     * @param dateFrom            date for which free slots need to be fetched from
+     * @param dateTo              date for which free slots need to be fetched till
+     * @param isOrganizerOptional if the organizer is required for the meeting or optional
+     * @param requiredAttendee    list of required attendee email addresses
+     * @param optionalAttendee    list of optional attendee email addresses
+     * @param timeZone            time zone to get free slots time in required time zones
+     * @param meetingDuration     duration of the free slot required
+     * @return a list of maps with meeting time suggestions
+     * @throws DatatypeConfigurationException if there is an error in dateFrom or dateTo
+     */
     @Override
     public List<Map<String, Object>> getFreeSlot(Long dateFrom, Long dateTo, Boolean isOrganizerOptional, List<String> requiredAttendee, List<String> optionalAttendee, String timeZone, String meetingDuration) throws DatatypeConfigurationException {
         Validators.validateString(dateFrom.toString(), "date");
@@ -387,6 +467,11 @@ public class MeetingDaoImpl implements MeetingDao {
         return attendeesAvailability;
     }
 
+    /**
+     * Schedules a new meeting with the provided details and attachments.
+     *
+     * @return the Meeting object for the scheduled event
+     */
     @Override
     public Meeting addMeeting(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting) {
         Validators.validateString(dateFrom.toString(), "date");
@@ -413,6 +498,13 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Forwards the meeting invitation to the given attendees.
+     *
+     * @param id            event ID of the Office 365 calendar meeting
+     * @param attendeeEmail list of emails for forwarding the meeting invitation
+     * @throws IOException if there is an error in the input
+     */
     @Override
     public void forwardMeeting(String id, List<String> attendeeEmail) throws IOException {
         List<Recipient> toRecipientsList = MeetingDaoHelper.getRecipient(attendeeEmail);
@@ -425,6 +517,11 @@ public class MeetingDaoImpl implements MeetingDao {
                 .post();
     }
 
+    /**
+     * Updates the meeting with the given details.
+     *
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo,
                                  String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
@@ -476,6 +573,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Accepts the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting acceptMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -487,6 +590,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Declines the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting declineMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -499,6 +608,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Tentatively accepts the meeting invitation for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting tentativeMeetingInvitation(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -510,6 +625,12 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Cancels the meeting for the given event ID.
+     *
+     * @param id the Office 365 calendar meeting ID
+     * @return the cancelled Meeting object
+     */
     @Override
     public Meeting cancelMeeting(String id) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -522,6 +643,14 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Adds attendees to the specified meeting.
+     *
+     * @param id                    Office 365 calendar meeting ID
+     * @param requiredAttendeeEmail list of required attendee emails
+     * @param optionalAttendeeEmail list of optional attendee emails
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting addAttendees(String id, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -538,6 +667,13 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    /**
+     * Removes attendees from the specified meeting.
+     *
+     * @param id        Office 365 calendar meeting ID
+     * @param attendees list of attendee email addresses to remove
+     * @return the updated Meeting object
+     */
     @Override
     public Meeting removeAttendees(String id, List<String> attendees) {
         Validators.validateString(id, Constants.MEETING_ID);
@@ -600,6 +736,151 @@ public class MeetingDaoImpl implements MeetingDao {
             sendResponse = Boolean.TRUE.equals(event.responseRequested);
         }
         return sendResponse;
+    }
+
+    public ExtensionResponse getAttachmentsForGivenUserWithErrorHandling(String userEmail, String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForGivenUserWithValidation");
+        try {
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EMAIL, Validators.getNullOrEmptyDefault(userEmail), Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)));
+            if (validationResults.isEmpty()) {
+                List<FileAttachment> fileAttachments = getAttachmentsForGivenUser(userEmail, eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EMAIL, userEmail, Constants.EVENT_ID, eventID)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + " : {}", String.valueOf(cause));
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    public ExtensionResponse getAttachmentsForAuthenticatedUserWithErrorHandling(String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForAuthenticatedUserWithValidation");
+        try {
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)));
+            if (validationResults.isEmpty()) {
+                List<FileAttachment> fileAttachments = getAttachmentsForAuthenticatedUser(eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_ATTACHMENTS);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventID)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Retrieves all file attachments for a specific event for a given user.
+     *
+     * @param userEmail the user's email address
+     * @param eventId   the event ID
+     * @return a list of FileAttachment objects
+     */
+    @Override
+    public List<FileAttachment> getAttachmentsForGivenUser(String userEmail, String eventId) {
+        return fetchAttachments(userEmail, eventId, false);
+    }
+
+    /**
+     * Retrieves all file attachments for a specific event for the authenticated user.
+     *
+     * @param eventId the event ID
+     * @return a list of FileAttachment objects
+     */
+    @Override
+    public List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId) {
+        try {
+            return fetchAttachments(null, eventId, true);
+        } catch (ClientException cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", String.valueOf(cause));
+            return Collections.emptyList();
+        }
+    }
+
+    List<FileAttachment> fetchAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
+        try {
+            return getFileAttachments(userEmail, eventId, isAuthenticatedUser);
+        } catch (ClientException cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", String.valueOf(cause));
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Retrieves all {@link FileAttachment} objects associated with a specific calendar event.
+     * <p>
+     * This method fetches all file attachments for the given event, handling pagination if necessary.
+     * It determines whether to use the authenticated user's context or system context based on the
+     * {@code isAuthenticatedUser} flag.
+     * </p>
+     *
+     * @param userEmail           the email address of the user whose event attachments are to be fetched;
+     *                            may be {@code null} if using the authenticated user's context
+     * @param eventId             the unique identifier of the calendar event
+     * @param isAuthenticatedUser {@code true} to use the authenticated user's context; {@code false} to use system context
+     * @return a list of {@link FileAttachment} objects associated with the specified event; never {@code null}
+     */
+    private List<FileAttachment> getFileAttachments(@Nullable String userEmail, String eventId, boolean isAuthenticatedUser) {
+        List<FileAttachment> fileAttachments = new ArrayList<>();
+        AttachmentCollectionPage attachmentCollection = buildAttachmentCollectionRequest(userEmail, eventId, isAuthenticatedUser);
+
+        while (attachmentCollection != null) {
+            for (Attachment attachment : attachmentCollection.getCurrentPage()) {
+                if (attachment instanceof FileAttachment) {
+                    fileAttachments.add((FileAttachment) attachment);
+                }
+            }
+            attachmentCollection = attachmentCollection.getNextPage() != null ? attachmentCollection.getNextPage().buildRequest().get() : null;
+        }
+        return fileAttachments;
+    }
+
+    /**
+     * Builds and executes a request to retrieve the first page of attachments for a given event.
+     * <p>
+     * The method chooses between the authenticated user's context and the system context based on
+     * the {@code isAuthenticatedUser} flag. For system context, the {@code userEmail} must be provided.
+     * </p>
+     *
+     * @param userEmail           the email address of the user whose event attachments are to be fetched;
+     *                            required if {@code isAuthenticatedUser} is {@code false}
+     * @param eventId             the unique identifier of the calendar event
+     * @param isAuthenticatedUser {@code true} to use the authenticated user's context; {@code false} to use system context
+     * @return the first {@link AttachmentCollectionPage} of attachments for the specified event
+     */
+    private AttachmentCollectionPage buildAttachmentCollectionRequest(String userEmail, String eventId, boolean isAuthenticatedUser) {
+        if (isAuthenticatedUser) {
+            return clientProvider.getGraphServiceClient().me().events(eventId).attachments().buildRequest().get();
+        } else {
+            return clientProvider.getGraphServiceClientForSystem().users(userEmail).events(eventId).attachments().buildRequest().get();
+        }
     }
 
     /**

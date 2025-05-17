@@ -13,6 +13,13 @@ import org.jvnet.hk2.annotations.Service;
 import javax.inject.Inject;
 import java.util.Map;
 
+/**
+ * Main extension entry point for Office 365 Calendar integration with the Krista platform.
+ * <p>
+ * This class manages authentication, connection validation, and configuration updates for the Office 365 Calendar extension.
+ * It exposes invoker requests for authentication, documentation tabs, attribute validation, connection testing, and attribute updates.
+ * </p>
+ */
 @Service
 public final class Office365CalendarAttributes {
 

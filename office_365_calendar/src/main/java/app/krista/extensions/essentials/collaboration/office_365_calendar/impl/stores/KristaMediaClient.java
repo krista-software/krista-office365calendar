@@ -6,20 +6,22 @@ import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
 import java.io.*;
-import java.util.Arrays;
-import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Service class for handling file operations between Krista's media server and the local file system.
+ * <p>
+ * Provides methods to upload Java files to Krista as Krista file objects, download Krista files as Java files,
+ * handle unsupported file formats by compressing them, and utility methods for file conversion and compression.
+ * </p>
+ */
 @Service
 public class KristaMediaClient {
 
     private static final String zipDir = "/tmp/";
     @Inject
-    private FileRepository fileRepository;
-
-    private final List<String> unSupportedFileFormats = Arrays.asList("html", "php5", "pht", "phtml", "shtml", "asa", "cer", "asax", "swf", "xap", "jsp", "exe", "js");
-
+    public FileRepository fileRepository;
     /**
      * Uploads a file to Krista's media server. it will take java.io.File object as input and returns krista's file object
      *
@@ -61,8 +63,11 @@ public class KristaMediaClient {
      * @return True if the file format is unsupported, otherwise false.
      */
     private boolean isUnsupportedFileFormat(String fileName) {
+        if (fileName.lastIndexOf(".") == -1) {
+            return false;
+        }
         String fileExtension = getFileExtension(fileName);
-        return unSupportedFileFormats.contains(fileExtension);
+        return fileRepository.getBlackListedFileExtensions().contains(fileExtension);
     }
 
     /**

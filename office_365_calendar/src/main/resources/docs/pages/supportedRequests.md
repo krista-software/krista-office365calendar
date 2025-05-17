@@ -319,3 +319,36 @@ click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get
 |--------------------|------------------------|
 | Events             | List&lt;Event Details> |
 
+#### Get Attachments
+
+- **Description**: This request retrieves the list of attachments for a specific event.
+- **Input Parameters**:
+
+| **Parameter Name** | **Parameter Type** | **Mandatory** | **Example** |
+|--------------------|--------------------|---------------|-------------|
+| Event ID           | Text               | Yes           | Event_Id    |
+
+- **Output Parameters**:
+
+| **Parameter Name** | **Parameter Type**     |
+|--------------------|------------------------|
+| Attachments        | List&lt;Attachment Details> |
+
+#### Get Attachments For A Given User
+
+- **Description**: This request retrieves the list of attachments for a specific event for a given user.
+- **Input Parameters**:
+
+| **Parameter Name** | **Parameter Type** | **Mandatory** | **Example**      |
+|--------------------|--------------------|---------------|------------------|
+| usermail           | Email              | Yes           | mail@example.com |
+| eventid            | Text               | Yes           | Event_Id         |
+
+- **Output Parameters**:
+
+| **Parameter Name** | **Parameter Type**          |
+|--------------------|-----------------------------|
+| Attachments        | List&lt;Attachment Details> |
+
+
+

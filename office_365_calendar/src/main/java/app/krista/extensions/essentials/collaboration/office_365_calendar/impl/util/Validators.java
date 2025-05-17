@@ -3,10 +3,14 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Utility class providing common validation methods for Office 365 calendar integration.
+ * <p>
+ * This class contains static helper methods to validate input data such as email addresses,
+ * event IDs, and other parameters required for collaboration and calendar operations.
+ * </p>
+ */
 public class Validators {
-
-    private Validators() {
-    }
 
     /**
      * This function will validate if the string is empty or null
@@ -18,6 +22,15 @@ public class Validators {
         if (inputString == null || inputString.isBlank()) {
             throw new IllegalArgumentException("Given " + errorMsg + " is null or blank.");
         }
+    }
+
+    /**
+     * This function will return the empty or input string
+     *
+     * @param inputString input string
+     */
+    public static String getNullOrEmptyDefault(String inputString) {
+        return inputString == null ? "" : inputString;
     }
 
     /**

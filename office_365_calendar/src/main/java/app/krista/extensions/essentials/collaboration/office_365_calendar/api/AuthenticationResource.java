@@ -24,6 +24,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * REST resource for handling authentication with Office 365 Calendar integration.
+ * <p>
+ * Provides endpoints for initiating authentication, handling OAuth callbacks,
+ * and managing access tokens for Office 365 calendar operations.
+ * </p>
+ *
+ * <p>
+ * This resource is typically used by the Krista platform to facilitate secure
+ * integration with Microsoft Office 365 services, enabling calendar event
+ * synchronization and user authorization.
+ * </p>
+ *
+ * @author [Your Name]
+ * @since 1.0
+ */
 @Path("/")
 public final class AuthenticationResource {
 
@@ -46,6 +62,17 @@ public final class AuthenticationResource {
         this.authorizationListener = authorizationListener;
     }
 
+    /**
+     * Handles the OAuth callback from Microsoft after user authentication.
+     *
+     * @param code  The authorization code returned by Microsoft.
+     * @param state The state parameter to prevent CSRF attacks.
+     * @return A map containing the access token and related information.
+     * @throws OAuthException        If an OAuth-specific error occurs.
+     * @throws ExecutionException    If an error occurs during asynchronous execution.
+     * @throws InterruptedException  If the thread is interrupted during execution.
+     * @throws IOException           If an I/O error occurs.
+     */
     @GET
     @Path("/callback")
     public String getCallBack(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
@@ -89,6 +116,12 @@ public final class AuthenticationResource {
         }
     }
 
+    /**
+     * Returns a user-friendly error description based on the provided exception.
+     *
+     * @param cause The exception encountered during authentication or API calls.
+     * @return A string describing the error in a user-friendly manner.
+     */
     private String getErrorDescription(OAuthException cause) {
         String errorDescription = "Error occurred during authorization. ";
         if (cause.getMessage() != null && !cause.getMessage().isBlank()) {
@@ -100,6 +133,12 @@ public final class AuthenticationResource {
         return errorDescription;
     }
 
+    /**
+     * Checks if the current user has access rights using the provided GraphServiceClientProvider.
+     *
+     * @param graphServiceClientForAdmin The GraphServiceClientProvider instance configured for admin access.
+     * @return {@code true} if the user has access; {@code false} otherwise.
+     */
     private boolean hasUserAccess(GraphServiceClientProvider graphServiceClientForAdmin) {
         try {
             graphServiceClientForAdmin.getUserRequestBuilder(null, null).calendars().buildRequest().get();

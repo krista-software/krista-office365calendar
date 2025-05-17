@@ -6,7 +6,7 @@ import com.google.gson.GsonBuilder;
 public final class Constants {
 
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final String MEDIA_URL = "http://platform:9991";
+    public static final Gson GSON_OBJECT = new Gson();
     public static final String NEW_EVENT = "New Event";
     public static final String DONT_REMIND_ME = "Don't remind me";
     public static final String NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0 = "Number of meetings should be greater than 0.";
@@ -42,6 +42,8 @@ public final class Constants {
     public static final String STATE = "state";
     public static final String CALLBACK_URI = "/calendar/callback";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
+    public static final String FAILED_TO_GET_EVENT_ATTACHMENTS = "Failed to get event attachments ";
+    public static final String ERROR_OCCURRED_WHILE_PROCESSING_ATTACHMENT = "Error occurred while processing attachment ";
     private static final String SPACE = " ";
     private static final String OPEN_ID = "openid";
     private static final String OFFLINE_ACCESS = "offline_access";
@@ -55,7 +57,6 @@ public final class Constants {
             + CALENDARS_READWRITE + SPACE
             + CALENDARS_READWRITE_SHARED + SPACE
             + USER_READ;
-
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
     public static final String FAILED_TO_GET_USER_EVENTS = "Failed to get user events. ";
     public static final String UTC = "UTC";
@@ -63,6 +64,17 @@ public final class Constants {
     public static final String END_DATE_TIME = "endDateTime";
     public static final String TOP = "$top";
     public static final String ORDER_BY = "$orderby";
+    public static final String EMAIL = "email";
+    public static final String ATTACHMENTS = "Attachments";
+    public static final String VALIDATION_RESULTS = "Validation Results";
+    public static final String STATE_ID = "stateId";
+    public static final String EVENT_ID = "eventId";
+    public static final String RE_ENTER = "re-enter";
+    public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
+    public static final String HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER = "handleReEnterGetAttachmentForGivenUser";
+    public static final String HANDLE_RE_ENTER_GET_ATTACHMENT = "handleReEnterGetAttachments";
+    public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER = "confirmReenterGetAttachmentsForAGivenUser";
+    public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
 
     private Constants() {
     }

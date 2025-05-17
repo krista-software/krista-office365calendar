@@ -25,7 +25,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-
+/**
+ * Provides authenticated Microsoft Graph API clients for Office 365 calendar integration.
+ * Typical usage involves obtaining a GraphServiceClient for the current user, for an admin, or for system-level operations,
+ * as well as handling token refresh and authorization exceptions.
+ */
 public final class GraphServiceClientProvider {
 
     public static final String REQUIRED_SCOPE = Constants.REQUIRED_SCOPE;
@@ -40,11 +44,28 @@ public final class GraphServiceClientProvider {
     private final AuthorizationContext authorizationContext;
     private final String authContextId;
 
+    /**
+     * Constructs a new GraphServiceClientProvider with required dependencies.
+     *
+     * @param refreshTokenStore           the store for managing refresh tokens
+     * @param office365CalendarAttributes Office 365 calendar configuration and credentials
+     * @param requestContext              the request context
+     * @param authorizationContext        the authorization context
+     */
     @Inject
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null);
     }
 
+    /**
+     * Constructs a new GraphServiceClientProvider with an optional authentication context ID.
+     *
+     * @param refreshTokenStore           the store for managing refresh tokens
+     * @param office365CalendarAttributes Office 365 calendar configuration and credentials
+     * @param requestContext              the request context
+     * @param authorizationContext        the authorization context
+     * @param authContextId               optional authentication context ID
+     */
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
         this.refreshTokenStore = refreshTokenStore;
         this.office365CalendarAttributes = office365CalendarAttributes;
@@ -53,21 +74,42 @@ public final class GraphServiceClientProvider {
         this.authContextId = authContextId;
     }
 
+    /**
+     * Returns the Office 365 calendar attributes used for authentication and configuration.
+     *
+     * @return the Office365CalendarAttributes instance
+     */
     public Office365CalendarAttributes getOffice365CalendarAttributes() {
         return office365CalendarAttributes;
     }
 
+    /**
+     * Returns a GraphServiceClient for the current user or system, depending on the request context.
+     *
+     * @return a configured GraphServiceClient instance
+     */
     public GraphServiceClient<Request> getGraphServiceClient() {
         return getGraphServiceClient(!requestContext.invokeAsUser());
     }
 
+    /**
+     * Returns a GraphServiceClient for system-level (application) authentication.
+     *
+     * @return a configured GraphServiceClient instance for system operations
+     */
     public GraphServiceClient<Request> getGraphServiceClientForSystem() {
         return getGraphServiceClientWithClientCredentials();
     }
 
+    /**
+     * Returns a GraphServiceClient for admin-level authentication.
+     *
+     * @return a configured GraphServiceClient instance for admin operations
+     */
     public GraphServiceClient<Request> getGraphServiceClientForAdmin() {
         return getGraphServiceClient(true);
     }
+
 
     private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
         try {
@@ -96,7 +138,11 @@ public final class GraphServiceClientProvider {
         }
     }
 
-
+    /**
+     * Returns a GraphServiceClient for the current user or system, depending on the request context.
+     *
+     * @return a configured GraphServiceClient instance
+     */
     private GraphServiceClient<Request> getGraphServiceClient(boolean useEmail) {
         try {
             String userId = getUserId(useEmail);
@@ -110,7 +156,14 @@ public final class GraphServiceClientProvider {
         }
     }
 
-    private GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
+    /**
+     * Returns a GraphServiceClient for the specified user, using the provided refresh token.
+     *
+     * @param userId       the user ID
+     * @param refreshToken the refresh token for the user
+     * @return a configured GraphServiceClient instance
+     */
+    public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
         try {
 
             String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
@@ -131,15 +184,28 @@ public final class GraphServiceClientProvider {
         }
     }
 
-    private void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
+    /**
+     * Updates the refresh token for the specified user in the refresh token store.
+     *
+     * @param userId         the user ID
+     * @param jsonTokenCache the token cache as a JsonObject
+     */
+    public void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
         JsonObject refreshToken = jsonTokenCache.get("RefreshToken").getAsJsonObject();
         String firstKey = refreshToken.keySet().iterator().next();
         JsonObject tokenData = refreshToken.getAsJsonObject(firstKey);
         String secret = tokenData.get("secret").getAsString();
         refreshTokenStore.put(userId, secret);
-        System.out.println("Updated Refresh Token.");
+        LOGGER.info("Updated Refresh Token.");
     }
 
+    /**
+     * Creates a MustAuthorizeException for the specified user, indicating that re-authorization is required.
+     *
+     * @param userId           the user ID
+     * @param reAuthentication whether re-authentication is required
+     * @return a MustAuthorizeException with details
+     */
     private MustAuthorizeException createMustAuthorizationException(String userId, boolean reAuthentication) {
         LOGGER.debug(reAuthentication ? "Got error for Authentication. So sending for re authentication" : "Got error for Authentication. So sending for authentication");
         List<NamedValuedField> details = new ArrayList<>();
@@ -152,7 +218,14 @@ public final class GraphServiceClientProvider {
         return new MustAuthorizeException(reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : Constants.AUTHORIZATION_PROMPT, details);
     }
 
-    private String getUserId(boolean calledFromValidateAttributes) {
+    /**
+     * Returns the user ID based on the context and parameters.
+     *
+     * @param calledFromValidateAttributes whether called from attribute validation
+     * @return the user ID
+     * @throws IllegalStateException if the user ID cannot be determined
+     */
+    public String getUserId(boolean calledFromValidateAttributes) {
         String userId = calledFromValidateAttributes || !requestContext.invokeAsUser() ? office365CalendarAttributes.getEmail() : authorizationContext.getAuthorizedAccount().getAccountId();
         if (userId == null) {
             throw new IllegalStateException(FAILED_TO_GET_ACCOUNT);
@@ -227,7 +300,7 @@ public final class GraphServiceClientProvider {
      * Gets the user ID based on the specified parameters.
      *
      * @param calledFromValidateAttributes A boolean indicating whether the method is called from validateAttributes.
-     * @param accountID The account ID of the user; used if 'calledFromValidateAttributes' is false.
+     * @param accountID                    The account ID of the user; used if 'calledFromValidateAttributes' is false.
      * @return The user ID.
      * @throws IllegalStateException If the user ID cannot be determined.
      */
@@ -244,11 +317,21 @@ public final class GraphServiceClientProvider {
         return userId;
     }
 
-
+    /**
+     * Authentication provider for Microsoft GraphServiceClient using a static access token.
+     * <p>
+     * This implementation provides the access token for all requests, supporting asynchronous token retrieval.
+     * </p>
+     */
     public static class GraphServiceClientAuthenticationProvider implements IAuthenticationProvider {
 
         private final String accessToken;
 
+        /**
+         * Constructs a new authentication provider with the given access token.
+         *
+         * @param accessToken the OAuth access token to use for authentication
+         */
         public GraphServiceClientAuthenticationProvider(String accessToken) {
             if (accessToken == null || accessToken.isEmpty() || accessToken.isBlank()) {
                 throw new IllegalArgumentException("Empty access token provided " + accessToken);
@@ -256,6 +339,12 @@ public final class GraphServiceClientProvider {
             this.accessToken = accessToken;
         }
 
+        /**
+         * Returns the authorization token for the given request URL.
+         *
+         * @param requestUrl the URL of the request
+         * @return a CompletableFuture containing the access token
+         */
         @NotNull
         @Override
         public CompletableFuture<String> getAuthorizationTokenAsync(@NotNull URL requestUrl) {

@@ -43,21 +43,21 @@ public class MeetingDaoHelperTest {
     @Test
     public void testRequiredAttendees() {
         List<AttendeeBase> attendees = MeetingDaoHelper.getRequiredAttendee(attendeesEmailList, emptyList);
-        Assert.assertNotNull(attendees.get(0));
-        Assert.assertEquals(EXAMPLE_EMAIL_COM, (Objects.requireNonNull(attendees.get(0).emailAddress).address));
+        Assert.assertNotNull(attendees.getFirst());
+        Assert.assertEquals(EXAMPLE_EMAIL_COM, (Objects.requireNonNull(attendees.getFirst().emailAddress).address));
     }
 
     @Test
     public void testOptionalAttendees() {
         List<AttendeeBase> attendees = MeetingDaoHelper.getRequiredAttendee(emptyList, attendeesEmailList);
-        Assert.assertEquals(EXAMPLE_EMAIL_COM, (Objects.requireNonNull(attendees.get(0).emailAddress).address));
-        Assert.assertEquals(AttendeeType.OPTIONAL, (Objects.requireNonNull(attendees.get(0).type)));
+        Assert.assertEquals(EXAMPLE_EMAIL_COM, (Objects.requireNonNull(attendees.getFirst().emailAddress).address));
+        Assert.assertEquals(AttendeeType.OPTIONAL, (Objects.requireNonNull(attendees.getFirst().type)));
     }
 
     @Test
     public void testRecipients() {
         List<Recipient> toRecipientsList = MeetingDaoHelper.getRecipient(attendeesEmailList);
-        Assert.assertEquals(EXAMPLE_EMAIL_COM, Objects.requireNonNull(toRecipientsList.get(0).emailAddress).address);
+        Assert.assertEquals(EXAMPLE_EMAIL_COM, Objects.requireNonNull(toRecipientsList.getFirst().emailAddress).address);
     }
 
     @Test
@@ -80,7 +80,7 @@ public class MeetingDaoHelperTest {
     @Test
     public void testGetAttendees() {
         attendeeLinkedList = MeetingDaoHelper.getAttendees(attendeesEmailList, emptyList);
-        Assert.assertEquals(Objects.requireNonNull(attendeeLinkedList.get(0).emailAddress).address, EXAMPLE_EMAIL_COM);
+        Assert.assertEquals(Objects.requireNonNull(attendeeLinkedList.getFirst().emailAddress).address, EXAMPLE_EMAIL_COM);
     }
 
     @Test

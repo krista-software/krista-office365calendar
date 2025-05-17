@@ -1,14 +1,19 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog;
 
+import app.krista.extension.executor.ExtensionResponse;
 import app.krista.extension.impl.anno.Attribute;
 import app.krista.extension.impl.anno.CatalogRequest;
 import app.krista.extension.impl.anno.Domain;
 import app.krista.extension.impl.anno.Field;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
 import com.microsoft.graph.http.GraphServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -17,6 +22,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Catalog area class exposing Office 365 meeting and calendar operations as catalog requests.
+ * <p>
+ * The {@code MeetingsArea} class defines a set of catalog requests for managing meetings and events
+ * within the Office 365 calendar integration. It provides endpoints for scheduling, updating, canceling,
+ * and querying meetings, as well as managing attendees, invitations, free slots, schedules, and attachments.
+ * </p>
+ */
 @Domain(id = "catEntryDomain_5fa2fc97-4b17-44cf-b98f-aa91a459a091",
         name = "Collaboration",
         ecosystemId = "catEntryEcosystem_84b53163-327b-4b1b-8c96-9334d292f9f5",
@@ -26,13 +39,23 @@ public final class MeetingsArea {
 
     private final MeetingDaoImpl meetingDao;
     private final CatalogTypes catalogTypes;
+    private final ValidationOrchestrator validationOrchestrator;
+    private final ErrorHandlingStateManager errorHandlingStateManager;
 
     @Inject
-    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes) {
+    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager) {
         this.meetingDao = meetingDao;
         this.catalogTypes = catalogTypes;
+        this.validationOrchestrator = validationOrchestrator;
+        this.errorHandlingStateManager = errorHandlingStateManager;
     }
 
+    /**
+     * Cancels the event with the given event ID.
+     *
+     * @param eventId the ID of the event to cancel
+     * @return the details of the canceled event
+     */
     @CatalogRequest(
             id = "localDomainRequest_44d8fe1f-3f2d-438d-bb9f-bb486b9a9e56",
             name = "Cancel Event",
@@ -45,6 +68,12 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.cancelMeeting(eventId));
     }
 
+    /**
+     * Retrieves the next upcoming meetings.
+     *
+     * @param numberOfMeeting the number of meetings to retrieve
+     * @return a list of upcoming event details
+     */
     @CatalogRequest(
             id = "localDomainRequest_771024d0-02e5-4163-869e-8f8860a10b62",
             name = "Get Next Upcoming Meetings",
@@ -57,6 +86,12 @@ public final class MeetingsArea {
         return meetingDao.getMeetings(numberOfMeeting.intValue()).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
+    /**
+     * Declines the invitation for the given event ID.
+     *
+     * @param eventId the ID of the event to decline
+     * @return the details of the declined event
+     */
     @CatalogRequest(
             id = "localDomainRequest_9de59f5f-b77d-42e3-84da-63f587f65358",
             name = "Decline Invitation",
@@ -69,6 +104,12 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.declineMeetingInvitation(eventId));
     }
 
+    /**
+     * Marks the invitation as tentative for the given event ID.
+     *
+     * @param eventId the ID of the event
+     * @return the details of the event
+     */
     @CatalogRequest(
             id = "localDomainRequest_5bf7458f-953f-40c4-b75c-17b1f76a08b1",
             name = "Tentative Invitation",
@@ -81,6 +122,14 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.tentativeMeetingInvitation(eventId));
     }
 
+    /**
+     * Forwards the event to the specified attendees.
+     *
+     * @param eventId the ID of the event to forward
+     * @param attendeeEmail the list of attendee emails
+     * @return true if forwarding was successful
+     * @throws IOException if forwarding fails
+     */
     @CatalogRequest(
             id = "localDomainRequest_f2007cf4-d127-4a30-af0c-794b28f41de8",
             name = "Forward Event",
@@ -99,6 +148,11 @@ public final class MeetingsArea {
         }
     }
 
+    /**
+     * Schedules a new meeting with the provided details.
+     *
+     * @return the details of the scheduled event
+     */
     @CatalogRequest(
             id = "localDomainRequest_f9cf27ee-ffe7-4b65-8e0a-ce0afa25f5dc",
             name = "Schedule Meeting",
@@ -133,6 +187,11 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
     }
 
+    /**
+     * Retrieves all unaccepted events.
+     *
+     * @return a list of unaccepted event details
+     */
     @CatalogRequest(
             id = "localDomainRequest_e0f748a2-17df-4e29-84e0-a1d0d06934d9",
             name = "Get All Unaccepted Events",
@@ -144,6 +203,14 @@ public final class MeetingsArea {
         return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
+    /**
+     * Adds attendees to the specified event.
+     *
+     * @param eventId the ID of the event
+     * @param requiredAttendeeEmail list of required attendee emails
+     * @param optionalAttendeeEmail list of optional attendee emails
+     * @return the updated event details
+     */
     @CatalogRequest(
             id = "localDomainRequest_2e73b843-ace4-4b80-bfab-4f466706e5c5",
             name = "Add Attendees",
@@ -158,6 +225,11 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
     }
 
+    /**
+     * Updates the event with the given details.
+     *
+     * @return the updated event details
+     */
     @CatalogRequest(
             id = "localDomainRequest_ff16001f-6709-44a8-9f00-5de09287e70e",
             name = "Update Event",
@@ -193,6 +265,12 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
     }
 
+    /**
+     * Accepts the invitation for the given event ID.
+     *
+     * @param eventId the ID of the event to accept
+     * @return the details of the accepted event
+     */
     @CatalogRequest(
             id = "localDomainRequest_d564897b-ad17-4289-af2c-bd79425c5341",
             name = "Accept Invitation",
@@ -205,6 +283,13 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.acceptMeetingInvitation(eventId));
     }
 
+    /**
+     * Removes attendees from the specified event.
+     *
+     * @param eventId the ID of the event
+     * @param attendeeEmail list of attendee emails to remove
+     * @return the updated event details
+     */
     @CatalogRequest(
             id = "localDomainRequest_653a694e-2327-41d5-8a8c-48b30b07dc89",
             name = "Remove Attendee",
@@ -218,6 +303,12 @@ public final class MeetingsArea {
         return CatalogTypes.fromEvent(meetingDao.removeAttendees(eventId, attendeeEmail));
     }
 
+    /**
+     * Retrieves free meeting slots based on the provided criteria.
+     *
+     * @return a list of suggested free slots
+     * @throws DatatypeConfigurationException if date configuration fails
+     */
     @CatalogRequest(
             id = "localDomainRequest_7bbeb961-4ba2-4c89-8589-87a5226c33a4",
             name = "Get Free Slots",
@@ -237,6 +328,12 @@ public final class MeetingsArea {
         return meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
     }
 
+    /**
+     * Retrieves scheduled meetings for the given date range and attendees.
+     *
+     * @return a list of scheduled meetings
+     * @throws IOException if retrieval fails
+     */
     @CatalogRequest(
             id = "localDomainRequest_6c9fb027-ab27-48ef-b966-d0f07a62fc32",
             name = "Get Schedules",
@@ -253,6 +350,12 @@ public final class MeetingsArea {
         return meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
     }
 
+    /**
+     * Retrieves event details for the given event ID.
+     *
+     * @param eventID the ID of the event
+     * @return the event details, or null if not found
+     */
     @CatalogRequest(
             id = "localDomainRequest_48062a11-b237-4307-9394-a6c3496bff14",
             name = "Get Event",
@@ -271,7 +374,12 @@ public final class MeetingsArea {
         }
     }
 
-
+    /**
+     * Searches for events matching the given search terms.
+     *
+     * @param searchTerms the search keywords
+     * @return a list of search result maps
+     */
     @CatalogRequest(
             id = "localDomainRequest_c5aabea7-b876-471a-964c-37c154a1a5fe",
             name = "Search Events",
@@ -284,6 +392,14 @@ public final class MeetingsArea {
         return meetingDao.getQueryResults(searchTerms);
     }
 
+    /**
+     * Retrieves events for a given user within a date range.
+     *
+     * @param userEmail the user's email
+     * @param from start date (epoch millis)
+     * @param to end date (epoch millis)
+     * @return a list of event details for the user
+     */
     @CatalogRequest(
             id = "localDomainRequest_74cb78ed-7c37-4234-850b-29069186c9a8",
             name = "Get Events for a given User",
@@ -301,4 +417,43 @@ public final class MeetingsArea {
         return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves all attachments for a specific meeting for a given user.
+     *
+     * @param userEmail the user's email
+     * @param eventID the event ID
+     * @return an extension response containing attachments
+     */
+    @CatalogRequest(
+            id = "localDomainRequest_1be1993a-8abe-4993-96cb-231025d92f13",
+            name = "Get Attachments for a given User",
+            description = "This request will return all attachments for a specific meeting for a given user given that the setup is done using a system account.",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    public ExtensionResponse getAttachmentsForAGivenUser(
+            @Field.Text(name = "User Email", required = true, attributes = {
+                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
+            @Field.Text(name = "Event ID", required = true, attributes = {
+                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
+        return meetingDao.getAttachmentsForGivenUserWithErrorHandling(userEmail, eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+    }
+
+    /**
+     * Retrieves all attachments for a specific meeting for the current logged-in user.
+     *
+     * @param eventID the event ID
+     * @return an extension response containing attachments
+     */
+    @CatalogRequest(
+            id = "localDomainRequest_a9483149-0a01-4f0f-b7a8-5ed475dc5871",
+            name = "Get Attachments",
+            description = "This request will return all attachments for a specific meeting for a current logged in user given that the setup is done using a system account.",
+            area = "Meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
+    public ExtensionResponse getAttachments(
+            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID) {
+        return meetingDao.getAttachmentsForAuthenticatedUserWithErrorHandling(eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+    }
 }

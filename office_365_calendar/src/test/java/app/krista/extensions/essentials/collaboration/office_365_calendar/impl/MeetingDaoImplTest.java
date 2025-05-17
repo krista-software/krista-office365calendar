@@ -2,15 +2,20 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.models.FileAttachment;
 import com.microsoft.graph.options.Option;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.Logger;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
@@ -18,15 +23,22 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MeetingDaoImplTest {
 
     MeetingDaoImpl meetingDaoImpl;
+    private MeetingDaoImpl meetingDao;
+    private Logger mockLogger;
 
     @InjectMocks
     GraphServiceClientProviderFactory graphServiceClientProviderFactory;
@@ -36,7 +48,13 @@ public class MeetingDaoImplTest {
 
     @Before
     public void setUp() {
+        GraphServiceClientProvider mockClientProvider = mock(GraphServiceClientProvider.class);
+        Office365CalendarAttributes mockAttributes = mock(Office365CalendarAttributes.class);
+
         meetingDaoImpl = new MeetingDaoImpl(graphServiceClientProviderFactory, office365CalendarAttributes);
+        meetingDao = Mockito.spy(new MeetingDaoImpl(mockClientProvider, mockAttributes));
+        mockLogger = mock(Logger.class);
+        MeetingDaoImpl.LOGGER = mockLogger;
     }
 
 
@@ -146,5 +164,43 @@ public class MeetingDaoImplTest {
     @Test(expected = IllegalArgumentException.class)
     public void testGetTimeRangeQueryOptions_NullToValue() {
         MeetingDaoImpl.getTimeRangeQueryOptions(1700000000000L, null);
+    }
+
+    @Test
+    public void testGetAttachmentsForGivenUser_returnsAttachments() {
+        String userEmail = "user@example.com";
+        String eventId = "event123";
+        List<FileAttachment> expected = Arrays.asList(mock(FileAttachment.class), mock(FileAttachment.class));
+
+        doReturn(expected).when(meetingDao).fetchAttachments(userEmail, eventId, false);
+
+        List<FileAttachment> result = meetingDao.getAttachmentsForGivenUser(userEmail, eventId);
+
+        assertEquals(expected, result);
+        verify(meetingDao).fetchAttachments(userEmail, eventId, false);
+    }
+
+    @Test
+    public void testGetAttachmentsForAuthenticatedUser_returnsAttachments() {
+        String eventId = "event456";
+        List<FileAttachment> expected = Collections.singletonList(mock(FileAttachment.class));
+
+        doReturn(expected).when(meetingDao).fetchAttachments(null, eventId, true);
+
+        List<FileAttachment> result = meetingDao.getAttachmentsForAuthenticatedUser(eventId);
+
+        assertEquals(expected, result);
+        verify(meetingDao).fetchAttachments(null, eventId, true);
+    }
+
+    @Test
+    public void testGetAttachmentsForAuthenticatedUser_handlesClientException() {
+        String eventId = "event789";
+        doThrow(new ClientException("Test exception", null)).when(meetingDao).fetchAttachments(null, eventId, true);
+
+        List<FileAttachment> result = meetingDao.getAttachmentsForAuthenticatedUser(eventId);
+
+        assertTrue(result.isEmpty());
+        verify(mockLogger).error(eq(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}"), anyString());
     }
 }

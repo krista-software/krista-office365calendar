@@ -62,8 +62,8 @@ configurations {
 }
 
 dependencies {
-    implementation 'app.krista:krista-apis:1.0.112'
-    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.112'
+    implementation 'app.krista:krista-apis:1.0.114'
+    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.114'
     implementation 'com.microsoft.graph:microsoft-graph:5.20.0'
     implementation 'com.microsoft.graph:microsoft-graph-auth:0.3.0'
     implementation 'com.azure:azure-identity:1.5.4'
@@ -74,6 +74,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.8.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
+    implementation 'commons-validator:commons-validator:1.7'
 }
 
 task createSourceDir(type: Exec) {

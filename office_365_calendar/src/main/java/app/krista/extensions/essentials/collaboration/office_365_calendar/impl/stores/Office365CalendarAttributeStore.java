@@ -12,6 +12,14 @@ import javax.inject.Inject;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Service class for storing, loading, and removing Office 365 calendar authentication attributes.
+ * <p>
+ * This class uses a {@link KeyValueStore} to persistently store authentication context information
+ * (such as client ID, client secret, tenant ID, and email) associated with Office 365 calendar integration.
+ * It provides methods to save new attribute sets, load them by context ID, and remove them when no longer needed.
+ * </p>
+ */
 @Service
 public final class Office365CalendarAttributeStore {
 
