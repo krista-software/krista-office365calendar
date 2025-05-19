@@ -1,9 +1,23 @@
 apply plugin: 'java-library'
 apply plugin: 'maven-publish'
 
-jar.archiveBaseName = "office_365_calendar-extension"
 group 'app.krista.extensions.essentials.collaboration'
-version(System.getenv('BRANCH') == null ? "local" : System.getenv('BRANCH').replace("/", "_").replace("o365c-", ""))
+
+/*
+ * Use extension.name for archiveBaseName, extension.version for version.
+ * Resulting jar: <extension.name>-<extension.version>.jar e.g. Office365Calendar-2.0.13-rc1.jar
+ */
+def computedBaseName = "Office365Calendar"
+def computedVersion = "local"
+def releasePropsFile = file('release.properties')
+if (releasePropsFile.exists()) {
+    def props = new Properties()
+    releasePropsFile.withInputStream { stream -> props.load(stream) }
+    // Remove whitespace for base name, but allow dashes/underscores
+    computedBaseName = (props['extension.name'] ?: "Office365Calendar").replaceAll(/\s+/, "")
+    computedVersion = props['extension.version'] ?: "local"
+}
+version = computedVersion
 
 compileJava.dependsOn clean
 
@@ -20,12 +34,12 @@ repositories {
     mavenCentral()
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-Xlint:all,-serial'
 }
 
-task compile() {
+tasks.register('compile') {
     dependsOn compileJava
 }
 
@@ -34,7 +48,8 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             afterEvaluate {
-                artifactId = jar.archiveBaseName.get()
+                // Use the same baseName for artifactId
+                artifactId = computedBaseName
                 groupId = rootProject.group
             }
         }
@@ -62,36 +77,38 @@ configurations {
 }
 
 dependencies {
-    implementation 'app.krista:krista-apis:1.0.114'
     annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.114'
-    implementation 'com.microsoft.graph:microsoft-graph:5.20.0'
+
+    implementation 'app.krista:krista-apis:1.0.114'
+    implementation 'commons-validator:commons-validator:1.7'
+    implementation 'com.microsoft.graph:microsoft-graph:5.80.0'
     implementation 'com.microsoft.graph:microsoft-graph-auth:0.3.0'
-    implementation 'com.azure:azure-identity:1.5.4'
+    implementation 'com.azure:azure-identity:1.16.1'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'
     implementation 'org.glassfish.jersey.media:jersey-media-multipart:2.35'
     implementation 'com.kristasoft.common:common-test:1.0.37'
     compileOnly 'org.glassfish.hk2:hk2-api:3.0.3'
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.8.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
-    implementation 'commons-validator:commons-validator:1.7'
 }
 
-task createSourceDir(type: Exec) {
+tasks.register('createSourceDir', Exec) {
     dependsOn processResources
     commandLine "mkdir", "-p", "$projectDir/build/classes/java/main/META-INF/project"
 }
 
-task copyGradleFile(type: Exec) {
+tasks.register('copyGradleFile', Exec) {
     dependsOn createSourceDir
     commandLine "cp", "$projectDir/build.gradle", "$projectDir/build/classes/java/main/META-INF/project/build.gradle"
 }
 
-task includeSources(type: Exec) {
+tasks.register('includeSources', Exec) {
     dependsOn copyGradleFile
     commandLine "cp", "-r", "$projectDir/src", "$projectDir/build/classes/java/main/META-INF/project/src"
 }
-task candidate(type: Exec) {
+tasks.register('candidate', Exec) {
     commandLine "env",
             "DOCKER_UPLOAD_REPO=" + rootProject.properties['DOCKER_UPLOAD_REPO'],
             "MAVEN_URL=" + System.properties['MAVEN_URL'],
@@ -105,7 +122,7 @@ task candidate(type: Exec) {
     }
 }
 
-task release(type: Exec) {
+tasks.register('release', Exec) {
     commandLine "env",
             "DOCKER_UPLOAD_REPO=" + rootProject.properties['DOCKER_UPLOAD_REPO'],
             "MAVEN_URL=" + System.properties['MAVEN_URL'],
@@ -120,8 +137,9 @@ task release(type: Exec) {
 }
 
 jar {
-    manifest {
-    }
+    // Set the base name of the jar (without the version and .jar extension)
+    archiveBaseName.set(computedBaseName)
+    manifest {}
     from {
         configurations.implementation.collect {
             it.isDirectory() ? it : zipTree(it)
@@ -129,4 +147,114 @@ jar {
     }
     exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
     duplicatesStrategy = "exclude"
+}
+
+import java.util.regex.Pattern
+
+/*
+    Task to generate release.properties files in below format.
+    extension.version=<version>
+    extension.name=<name>
+    domain.name=<domain>
+    ecosystem.name=<ecosystem>
+    Every extension developer should update extensionFile and areaFileName with relative path.
+ */
+
+abstract class GenerateReleasePropertiesTask extends DefaultTask {
+    @TaskAction
+    def generateProperties() {
+        def extensionFilePath = 'src/main/java/app/krista/extensions/essentials/collaboration/office_365_calendar/Office365CalendarExtension.java'
+        def areaFilePath = 'src/main/java/app/krista/extensions/essentials/collaboration/office_365_calendar/catalog/MeetingsArea.java'
+
+        def extensionFile = project.file(extensionFilePath)
+        def areaFile = project.file(areaFilePath)
+
+        if (!extensionFile.exists()) {
+            throw new GradleException("Extension file not found: ${extensionFilePath}")
+        }
+
+        if (!areaFile.exists()) {
+            throw new GradleException("Area file not found: ${areaFilePath}")
+        }
+
+        def properties = new Properties()
+
+        // Pre-compile the regex pattern for better performance
+        def keyValuePattern = Pattern.compile(/(\w+)\s*=\s*"([^"]+)"/)
+
+        // Extract Extension annotation information
+        extractAnnotationInfo(extensionFile, "@Extension", keyValuePattern) { key, value ->
+            if (key == "name") {
+                properties.setProperty("extension.name", value)
+                logger.lifecycle("Found extension name: ${value}")
+            } else if (key == "version") {
+                properties.setProperty("extension.version", value)
+                logger.lifecycle("Found extension version: ${value}")
+            }
+        }
+
+        // Extract Domain annotation information
+        extractAnnotationInfo(areaFile, "@Domain", keyValuePattern) { key, value ->
+            if (key == "name") {
+                properties.setProperty("domain.name", value)
+                logger.lifecycle("Found domain name: ${value}")
+            } else if (key == "ecosystemName") {
+                properties.setProperty("ecosystem.name", value)
+                logger.lifecycle("Found ecosystem name: ${value}")
+            }
+        }
+
+        if (!properties.getProperty('extension.version')) {
+            throw new GradleException("Could not find extension version in ${extensionFilePath}")
+        }
+
+        if (!properties.getProperty('domain.name') || !properties.getProperty('ecosystem.name')) {
+            throw new GradleException("Could not find domain name or ecosystem name in ${areaFilePath}")
+        }
+
+        def releasePropertiesFile = project.file('release.properties')
+        def content = properties.collect { key, value -> "${key}=${value}" }.join('\n')
+        releasePropertiesFile.text = content + '\n'
+        logger.lifecycle("Generated release.properties with content:\n${content}")
+    }
+
+    /**
+     * Extracts annotation information from a file
+     * @param file The file to extract from
+     * @param annotationName The annotation name to look for
+     * @param keyValuePattern The regex pattern to extract key-value pairs
+     * @param processProperty Closure to process each property
+     */
+    private static void extractAnnotationInfo(File file, String annotationName, Pattern keyValuePattern, Closure processProperty) {
+        StringBuilder annotationText = new StringBuilder()
+        boolean inAnnotation = false
+
+        file.eachLine { line ->
+            line = line.trim()
+            if (line.contains(annotationName)) {
+                inAnnotation = true
+            }
+
+            if (inAnnotation) {
+                annotationText.append(line)
+                if (line.contains(")")) {
+                    inAnnotation = false
+                    def matcher = keyValuePattern.matcher(annotationText.toString())
+                    while (matcher.find()) {
+                        def key = matcher.group(1)
+                        def value = matcher.group(2)
+                        processProperty.call(key, value)
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.register('generateReleaseProperties', GenerateReleasePropertiesTask) {
+    group = 'build'
+    description = 'Generates release.properties file with extension version and domain information'
+}
+tasks.named("jar") {
+    dependsOn tasks.named("generateReleaseProperties")
 }
