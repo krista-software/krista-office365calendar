@@ -363,15 +363,9 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails getEvent(
+    public ExtensionResponse getEvent(
             @Field(name = "Event ID", type = "Text") String eventID) {
-        try {
-            return CatalogTypes.fromEvent(meetingDao.getMeetingById(eventID));
-        } catch (IOException | GraphServiceException cause) {
-            System.out.println("Failed to fetch the event, provided event id does not exist - " + cause.getMessage());
-            cause.printStackTrace();
-            return null;
-        }
+        return meetingDao.getMeetingByIdWithErrorHandling(eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
     }
 
     /**

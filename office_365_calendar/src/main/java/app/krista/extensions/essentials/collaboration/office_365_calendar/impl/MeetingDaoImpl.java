@@ -1098,4 +1098,44 @@ public class MeetingDaoImpl implements MeetingDao {
             }
         }
     }
+
+    /**
+     * Retrieves event details for the given event ID with error handling and validation.
+     *
+     * @param eventId the Office 365 calendar event ID
+     * @param validationOrchestrator the validation orchestrator for input validation
+     * @param catalogTypes the catalog types utility for data conversion
+     * @param errorHandlingStateManager the error handling state manager
+     * @return an extension response containing the event details or error information
+     */
+    public ExtensionResponse getMeetingByIdWithErrorHandling(String eventId, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getMeetingByIdWithErrorHandling");
+        try {
+            // Validate input parameters
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)));
+
+            if (validationResults.isEmpty()) {
+                Meeting meeting = getMeetingById(eventId);
+                EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_EVENT);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventId)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENT + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
 }

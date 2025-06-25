@@ -90,6 +90,9 @@ public final class Constants {
     public static final String NUMBER_OF_MEETINGS = "numberOfMeetings";
     public static final String HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS = "handleReEnterGetUpcomingMeetings";
     public static final String CONFIRM_RE_ENTER_GET_UPCOMING_MEETINGS = "confirmReenterGetUpcomingMeetings";
+    public static final String FAILED_TO_GET_EVENT = "Failed to get event ";
+    public static final String HANDLE_RE_ENTER_GET_EVENT = "handleReEnterGetEvent";
+    public static final String CONFIRM_RE_ENTER_GET_EVENT = "confirmReenterGetEvent";
 
     private Constants() {
     }

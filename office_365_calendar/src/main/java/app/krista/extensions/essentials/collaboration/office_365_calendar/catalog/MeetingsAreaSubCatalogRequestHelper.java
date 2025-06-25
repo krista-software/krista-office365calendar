@@ -293,6 +293,47 @@ public class MeetingsAreaSubCatalogRequestHelper {
     }
 
     /**
+     * Handles confirmation of whether the user wants to re-enter details for getting an event.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterGetEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reEnter)) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEvent ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_EVENT, map);
+    }
+
+    /**
+     * Handles the actual retrieval of an event after the user has re-entered the event ID.
+     *
+     * @param map input map containing eventId
+     * @return an extension response containing the event details or an error response
+     */
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_EVENT, description = "Handle re-enter event id for retrieval", type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReEnterGetEvent(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
+        try {
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            Meeting meeting = meetingDao.getMeetingById(eventId);
+            EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+            return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+        } catch (Exception cause) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEvent ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
      * Processes the provided state map and performs validations, returning a list of validation results.
      *
      * @param state a map representing the current state or context for validation, where keys are state names and values are their corresponding objects
