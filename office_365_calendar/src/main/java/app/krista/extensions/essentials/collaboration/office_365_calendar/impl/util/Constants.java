@@ -86,6 +86,10 @@ public final class Constants {
     public static final String HANDLE_RE_ENTER_CANCEL_EVENT = "handleReEnterCancelEvent";
     public static final String CONFIRM_RE_ENTER_CANCEL_EVENT = "confirmReenterCancelEvent";
     public static final String EVENT_DETAILS = "Event Details";
+    public static final String FAILED_TO_GET_UPCOMING_MEETINGS = "Failed to get upcoming meetings ";
+    public static final String NUMBER_OF_MEETINGS = "numberOfMeetings";
+    public static final String HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS = "handleReEnterGetUpcomingMeetings";
+    public static final String CONFIRM_RE_ENTER_GET_UPCOMING_MEETINGS = "confirmReenterGetUpcomingMeetings";
 
     private Constants() {
     }

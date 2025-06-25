@@ -242,6 +242,57 @@ public class MeetingsAreaSubCatalogRequestHelper {
     }
 
     /**
+     * Handles confirmation of whether the user wants to re-enter details for getting upcoming meetings.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and numberOfMeetings
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterGetUpcomingMeetings", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, numberOfMeetings: Number}") Map<String, Object> map) {
+        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reEnter)) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getNextUpcomingMeetings ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, map);
+    }
+
+    /**
+     * Handles the actual retrieval of upcoming meetings after the user has re-entered the number of meetings.
+     *
+     * @param map input map containing numberOfMeetings
+     * @return an extension response containing the upcoming meetings or an error response
+     */
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, description = "Handle re-enter number of meetings", type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+    public ExtensionResponse handleReEnterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{numberOfMeetings: Number}") Map<String, Object> map) {
+        try {
+            Object numberOfMeetingsObj = map.get(Constants.NUMBER_OF_MEETINGS);
+            Double numberOfMeetings = null;
+
+            if (numberOfMeetingsObj instanceof Number) {
+                numberOfMeetings = ((Number) numberOfMeetingsObj).doubleValue();
+            }
+
+            if (numberOfMeetings == null || numberOfMeetings <= 0) {
+                throw new IllegalArgumentException(Constants.NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0);
+            }
+
+            List<Meeting> meetings = meetingDao.getMeetings(numberOfMeetings.intValue());
+            List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+            return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+        } catch (Exception cause) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getNextUpcomingMeetings ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
      * Processes the provided state map and performs validations, returning a list of validation results.
      *
      * @param state a map representing the current state or context for validation, where keys are state names and values are their corresponding objects

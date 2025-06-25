@@ -892,6 +892,47 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     /**
+     * Retrieves the next upcoming meetings with error handling and validation.
+     *
+     * @param numberOfMeetings the number of meetings to retrieve
+     * @param validationOrchestrator the validation orchestrator for input validation
+     * @param catalogTypes the catalog types utility for data conversion
+     * @param errorHandlingStateManager the error handling state manager
+     * @return an extension response containing upcoming meetings or error information
+     */
+    public ExtensionResponse getMeetingsWithErrorHandling(Double numberOfMeetings, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_UPCOMING_MEETINGS;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getMeetingsWithErrorHandling");
+        try {
+            // Validate input parameters
+            String numberOfMeetingsStr = numberOfMeetings != null ? numberOfMeetings.toString() : "";
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.NUMBER_OF_MEETINGS, numberOfMeetingsStr));
+
+            if (validationResults.isEmpty()) {
+                List<Meeting> meetings = getMeetings(numberOfMeetings.intValue());
+                List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_UPCOMING_MEETINGS);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.NUMBER_OF_MEETINGS, numberOfMeetings)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
      * Retrieves all file attachments for a specific event for a given user.
      *
      * @param userEmail the user's email address

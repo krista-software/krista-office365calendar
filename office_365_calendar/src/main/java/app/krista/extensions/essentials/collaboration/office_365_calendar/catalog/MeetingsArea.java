@@ -72,7 +72,7 @@ public final class MeetingsArea {
      * Retrieves the next upcoming meetings.
      *
      * @param numberOfMeeting the number of meetings to retrieve
-     * @return a list of upcoming event details
+     * @return an extension response containing upcoming meetings or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_771024d0-02e5-4163-869e-8f8860a10b62",
@@ -81,9 +81,9 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
-    public List<EventDetails> getNextUpcomingMeetings(
+    public ExtensionResponse getNextUpcomingMeetings(
             @Field(name = "Number of meeting", type = "Number") Double numberOfMeeting) {
-        return meetingDao.getMeetings(numberOfMeeting.intValue()).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+        return meetingDao.getMeetingsWithErrorHandling(numberOfMeeting, validationOrchestrator, catalogTypes, errorHandlingStateManager);
     }
 
     /**
