@@ -8,6 +8,7 @@ import app.krista.extension.executor.RemediationActions;
 import app.krista.extension.executor.impl.AskAPersonAction;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.CatalogTypes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
@@ -48,6 +49,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
@@ -792,6 +794,99 @@ public class MeetingDaoImpl implements MeetingDao {
             throw cause;
         } catch (Exception cause) {
             LOGGER.error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Retrieves events for a given user within a specified date range with error handling and validation.
+     *
+     * @param userEmail the user's email address
+     * @param fromDate  start date (epoch millis)
+     * @param toDate    end date (epoch millis)
+     * @param validationOrchestrator the validation orchestrator for input validation
+     * @param catalogTypes the catalog types utility for data conversion
+     * @param errorHandlingStateManager the error handling state manager
+     * @return an extension response containing events or error information
+     */
+    public ExtensionResponse getEventsForUserWithErrorHandling(String userEmail, Long fromDate, Long toDate, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENTS_FOR_USER;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getEventsForUserWithErrorHandling");
+        try {
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationMap = Map.of(
+                Validator.ValidationResource.EMAIL, Validators.getNullOrEmptyDefault(userEmail),
+                Validator.ValidationResource.FROM_DATE, fromDate != null ? fromDate.toString() : "",
+                Validator.ValidationResource.TO_DATE, toDate != null ? toDate.toString() : "",
+                Validator.ValidationResource.DATE_RANGE, "dateRange"
+            );
+
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(validationMap);
+            if (validationResults.isEmpty()) {
+                // Additional business logic validation
+                if (fromDate > toDate) {
+                    throw new IllegalArgumentException("Failed to Get Events for a given User" + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+                }
+
+                List<Meeting> meetings = getEventsForUser(userEmail, fromDate, toDate);
+                List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.USER_EMAIL, userEmail, Constants.FROM_DATE, fromDate, Constants.TO_DATE, toDate)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_GET_EVENTS_FOR_USER + "{}", cause);
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Cancels the meeting for the given event ID with error handling and validation.
+     *
+     * @param eventId the Office 365 calendar meeting ID
+     * @param validationOrchestrator the validation orchestrator for input validation
+     * @param catalogTypes the catalog types utility for data conversion
+     * @param errorHandlingStateManager the error handling state manager
+     * @return an extension response containing the cancelled event details or error information
+     */
+    public ExtensionResponse cancelMeetingWithErrorHandling(String eventId, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
+        String message = " Details entered are not valid. " + Constants.FAILED_TO_CANCEL_EVENT_VALIDATION;
+        ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> cancelMeetingWithErrorHandling");
+        try {
+            // Validate input parameters
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)));
+
+            if (validationResults.isEmpty()) {
+                Meeting cancelledMeeting = cancelMeeting(eventId);
+                EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
+            } else {
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(Constants.VALIDATION_RESULTS, validationResults));
+                List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+                AskAPersonAction askAPersonAction = AskAPersonAction.create(Constants.INVALID_INPUT, RemediationAction.RecipientType.ACTIVE_USER, fields);
+                RemediationActions remediationActions = new RemediationActions(List.of(askAPersonAction), Constants.CONFIRM_RE_ENTER_CANCEL_EVENT);
+                return new ExtensionResponseBuilder().failure(error, remediationActions, Map.of(Constants.STATE_ID, stateId, Constants.EVENT_ID, eventId)).build();
+            }
+        } catch (IllegalCallerException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw new RuntimeException(cause.getMessage(), cause);
+        } catch (MustAuthorizeException cause) {
+            LOGGER.error(cause.getMessage(), cause);
+            throw cause;
+        } catch (Exception cause) {
+            LOGGER.error(Constants.FAILED_TO_CANCEL_EVENT + "{}", cause);
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }

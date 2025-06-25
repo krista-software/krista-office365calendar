@@ -6,7 +6,10 @@ public interface Validator {
 
     enum ValidationResource {
         EMAIL,
-        EVENT_ID
+        EVENT_ID,
+        FROM_DATE,
+        TO_DATE,
+        DATE_RANGE
     }
 
     Boolean validate(String resourceId, Map<ValidationResource, String> context);

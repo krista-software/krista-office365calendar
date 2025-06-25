@@ -75,6 +75,17 @@ public final class Constants {
     public static final String HANDLE_RE_ENTER_GET_ATTACHMENT = "handleReEnterGetAttachments";
     public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER = "confirmReenterGetAttachmentsForAGivenUser";
     public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
+    public static final String FAILED_TO_GET_EVENTS_FOR_USER = "Failed to get events for user ";
+    public static final String USER_EMAIL = "userEmail";
+    public static final String FROM_DATE = "fromDate";
+    public static final String TO_DATE = "toDate";
+    public static final String EVENTS = "Events";
+    public static final String HANDLE_RE_ENTER_GET_EVENTS_FOR_USER = "handleReEnterGetEventsForUser";
+    public static final String CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";
+    public static final String FAILED_TO_CANCEL_EVENT_VALIDATION = "Failed to cancel event - validation error ";
+    public static final String HANDLE_RE_ENTER_CANCEL_EVENT = "handleReEnterCancelEvent";
+    public static final String CONFIRM_RE_ENTER_CANCEL_EVENT = "confirmReenterCancelEvent";
+    public static final String EVENT_DETAILS = "Event Details";
 
     private Constants() {
     }

@@ -29,6 +29,7 @@ public class ValidationOrchestrator {
     public ValidationOrchestrator(MeetingDaoImpl meetingDao) {
         validators.put(Validator.ValidationResource.EMAIL, new EmailValidator());
         validators.put(Validator.ValidationResource.EVENT_ID, new EventIdValidator(meetingDao));
+        validators.put(Validator.ValidationResource.DATE_RANGE, new DateValidator());
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,

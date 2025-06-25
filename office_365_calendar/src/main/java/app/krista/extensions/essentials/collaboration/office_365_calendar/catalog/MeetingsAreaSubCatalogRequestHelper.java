@@ -5,10 +5,12 @@ import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extension.impl.anno.CatalogRequest;
 import app.krista.extension.impl.anno.Field;
 import app.krista.extension.impl.anno.SubCatalogRequest;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
 import com.microsoft.graph.models.FileAttachment;
@@ -19,6 +21,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Helper class for handling sub-catalog requests related to meeting attachments and validation flows
@@ -135,6 +138,105 @@ public class MeetingsAreaSubCatalogRequestHelper {
         } catch (Exception cause) {
             System.out.println(cause.getMessage() + " cause.getMessage() ");
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting events for a given user.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, userEmail, fromDate, and toDate
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterGetEventsForUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, userEmail: Text, fromDate: Number, toDate: Number}") Map<String, Object> map) {
+        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reEnter)) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENTS_FOR_USER, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEventsForAGivenUser ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_EVENTS_FOR_USER, map);
+    }
+
+    /**
+     * Handles the actual retrieval of events after the user has re-entered user email and date range.
+     *
+     * @param map input map containing userEmail, fromDate, and toDate
+     * @return an extension response containing the events or an error response
+     */
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_EVENTS_FOR_USER, description = "Handle re-enter user email and date range", type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
+    public ExtensionResponse handleReEnterGetEventsForUser(@Field.Desc(name = "inputMap", type = "{ userEmail: Text, fromDate: Number, toDate: Number}") Map<String, Object> map) {
+        try {
+            String userEmail = (String) map.get(Constants.USER_EMAIL);
+            Object fromDateObj = map.get(Constants.FROM_DATE);
+            Object toDateObj = map.get(Constants.TO_DATE);
+
+            Long fromDate = null;
+            Long toDate = null;
+
+            if (fromDateObj instanceof Number) {
+                fromDate = ((Number) fromDateObj).longValue();
+            }
+            if (toDateObj instanceof Number) {
+                toDate = ((Number) toDateObj).longValue();
+            }
+
+            if (fromDate != null && toDate != null && fromDate > toDate) {
+                throw new IllegalArgumentException("Failed to Get Events for a given User" + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+            }
+
+            List<Meeting> meetings = meetingDao.getEventsForUser(userEmail, fromDate, toDate);
+            List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+            return new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
+        } catch (Exception cause) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENTS_FOR_USER, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEventsForAGivenUser ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for cancelling an event.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(name = "confirmReenterCancelEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
+    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reEnter)) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_CANCEL_EVENT_VALIDATION, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> cancelEvent ");
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_CANCEL_EVENT, map);
+    }
+
+    /**
+     * Handles the actual cancellation of an event after the user has re-entered the event ID.
+     *
+     * @param map input map containing eventId
+     * @return an extension response containing the cancelled event details or an error response
+     */
+    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_CANCEL_EVENT, description = "Handle re-enter event id for cancellation", type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReEnterCancelEvent(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
+        try {
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+            EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+            return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
+        } catch (Exception cause) {
+            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_CANCEL_EVENT_VALIDATION, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> cancelEvent ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }

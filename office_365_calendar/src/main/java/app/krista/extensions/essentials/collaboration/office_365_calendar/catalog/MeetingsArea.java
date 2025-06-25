@@ -54,7 +54,7 @@ public final class MeetingsArea {
      * Cancels the event with the given event ID.
      *
      * @param eventId the ID of the event to cancel
-     * @return the details of the canceled event
+     * @return an extension response containing the cancelled event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_44d8fe1f-3f2d-438d-bb9f-bb486b9a9e56",
@@ -62,10 +62,10 @@ public final class MeetingsArea {
             description = "Cancel event for given event id",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails cancelEvent(
+    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
+    public ExtensionResponse cancelEvent(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        return CatalogTypes.fromEvent(meetingDao.cancelMeeting(eventId));
+        return meetingDao.cancelMeetingWithErrorHandling(eventId, validationOrchestrator, catalogTypes, errorHandlingStateManager);
     }
 
     /**
@@ -398,7 +398,7 @@ public final class MeetingsArea {
      * @param userEmail the user's email
      * @param from start date (epoch millis)
      * @param to end date (epoch millis)
-     * @return a list of event details for the user
+     * @return an extension response containing events or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_74cb78ed-7c37-4234-850b-29069186c9a8",
@@ -406,15 +406,12 @@ public final class MeetingsArea {
             description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Events", type = "[ Entity(Event Details) ]", required = false)
-    public List<EventDetails> getEventsForAGivenUser(
+    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
+    public ExtensionResponse getEventsForAGivenUser(
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
             @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to) {
-        if (from > to) {
-            throw new IllegalArgumentException("Failed to Get Events for a given User" + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
-        }
-        return meetingDao.getEventsForUser(userEmail, from, to).stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+        return meetingDao.getEventsForUserWithErrorHandling(userEmail, from, to, validationOrchestrator, catalogTypes, errorHandlingStateManager);
     }
 
     /**
