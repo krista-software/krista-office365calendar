@@ -34,7 +34,7 @@ public class ValidationOrchestrator {
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
-                                   String errMessage, String fieldType) {
+                                   String errMessage, String fieldType, Map<String, Object> fieldAttributes) {
     }
 
     /**
@@ -55,7 +55,8 @@ public class ValidationOrchestrator {
             if (validator != null && !validator.validate(entry.getValue(), resources)) {
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
                         validator.getFetchFieldName(), validator.getFetchStepMessage(),
-                        validator.getErrMessage(entry.getValue()), getFieldTypeForResource(entry.getKey())));
+                        validator.getErrMessage(entry.getValue()), getFieldTypeForResource(entry.getKey()),
+                        getFieldAttributesForResource(entry.getKey())));
             }
         }
         return results;
@@ -76,6 +77,24 @@ public class ValidationOrchestrator {
             case NUMBER_OF_MEETINGS -> "Number";
             case ATTENDEES -> "Email"; // For list of emails, we'll use Email type
             default -> "Text"; // Default fallback
+        };
+    }
+
+    /**
+     * Maps a ValidationResource to its corresponding field attributes for proper field creation.
+     * This ensures that the correct field attributes are used when generating fetch responses.
+     *
+     * @param resource the ValidationResource to map
+     * @return the field attributes map corresponding to the resource
+     */
+    private Map<String, Object> getFieldAttributesForResource(Validator.ValidationResource resource) {
+        return switch (resource) {
+            case FROM_DATE, TO_DATE, DATE_RANGE -> Map.of("includeTimeOfDay", "true");
+            case EMAIL -> Map.of(); // No special attributes for email fields
+            case EVENT_ID -> Map.of(); // No special attributes for text fields
+            case NUMBER_OF_MEETINGS -> Map.of(); // No special attributes for number fields
+            case ATTENDEES -> Map.of(); // No special attributes for attendee email fields
+            default -> Map.of(); // Default empty attributes
         };
     }
 }

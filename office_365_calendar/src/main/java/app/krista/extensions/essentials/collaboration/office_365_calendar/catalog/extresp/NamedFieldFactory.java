@@ -160,6 +160,46 @@ public class NamedFieldFactory {
     }
 
     /**
+     * Creates a field with the specified name, type, and attributes.
+     * This method is used when validation results include specific attributes that need to be applied to the field.
+     *
+     * @param fieldName the name of the field
+     * @param fieldType the type of field to create (Date, Email, Text, Number, Boolean, File, List, etc.)
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured with the specified type and attributes
+     */
+    public static NamedField createFieldWithAttributes(String fieldName, String fieldType, Map<String, Object> attributes) {
+        // Handle special cases first
+        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
+            // Default to Text list if no inner type specified
+            return createListFieldWithAttributes(fieldName, "Text", attributes);
+        }
+
+        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
+            if (fieldName.equalsIgnoreCase("Password")) {
+                // Merge password attributes with provided attributes
+                Map<String, Object> mergedAttributes = new HashMap<>(attributes);
+                mergedAttributes.put("password", true);
+                return new NamedField(fieldName, FieldTypes.TEXT_FIELD, mergedAttributes, Map.of());
+            }
+        }
+
+        // Handle list types with inner type specification (e.g., "List<Email>", "List[Date]", etc.)
+        if (fieldType.startsWith("List<") && fieldType.endsWith(">")) {
+            String innerType = fieldType.substring(5, fieldType.length() - 1);
+            return createListFieldWithAttributes(fieldName, innerType, attributes);
+        }
+
+        if (fieldType.startsWith("List[") && fieldType.endsWith("]")) {
+            String innerType = fieldType.substring(5, fieldType.length() - 1);
+            return createListFieldWithAttributes(fieldName, innerType, attributes);
+        }
+
+        // Use the existing createFieldByTypeWithAttributes for standard types
+        return createFieldByTypeWithAttributes(fieldName, fieldType, attributes);
+    }
+
+    /**
      * Creates a comprehensive field based on the specified field type, handling both simple and complex types.
      * This method supports list fields, password fields, and all standard field types.
      *
@@ -196,6 +236,37 @@ public class NamedFieldFactory {
     }
 
     /**
+     * Creates a field based on the specified field type with custom attributes.
+     * This method acts as a factory that delegates to the appropriate specific creation method.
+     *
+     * @param fieldName the name of the field
+     * @param fieldType the type of field to create (Date, Email, Text, Number, Boolean, File, etc.)
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured with the specified type and attributes
+     */
+    public static NamedField createFieldByTypeWithAttributes(String fieldName, String fieldType, Map<String, Object> attributes) {
+        return switch (fieldType.toLowerCase()) {
+            case "date" -> createDateFieldWithAttributes(fieldName, attributes);
+            case "email" -> createEmailFieldWithAttributes(fieldName, attributes);
+            case "number" -> createNumberFieldWithAttributes(fieldName, attributes);
+            case "boolean" -> createBooleanFieldWithAttributes(fieldName, attributes);
+            case "file" -> createFileFieldWithAttributes(fieldName, attributes);
+            case "switch" -> createSwitchFieldWithAttributes(fieldName, attributes);
+            case "richtext" -> createRichTextFieldWithAttributes(fieldName, attributes);
+            case "pickone" -> createPickOneFieldWithAttributes(fieldName, attributes);
+            case "text" -> createTextFieldWithAttributes(fieldName, attributes);
+            case "password" -> {
+                // Merge password attributes with provided attributes
+                Map<String, Object> mergedAttributes = new HashMap<>(attributes);
+                mergedAttributes.put("password", true);
+                yield new NamedField(fieldName, FieldTypes.TEXT_FIELD, mergedAttributes, Map.of());
+            }
+            case "list" -> createListFieldWithAttributes(fieldName, "Text", attributes); // Default list of text
+            default -> createTextFieldWithAttributes(fieldName, attributes); // Default fallback to text field
+        };
+    }
+
+    /**
      * Creates a field based on the specified field type.
      * This method acts as a factory that delegates to the appropriate specific creation method.
      *
@@ -219,6 +290,132 @@ public class NamedFieldFactory {
             default -> createTextField(fieldName); // Default fallback to text field
         };
     }
+
+    // ========== Field Creation Methods with Attributes ==========
+
+    /**
+     * Creates a text field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a text field with attributes
+     */
+    public static NamedField createTextFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.TEXT_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a switch field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a switch field with attributes
+     */
+    public static NamedField createSwitchFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.SWITCH_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a number field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a number field with attributes
+     */
+    public static NamedField createNumberFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.NUMBER_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a boolean field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a boolean field with attributes
+     */
+    public static NamedField createBooleanFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.BOOLEAN_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a date field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a date field with attributes
+     */
+    public static NamedField createDateFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.DATE_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a rich text field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a rich text field with attributes
+     */
+    public static NamedField createRichTextFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.RICH_TEXT_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a file field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a file field with attributes
+     */
+    public static NamedField createFileFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.FILE_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a pick-one field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as a pick-one field with attributes
+     */
+    public static NamedField createPickOneFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.PICK_ONE_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates an email field with the specified name and attributes.
+     *
+     * @param fieldName the name of the field
+     * @param attributes the attributes to apply to the field
+     * @return a new NamedField instance configured as an email field with attributes
+     */
+    public static NamedField createEmailFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
+        return new NamedField(fieldName, FieldTypes.EMAIL_FIELD_LOGICAL_NAME, attributes, Map.of());
+    }
+
+    /**
+     * Creates a list field containing elements of the specified inner field type with custom attributes.
+     *
+     * @param fieldName the name of the list field
+     * @param innerFieldType the type of fields that the list will contain (Text, Date, Email, Number, etc.)
+     * @param attributes custom attributes for the list field
+     * @return a new NamedField instance configured as a list field with attributes
+     */
+    public static NamedField createListFieldWithAttributes(String fieldName, String innerFieldType, Map<String, Object> attributes) {
+        // Map the inner field type to the appropriate logical name
+        String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
+
+        // Create the list field configuration
+        Map<String, Object> listConfig = new HashMap<>();
+        listConfig.put("innerFieldType", innerFieldLogicalName);
+
+        // Merge with provided attributes
+        Map<String, Object> mergedAttributes = new HashMap<>(attributes);
+        mergedAttributes.putAll(listConfig);
+
+        return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, mergedAttributes, Map.of());
+    }
+
+    // ========== Private Helper Methods ==========
 
     /**
      * Maps a field type string to its corresponding logical name.
