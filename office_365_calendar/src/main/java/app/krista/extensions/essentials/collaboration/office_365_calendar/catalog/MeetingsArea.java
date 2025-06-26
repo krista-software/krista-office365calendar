@@ -7,7 +7,11 @@ import app.krista.extension.impl.anno.Domain;
 import app.krista.extension.impl.anno.Field;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
+import app.krista.extension.executor.ExtensionResponseBuilder;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.RemediationActionFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
@@ -20,6 +24,7 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -37,17 +42,21 @@ import java.util.stream.Collectors;
         ecosystemVersion = "2329f537-825e-4037-8a7e-cdc1f223419c")
 public final class MeetingsArea {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingsArea.class);
+
     private final MeetingDaoImpl meetingDao;
     private final CatalogTypes catalogTypes;
     private final ValidationOrchestrator validationOrchestrator;
     private final ErrorHandlingStateManager errorHandlingStateManager;
+    private final ExtensionResponseGenerator responseGenerator;
 
     @Inject
-    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager) {
+    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager, ExtensionResponseGenerator responseGenerator) {
         this.meetingDao = meetingDao;
         this.catalogTypes = catalogTypes;
         this.validationOrchestrator = validationOrchestrator;
         this.errorHandlingStateManager = errorHandlingStateManager;
+        this.responseGenerator = responseGenerator;
     }
 
     /**
@@ -90,7 +99,7 @@ public final class MeetingsArea {
      * Declines the invitation for the given event ID.
      *
      * @param eventId the ID of the event to decline
-     * @return the details of the declined event
+     * @return the details of the declined event or error response with validation prompts
      */
     @CatalogRequest(
             id = "localDomainRequest_9de59f5f-b77d-42e3-84da-63f587f65358",
@@ -99,9 +108,42 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails declineInvitation(
+    public ExtensionResponse declineInvitation(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        return CatalogTypes.fromEvent(meetingDao.declineMeetingInvitation(eventId));
+        try {
+            LOGGER.info("declineInvitation: eventId={}", eventId);
+
+            // Validate input parameters
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(Map.of(
+                            Validator.ValidationResource.EVENT_ID, eventId));
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the decline invitation operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.declineMeetingInvitation(eventId));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_DECLINE_INVITATION,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in declineInvitation: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in decline invitation: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**

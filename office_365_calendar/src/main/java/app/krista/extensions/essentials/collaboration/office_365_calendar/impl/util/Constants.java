@@ -93,6 +93,8 @@ public final class Constants {
     public static final String FAILED_TO_GET_EVENT = "Failed to get event ";
     public static final String HANDLE_RE_ENTER_GET_EVENT = "handleReEnterGetEvent";
     public static final String CONFIRM_RE_ENTER_GET_EVENT = "confirmReenterGetEvent";
+    public static final String HANDLE_REENTER_DECLINE_INVITATION = "handleReenterDeclineInvitation";
+    public static final String CONFIRM_REENTER_DECLINE_INVITATION = "confirmReenterDeclineInvitation";
 
     private Constants() {
     }

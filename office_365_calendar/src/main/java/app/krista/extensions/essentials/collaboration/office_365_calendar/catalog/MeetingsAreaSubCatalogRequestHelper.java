@@ -8,6 +8,7 @@ import app.krista.extension.impl.anno.SubCatalogRequest;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
+import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
@@ -16,6 +17,8 @@ import app.krista.model.base.File;
 import com.microsoft.graph.models.FileAttachment;
 import org.jetbrains.annotations.NotNull;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -34,6 +37,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class MeetingsAreaSubCatalogRequestHelper {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingsAreaSubCatalogRequestHelper.class);
 
     private final MeetingDaoImpl meetingDao;
     private final CatalogTypes catalogTypes;
@@ -339,6 +344,73 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @param state a map representing the current state or context for validation, where keys are state names and values are their corresponding objects
      * @return a list of {@link ValidationOrchestrator.ValidationResult} objects representing the outcome of each validation performed on the state
      */
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for declining an invitation.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_DECLINE_INVITATION,
+            description = "Checks if user wants to re-enter event ID for declining invitation and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterDeclineInvitation(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, eventId: Text }", required = true) Map<String, Object> map) {
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reenter)) {
+            return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+        }
+
+        LOGGER.info("Reenter was true. Hence continuing.");
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_DECLINE_INVITATION,
+                Map.of(Constants.STATE_ID, stateId,
+                      Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+    }
+
+    /**
+     * Handles the actual decline of invitation after the user has re-entered the event ID.
+     *
+     * @param map input map containing eventId
+     * @return an extension response containing the declined event details or an error response
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_DECLINE_INVITATION,
+            description = "Handle re-entered event ID for declining invitation",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterDeclineInvitation(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text }") Map<String, Object> map) {
+        LOGGER.info("SubCatalogRequest handleReenterDeclineInvitation start: {}", map);
+
+        // Extract parameters from the map
+        String eventId = (String) map.get(Constants.EVENT_ID);
+
+        try {
+            // Perform the decline invitation operation
+            Meeting declinedMeeting = meetingDao.declineMeetingInvitation(eventId);
+            EventDetails eventDetails = CatalogTypes.fromEvent(declinedMeeting);
+            return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in handleReenterDeclineInvitation: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_DECLINE_INVITATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
     @NotNull
     private static List<ValidationOrchestrator.ValidationResult> getValidationResults(Map<String, Object> state) {
         List<ValidationOrchestrator.ValidationResult> validationResults = new ArrayList<>();
