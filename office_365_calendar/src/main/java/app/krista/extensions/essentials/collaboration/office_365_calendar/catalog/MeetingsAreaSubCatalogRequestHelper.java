@@ -373,7 +373,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_DECLINE_INVITATION,
                 Map.of(Constants.STATE_ID, stateId,
-                      Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+                      Constants.EVENT_ID, map.get(Constants.EVENT_ID) != null ? map.get(Constants.EVENT_ID) : ""));
     }
 
     /**
@@ -411,13 +411,188 @@ public class MeetingsAreaSubCatalogRequestHelper {
         }
     }
 
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting schedules.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, dateFrom, dateTo, attendees, and timeZone
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_SCHEDULES,
+            description = "Checks if user wants to re-enter details for getting schedules and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetSchedules(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, dateFrom: Number, dateTo: Number, attendees: [ Text ], timeZone: Text }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET SCHEDULES START ===");
+        System.out.println("Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("Extracted values:");
+        System.out.println("  reenter: " + reenter);
+        System.out.println("  stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("Validation results: " + validationResults);
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("User declined to reenter, generating deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET SCHEDULES DENY END ===");
+            return response;
+        }
+
+        System.out.println("User accepted to reenter, preparing fetch response");
+        LOGGER.info("Reenter was true. Hence continuing.");
+
+        Object dateFromObj = map.get(Constants.FROM_DATE);
+        Object dateToObj = map.get(Constants.TO_DATE);
+        Object attendeesObj = map.get(Constants.ATTENDEES);
+        Object timeZoneObj = map.get(Constants.TIME_ZONE);
+
+        System.out.println("Raw values from map:");
+        System.out.println("  FROM_DATE: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  TO_DATE: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  ATTENDEES: " + attendeesObj + " (type: " + (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  TIME_ZONE: " + timeZoneObj + " (type: " + (timeZoneObj != null ? timeZoneObj.getClass().getSimpleName() : "null") + ")");
+
+        Map<String, Object> fetchParams = Map.of(
+                Constants.STATE_ID, stateId,
+                Constants.FROM_DATE, dateFromObj != null ? dateFromObj : 0L,
+                Constants.TO_DATE, dateToObj != null ? dateToObj : 0L,
+                Constants.ATTENDEES, attendeesObj != null ? attendeesObj : List.of(),
+                Constants.TIME_ZONE, timeZoneObj != null ? timeZoneObj : "");
+
+        System.out.println("Fetch parameters: " + fetchParams);
+
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_SCHEDULES, fetchParams);
+        System.out.println("=== CONFIRM REENTER GET SCHEDULES ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual retrieval of schedules after the user has re-entered the details.
+     *
+     * @param map input map containing dateFrom, dateTo, attendees, and timeZone
+     * @return an extension response containing the schedules or an error response
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_SCHEDULES,
+            description = "Handle re-entered details for getting schedules",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
+    public ExtensionResponse handleReenterGetSchedules(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, dateFrom: Number, dateTo: Number, attendees: [ Text ], timeZone: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET SCHEDULES START ===");
+        System.out.println("Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetSchedules start: {}", map);
+
+        // Extract parameters from the map
+        Object dateFromObj = map.get(Constants.FROM_DATE);
+        Object dateToObj = map.get(Constants.TO_DATE);
+        Object attendeesObj = map.get(Constants.ATTENDEES);
+        String timeZone = (String) map.get(Constants.TIME_ZONE);
+
+        System.out.println("Extracted raw objects:");
+        System.out.println("  dateFromObj: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  dateToObj: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  attendeesObj: " + attendeesObj + " (type: " + (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null") + ")");
+        System.out.println("  timeZone: " + timeZone);
+
+        try {
+            Long dateFrom = null;
+            Long dateTo = null;
+            List<String> attendees = null;
+
+            // Handle dateFrom conversion
+            if (dateFromObj instanceof Number) {
+                dateFrom = ((Number) dateFromObj).longValue();
+                System.out.println("Converted dateFrom: " + dateFrom);
+            } else {
+                System.out.println("dateFromObj is not a Number, keeping as null");
+            }
+
+            // Handle dateTo conversion
+            if (dateToObj instanceof Number) {
+                dateTo = ((Number) dateToObj).longValue();
+                System.out.println("Converted dateTo: " + dateTo);
+            } else {
+                System.out.println("dateToObj is not a Number, keeping as null");
+            }
+
+            // Handle attendees conversion
+            if (attendeesObj instanceof List) {
+                attendees = (List<String>) attendeesObj;
+                System.out.println("Converted attendees: " + attendees);
+            } else {
+                System.out.println("attendeesObj is not a List, keeping as null");
+            }
+
+            System.out.println("Final parameters for meetingDao.getSchedules:");
+            System.out.println("  dateFrom: " + dateFrom);
+            System.out.println("  dateTo: " + dateTo);
+            System.out.println("  attendees: " + attendees);
+            System.out.println("  timeZone: " + timeZone);
+
+            // Perform the get schedules operation
+            System.out.println("Calling meetingDao.getSchedules...");
+            List<Map<String, Object>> schedules = meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
+            System.out.println("Retrieved schedules: " + (schedules != null ? schedules.size() + " items" : "null"));
+            if (schedules != null && !schedules.isEmpty()) {
+                System.out.println("First schedule item: " + schedules.get(0));
+            }
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Meetings", schedules)).build();
+            System.out.println("=== HANDLE REENTER GET SCHEDULES SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET SCHEDULES EXCEPTION ===");
+            System.out.println("Exception: " + cause.getClass().getSimpleName());
+            System.out.println("Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetSchedules: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_SCHEDULES_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("=== HANDLE REENTER GET SCHEDULES EXCEPTION END ===");
+            return response;
+        }
+    }
+
     @NotNull
     private static List<ValidationOrchestrator.ValidationResult> getValidationResults(Map<String, Object> state) {
+        System.out.println("=== GET VALIDATION RESULTS START ===");
+        System.out.println("State: " + state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = new ArrayList<>();
         List<?> results = (List<?>) state.get(Constants.VALIDATION_RESULTS);
-        for (Object item : results) {
-            validationResults.add(Constants.GSON.fromJson(Constants.GSON.toJson(item), ValidationOrchestrator.ValidationResult.class));
+        System.out.println("Raw validation results from state: " + results);
+
+        if (results != null) {
+            for (Object item : results) {
+                System.out.println("Processing validation result item: " + item + " (type: " + (item != null ? item.getClass().getSimpleName() : "null") + ")");
+                ValidationOrchestrator.ValidationResult validationResult = Constants.GSON.fromJson(Constants.GSON.toJson(item), ValidationOrchestrator.ValidationResult.class);
+                System.out.println("Converted validation result: " + validationResult);
+                validationResults.add(validationResult);
+            }
+        } else {
+            System.out.println("No validation results found in state");
         }
+
+        System.out.println("Final validation results: " + validationResults);
+        System.out.println("=== GET VALIDATION RESULTS END ===");
         return validationResults;
     }
 }

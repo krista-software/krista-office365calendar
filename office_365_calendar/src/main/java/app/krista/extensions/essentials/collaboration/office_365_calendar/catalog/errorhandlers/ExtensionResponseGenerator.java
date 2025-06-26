@@ -75,7 +75,10 @@ public class ExtensionResponseGenerator {
             stepMessage.append(!fetchResponse ? validationResult.confirmStepMessage() : validationResult.fetchStepMessage()).append("\n");
             errMessage.append(validationResult.errMessage()).append("\n");
             if (fetchResponse) {
-                fields.add(NamedFieldFactory.createTextField(validationResult.fetchFieldName()));
+                // Use the field type from ValidationResult to create the appropriate field
+                String fieldType = validationResult.fieldType();
+                System.out.println("Creating field: name=" + validationResult.fetchFieldName() + ", type=" + fieldType);
+                fields.add(NamedFieldFactory.createFieldByType(validationResult.fetchFieldName(), fieldType));
             }
         }
         return Map.of(STEP_MESSAGE, stepMessage.toString(), ERROR_MESSAGE, errMessage.toString(), FIELD, fields);

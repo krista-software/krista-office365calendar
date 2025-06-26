@@ -34,7 +34,7 @@ public class ValidationOrchestrator {
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
-                                   String errMessage) {
+                                   String errMessage, String fieldType) {
     }
 
     /**
@@ -55,9 +55,27 @@ public class ValidationOrchestrator {
             if (validator != null && !validator.validate(entry.getValue(), resources)) {
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
                         validator.getFetchFieldName(), validator.getFetchStepMessage(),
-                        validator.getErrMessage(entry.getValue())));
+                        validator.getErrMessage(entry.getValue()), getFieldTypeForResource(entry.getKey())));
             }
         }
         return results;
+    }
+
+    /**
+     * Maps a ValidationResource to its corresponding field type for proper field creation.
+     * This ensures that the correct field type is used when generating fetch responses.
+     *
+     * @param resource the ValidationResource to map
+     * @return the field type string corresponding to the resource
+     */
+    private String getFieldTypeForResource(Validator.ValidationResource resource) {
+        return switch (resource) {
+            case FROM_DATE, TO_DATE, DATE_RANGE -> "Date";
+            case EMAIL -> "Email";
+            case EVENT_ID -> "Text";
+            case NUMBER_OF_MEETINGS -> "Number";
+            case ATTENDEES -> "Email"; // For list of emails, we'll use Email type
+            default -> "Text"; // Default fallback
+        };
     }
 }

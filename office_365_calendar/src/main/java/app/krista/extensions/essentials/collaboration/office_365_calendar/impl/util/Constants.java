@@ -95,6 +95,11 @@ public final class Constants {
     public static final String CONFIRM_RE_ENTER_GET_EVENT = "confirmReenterGetEvent";
     public static final String HANDLE_REENTER_DECLINE_INVITATION = "handleReenterDeclineInvitation";
     public static final String CONFIRM_REENTER_DECLINE_INVITATION = "confirmReenterDeclineInvitation";
+    public static final String FAILED_TO_GET_SCHEDULES_VALIDATION = "Failed to get schedules - validation error ";
+    public static final String HANDLE_REENTER_GET_SCHEDULES = "handleReenterGetSchedules";
+    public static final String CONFIRM_REENTER_GET_SCHEDULES = "confirmReenterGetSchedules";
+    public static final String TIME_ZONE = "timeZone";
+    public static final String ATTENDEES = "attendees";
 
     private Constants() {
     }

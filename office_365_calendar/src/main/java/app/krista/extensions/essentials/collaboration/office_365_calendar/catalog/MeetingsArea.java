@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -132,7 +133,7 @@ public final class MeetingsArea {
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_DECLINE_INVITATION,
                         Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId));
+                              Constants.EVENT_ID, eventId != null ? eventId : ""));
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in declineInvitation: {}", cause.getMessage());
@@ -373,8 +374,11 @@ public final class MeetingsArea {
     /**
      * Retrieves scheduled meetings for the given date range and attendees.
      *
-     * @return a list of scheduled meetings
-     * @throws IOException if retrieval fails
+     * @param dateFrom start date (epoch millis)
+     * @param dateTo end date (epoch millis)
+     * @param attendees list of attendee emails
+     * @param timeZone time zone (optional)
+     * @return an extension response containing scheduled meetings or error response with validation prompts
      */
     @CatalogRequest(
             id = "localDomainRequest_6c9fb027-ab27-48ef-b966-d0f07a62fc32",
@@ -383,13 +387,113 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
-    public List<Map<String, Object>> getSchedules(
+    public ExtensionResponse getSchedules(
             @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
             @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateTo,
             @Field.Desc(name = "Attendees", type = "[ Email ]") List<String> attendees,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone) throws IOException {
+            @Field(name = "Time Zone", type = "Text", required = false) String timeZone) {
+        try {
+            System.out.println("=== GET SCHEDULES START ===");
+            System.out.println("Input parameters:");
+            System.out.println("  dateFrom: " + dateFrom);
+            System.out.println("  dateTo: " + dateTo);
+            System.out.println("  attendees: " + attendees);
+            System.out.println("  timeZone: " + timeZone);
+            LOGGER.info("getSchedules: dateFrom={}, dateTo={}, attendees={}, timeZone={}", dateFrom, dateTo, attendees, timeZone);
 
-        return meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
+            // Prepare validation parameters
+            System.out.println("Preparing validation parameters...");
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate date range
+            if (dateFrom != null && dateTo != null) {
+                System.out.println("Adding date validation parameters:");
+                System.out.println("  FROM_DATE: " + String.valueOf(dateFrom));
+                System.out.println("  TO_DATE: " + String.valueOf(dateTo));
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+                validationParams.put(Validator.ValidationResource.DATE_RANGE, "dateRange");
+            } else {
+                System.out.println("Skipping date validation - dateFrom or dateTo is null");
+            }
+
+            // Validate attendee emails
+            if (attendees != null && !attendees.isEmpty()) {
+                System.out.println("Adding email validation parameters:");
+                for (String attendee : attendees) {
+                    if (attendee != null && !attendee.trim().isEmpty()) {
+                        System.out.println("  EMAIL: " + attendee);
+                        validationParams.put(Validator.ValidationResource.EMAIL, attendee);
+                        break; // Validate at least one email for the pattern
+                    }
+                }
+            } else {
+                System.out.println("Skipping email validation - attendees is null or empty");
+            }
+
+            System.out.println("Final validation parameters: " + validationParams);
+
+            // Validate input parameters
+            System.out.println("Calling validation orchestrator...");
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams);
+
+            System.out.println("Validation results count: " + validationResults.size());
+            if (!validationResults.isEmpty()) {
+                System.out.println("Validation results:");
+                for (ValidationOrchestrator.ValidationResult result : validationResults) {
+                    System.out.println("  - " + result);
+                }
+            }
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get schedules operation
+                System.out.println("Validation passed, calling meetingDao.getSchedules...");
+                List<Map<String, Object>> schedules = meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
+                System.out.println("Retrieved schedules count: " + (schedules != null ? schedules.size() : "null"));
+                ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Meetings", schedules)).build();
+                System.out.println("=== GET SCHEDULES SUCCESS END ===");
+                return response;
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                System.out.println("Validation failed, preparing confirmation response...");
+                String stateId = UUID.randomUUID().toString();
+                System.out.println("Generated stateId: " + stateId);
+
+                Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
+                System.out.println("Storing state data: " + stateData);
+                errorHandlingStateManager.put(stateId, stateData);
+
+                Map<String, Object> confirmationParams = Map.of(
+                        Constants.STATE_ID, stateId,
+                        Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
+                        Constants.TO_DATE, dateTo != null ? dateTo : 0L,
+                        Constants.ATTENDEES, attendees != null ? attendees : List.of(),
+                        Constants.TIME_ZONE, timeZone != null ? timeZone : "");
+                System.out.println("Confirmation parameters: " + confirmationParams);
+
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_SCHEDULES, confirmationParams);
+                System.out.println("=== GET SCHEDULES VALIDATION FAILED END ===");
+                return response;
+            }
+        } catch (Exception cause) {
+            System.out.println("=== GET SCHEDULES EXCEPTION ===");
+            System.out.println("Exception: " + cause.getClass().getSimpleName());
+            System.out.println("Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in getSchedules: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get schedules: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("=== GET SCHEDULES EXCEPTION END ===");
+            return response;
+        }
     }
 
     /**

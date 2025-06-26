@@ -1,7 +1,9 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp;
 
 import app.krista.model.field.NamedField;
+import com.google.gson.Gson;
 
+import java.util.HashMap;
 import java.util.Map;
 
 
@@ -96,5 +98,167 @@ public class NamedFieldFactory {
         return new NamedField(fieldName, FieldTypes.PICK_ONE_FIELD, Map.of(), Map.of());
     }
 
+    /**
+     * Creates an email field with the specified name.
+     *
+     * @param fieldName the name of the field
+     * @return a new NamedField instance configured as an email field
+     */
+    public static NamedField createEmailField(String fieldName) {
+        return new NamedField(fieldName, FieldTypes.EMAIL_FIELD_LOGICAL_NAME, Map.of(), Map.of());
+    }
+
+    /**
+     * Creates a password field with the specified name.
+     *
+     * @param fieldName the name of the field
+     * @return a new NamedField instance configured as a password field (text field with password attributes)
+     */
+    public static NamedField createPasswordField(String fieldName) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("password", true);
+        return new NamedField(fieldName, FieldTypes.TEXT_FIELD, attributes, Map.of());
+    }
+
+    /**
+     * Creates a list field containing elements of the specified inner field type.
+     *
+     * @param fieldName the name of the list field
+     * @param innerFieldType the type of fields that the list will contain (Text, Date, Email, Number, etc.)
+     * @return a new NamedField instance configured as a list field
+     */
+    public static NamedField createListField(String fieldName, String innerFieldType) {
+        return createListField(fieldName, innerFieldType, Map.of());
+    }
+
+    /**
+     * Creates a list field containing elements of the specified inner field type with custom attributes.
+     *
+     * @param fieldName the name of the list field
+     * @param innerFieldType the type of fields that the list will contain (Text, Date, Email, Number, etc.)
+     * @param innerAttributes custom attributes for the inner field type
+     * @return a new NamedField instance configured as a list field
+     */
+    public static NamedField createListField(String fieldName, String innerFieldType, Map<String, Object> innerAttributes) {
+        // Map the inner field type to the appropriate logical name
+        String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
+
+        // Create the inner field configuration
+        Map<String, Object> fieldMap = new HashMap<>();
+        fieldMap.put("type", "Field");
+        fieldMap.put("fieldType", innerFieldLogicalName);
+        fieldMap.put("attributes", innerAttributes != null ? innerAttributes : Map.of());
+
+        // Convert the field configuration to JSON
+        String fieldMapJson = convertMapToJson(fieldMap);
+
+        // Create the list field attributes
+        Map<String, Object> listAttributes = new HashMap<>();
+        listAttributes.put("field", fieldMapJson);
+
+        return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, listAttributes, Map.of());
+    }
+
+    /**
+     * Creates a comprehensive field based on the specified field type, handling both simple and complex types.
+     * This method supports list fields, password fields, and all standard field types.
+     *
+     * @param fieldName the name of the field
+     * @param fieldType the type of field to create (Date, Email, Text, Number, Boolean, File, List, etc.)
+     * @return a new NamedField instance configured with the specified type
+     */
+    public static NamedField createField(String fieldName, String fieldType) {
+        // Handle special cases first
+        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
+            // Default to Text list if no inner type specified
+            return createListField(fieldName, "Text");
+        }
+
+        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
+            if (fieldName.equalsIgnoreCase("Password")) {
+                return createPasswordField(fieldName);
+            }
+        }
+
+        // Handle list types with inner type specification (e.g., "List<Email>", "List[Date]", etc.)
+        if (fieldType.startsWith("List<") && fieldType.endsWith(">")) {
+            String innerType = fieldType.substring(5, fieldType.length() - 1);
+            return createListField(fieldName, innerType);
+        }
+
+        if (fieldType.startsWith("List[") && fieldType.endsWith("]")) {
+            String innerType = fieldType.substring(5, fieldType.length() - 1);
+            return createListField(fieldName, innerType);
+        }
+
+        // Use the existing createFieldByType for standard types
+        return createFieldByType(fieldName, fieldType);
+    }
+
+    /**
+     * Creates a field based on the specified field type.
+     * This method acts as a factory that delegates to the appropriate specific creation method.
+     *
+     * @param fieldName the name of the field
+     * @param fieldType the type of field to create (Date, Email, Text, Number, Boolean, File, etc.)
+     * @return a new NamedField instance configured with the specified type
+     */
+    public static NamedField createFieldByType(String fieldName, String fieldType) {
+        return switch (fieldType.toLowerCase()) {
+            case "date" -> createDateField(fieldName);
+            case "email" -> createEmailField(fieldName);
+            case "number" -> createNumberField(fieldName);
+            case "boolean" -> createBooleanField(fieldName);
+            case "file" -> createFileField(fieldName);
+            case "switch" -> createSwitchField(fieldName);
+            case "richtext" -> createRichTextField(fieldName);
+            case "pickone" -> createPickOneField(fieldName);
+            case "text" -> createTextField(fieldName);
+            case "password" -> createPasswordField(fieldName);
+            case "list" -> createListField(fieldName, "Text"); // Default list of text
+            default -> createTextField(fieldName); // Default fallback to text field
+        };
+    }
+
+    /**
+     * Maps a field type string to its corresponding logical name.
+     *
+     * @param fieldType the field type string (e.g., "Text", "Date", "Email")
+     * @return the logical name for the field type
+     */
+    private static String getLogicalNameForFieldType(String fieldType) {
+        return switch (fieldType.toLowerCase()) {
+            case "text" -> FieldTypes.TEXT_FIELD_LOGICAL_NAME;
+            case "date" -> FieldTypes.DATE_FIELD_LOGICAL_NAME;
+            case "email" -> FieldTypes.EMAIL_FIELD_LOGICAL_NAME;
+            case "number" -> FieldTypes.NUMBER_FIELD_LOGICAL_NAME;
+            case "boolean" -> FieldTypes.BOOLEAN_FIELD_LOGICAL_NAME;
+            case "file" -> FieldTypes.FILE_FIELD_LOGICAL_NAME;
+            case "switch" -> FieldTypes.SWITCH_FIELD_LOGICAL_NAME;
+            case "richtext" -> FieldTypes.RICH_TEXT_FIELD_LOGICAL_NAME;
+            case "pickone" -> FieldTypes.PICK_ONE_LOGICAL_NAME;
+            case "pickmany" -> FieldTypes.PICK_MANY_LOGICAL_NAME;
+            case "phone" -> FieldTypes.PHONE_FIELD_LOGICAL_NAME;
+            case "address" -> FieldTypes.ADDRESS_FIELD_LOGICAL_NAME;
+            case "currency" -> FieldTypes.CURRENCY_FIELD_LOGICAL_NAME;
+            case "percentage" -> FieldTypes.PERCENTAGE_FIELD_LOGICAL_NAME;
+            case "time" -> FieldTypes.TIME_FIELD_LOGICAL_NAME;
+            case "daterange" -> FieldTypes.DATE_RANGE_LOGICAL_NAME;
+            case "datetimerange" -> FieldTypes.DATE_TIME_RANGE_LOGICAL_NAME;
+            case "location" -> FieldTypes.LOCATION_FIELD_LOGICAL_NAME;
+            default -> FieldTypes.TEXT_FIELD_LOGICAL_NAME; // Default fallback
+        };
+    }
+
+    /**
+     * Converts a Map to JSON string using Gson.
+     *
+     * @param map the map to convert
+     * @return JSON string representation of the map
+     */
+    private static String convertMapToJson(Map<String, Object> map) {
+        Gson gson = new Gson();
+        return gson.toJson(map);
+    }
 
 }

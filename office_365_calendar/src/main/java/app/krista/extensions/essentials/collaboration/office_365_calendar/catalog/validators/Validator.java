@@ -10,7 +10,8 @@ public interface Validator {
         FROM_DATE,
         TO_DATE,
         DATE_RANGE,
-        NUMBER_OF_MEETINGS
+        NUMBER_OF_MEETINGS,
+        ATTENDEES
     }
 
     Boolean validate(String resourceId, Map<ValidationResource, String> context);
