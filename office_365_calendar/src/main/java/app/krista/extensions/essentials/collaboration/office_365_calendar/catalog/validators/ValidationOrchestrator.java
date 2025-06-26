@@ -30,6 +30,7 @@ public class ValidationOrchestrator {
         validators.put(Validator.ValidationResource.EMAIL, new EmailValidator());
         validators.put(Validator.ValidationResource.EVENT_ID, new EventIdValidator(meetingDao));
         validators.put(Validator.ValidationResource.DATE_RANGE, new DateValidator());
+        validators.put(Validator.ValidationResource.DATE_RANGE_TO, new ToDateValidator());
         validators.put(Validator.ValidationResource.NUMBER_OF_MEETINGS, new NumberValidator());
     }
 
@@ -71,7 +72,7 @@ public class ValidationOrchestrator {
      */
     private String getFieldTypeForResource(Validator.ValidationResource resource) {
         return switch (resource) {
-            case FROM_DATE, TO_DATE, DATE_RANGE -> "Date";
+            case FROM_DATE, TO_DATE, DATE_RANGE,DATE_RANGE_TO -> "Date";
             case EMAIL -> "Email";
             case EVENT_ID -> "Text";
             case NUMBER_OF_MEETINGS -> "Number";
@@ -89,7 +90,7 @@ public class ValidationOrchestrator {
      */
     private Map<String, Object> getFieldAttributesForResource(Validator.ValidationResource resource) {
         return switch (resource) {
-            case FROM_DATE, TO_DATE, DATE_RANGE -> Map.of("includeTimeOfDay", "true");
+            case FROM_DATE, TO_DATE, DATE_RANGE ,DATE_RANGE_TO -> Map.of("includeTimeOfDay", "true");
             case EMAIL -> Map.of(); // No special attributes for email fields
             case EVENT_ID -> Map.of(); // No special attributes for text fields
             case NUMBER_OF_MEETINGS -> Map.of(); // No special attributes for number fields

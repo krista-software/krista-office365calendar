@@ -417,6 +417,17 @@ public final class MeetingsArea {
                 System.out.println("Skipping date validation - dateFrom or dateTo is null");
             }
 
+            if (dateFrom != null && dateTo != null) {
+                System.out.println("Adding date validation parameters:");
+                System.out.println("  FROM_DATE: " + String.valueOf(dateFrom));
+                System.out.println("  TO_DATE: " + String.valueOf(dateTo));
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+                validationParams.put(Validator.ValidationResource.DATE_RANGE_TO, "dateRange");
+            } else {
+                System.out.println("Skipping date validation - dateFrom or dateTo is null");
+            }
+
             // Validate attendee emails
             if (attendees != null && !attendees.isEmpty()) {
                 System.out.println("Adding email validation parameters:");
