@@ -114,10 +114,11 @@ public final class MeetingsArea {
         try {
             LOGGER.info("declineInvitation: eventId={}", eventId);
 
-            // Validate input parameters
+            // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
-                            Validator.ValidationResource.EVENT_ID, eventId));
+                            Validator.ValidationResource.EVENT_ID, eventId),
+                            MeetingsArea.class, "declineInvitation");
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the decline invitation operation
@@ -444,10 +445,10 @@ public final class MeetingsArea {
 
             System.out.println("Final validation parameters: " + validationParams);
 
-            // Validate input parameters
-            System.out.println("Calling validation orchestrator...");
+            // Validate input parameters using dynamic field attribute extraction
+            System.out.println("Calling validation orchestrator with dynamic attribute extraction...");
             List<ValidationOrchestrator.ValidationResult> validationResults =
-                    validationOrchestrator.validate(validationParams);
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getSchedules");
 
             System.out.println("Validation results count: " + validationResults.size());
             if (!validationResults.isEmpty()) {

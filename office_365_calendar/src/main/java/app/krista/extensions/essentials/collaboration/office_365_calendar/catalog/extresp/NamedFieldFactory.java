@@ -169,19 +169,10 @@ public class NamedFieldFactory {
      * @return a new NamedField instance configured with the specified type and attributes
      */
     public static NamedField createFieldWithAttributes(String fieldName, String fieldType, Map<String, Object> attributes) {
-        // Handle special cases first
-        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
-            // Default to Text list if no inner type specified
-            return createListFieldWithAttributes(fieldName, "Text", attributes);
-        }
-
-        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
-            if (fieldName.equalsIgnoreCase("Password")) {
-                // Merge password attributes with provided attributes
-                Map<String, Object> mergedAttributes = new HashMap<>(attributes);
-                mergedAttributes.put("password", true);
-                return new NamedField(fieldName, FieldTypes.TEXT_FIELD, mergedAttributes, Map.of());
-            }
+        // Handle catalog request list format first (e.g., "[ Email ]", "[ Text ]", "[ File ]")
+        if (fieldType.startsWith("[") && fieldType.endsWith("]")) {
+            String innerType = fieldType.substring(1, fieldType.length() - 1).trim();
+            return createListFieldWithAttributes(fieldName, innerType, attributes);
         }
 
         // Handle list types with inner type specification (e.g., "List<Email>", "List[Date]", etc.)
@@ -193,6 +184,22 @@ public class NamedFieldFactory {
         if (fieldType.startsWith("List[") && fieldType.endsWith("]")) {
             String innerType = fieldType.substring(5, fieldType.length() - 1);
             return createListFieldWithAttributes(fieldName, innerType, attributes);
+        }
+
+        // Handle simple list case
+        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
+            // Default to Text list if no inner type specified
+            return createListFieldWithAttributes(fieldName, "Text", attributes);
+        }
+
+        // Handle password field special case
+        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
+            if (fieldName.equalsIgnoreCase("Password")) {
+                // Merge password attributes with provided attributes
+                Map<String, Object> mergedAttributes = new HashMap<>(attributes);
+                mergedAttributes.put("password", true);
+                return new NamedField(fieldName, FieldTypes.TEXT_FIELD, mergedAttributes, Map.of());
+            }
         }
 
         // Use the existing createFieldByTypeWithAttributes for standard types
@@ -208,16 +215,10 @@ public class NamedFieldFactory {
      * @return a new NamedField instance configured with the specified type
      */
     public static NamedField createField(String fieldName, String fieldType) {
-        // Handle special cases first
-        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
-            // Default to Text list if no inner type specified
-            return createListField(fieldName, "Text");
-        }
-
-        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
-            if (fieldName.equalsIgnoreCase("Password")) {
-                return createPasswordField(fieldName);
-            }
+        // Handle catalog request list format first (e.g., "[ Email ]", "[ Text ]", "[ File ]")
+        if (fieldType.startsWith("[") && fieldType.endsWith("]")) {
+            String innerType = fieldType.substring(1, fieldType.length() - 1).trim();
+            return createListField(fieldName, innerType);
         }
 
         // Handle list types with inner type specification (e.g., "List<Email>", "List[Date]", etc.)
@@ -229,6 +230,19 @@ public class NamedFieldFactory {
         if (fieldType.startsWith("List[") && fieldType.endsWith("]")) {
             String innerType = fieldType.substring(5, fieldType.length() - 1);
             return createListField(fieldName, innerType);
+        }
+
+        // Handle simple list case
+        if (fieldType.equals(FieldTypes.LIST_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("List")) {
+            // Default to Text list if no inner type specified
+            return createListField(fieldName, "Text");
+        }
+
+        // Handle password field special case
+        if (fieldType.equals(FieldTypes.TEXT_FIELD_LOGICAL_NAME) || fieldType.equalsIgnoreCase("Text")) {
+            if (fieldName.equalsIgnoreCase("Password")) {
+                return createPasswordField(fieldName);
+            }
         }
 
         // Use the existing createFieldByType for standard types

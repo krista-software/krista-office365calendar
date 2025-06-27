@@ -773,7 +773,10 @@ public class MeetingDaoImpl implements MeetingDao {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForAuthenticatedUserWithValidation");
         try {
-            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)));
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
+                Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)),
+                app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
+                "getAttachmentsForAuthenticatedUser");
             if (validationResults.isEmpty()) {
                 List<FileAttachment> fileAttachments = getAttachmentsForAuthenticatedUser(eventID);
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
@@ -864,8 +867,11 @@ public class MeetingDaoImpl implements MeetingDao {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_CANCEL_EVENT_VALIDATION;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> cancelMeetingWithErrorHandling");
         try {
-            // Validate input parameters
-            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)));
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
+                Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)),
+                app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
+                "cancelEvent");
 
             if (validationResults.isEmpty()) {
                 Meeting cancelledMeeting = cancelMeeting(eventId);
@@ -904,9 +910,12 @@ public class MeetingDaoImpl implements MeetingDao {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_UPCOMING_MEETINGS;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getMeetingsWithErrorHandling");
         try {
-            // Validate input parameters
+            // Validate input parameters using dynamic field attribute extraction
             String numberOfMeetingsStr = numberOfMeetings != null ? numberOfMeetings.toString() : "";
-            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.NUMBER_OF_MEETINGS, numberOfMeetingsStr));
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
+                Map.of(Validator.ValidationResource.NUMBER_OF_MEETINGS, numberOfMeetingsStr),
+                app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
+                "getNextUpcomingMeetings");
 
             if (validationResults.isEmpty()) {
                 List<Meeting> meetings = getMeetings(numberOfMeetings.intValue());
@@ -1112,8 +1121,11 @@ public class MeetingDaoImpl implements MeetingDao {
         String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getMeetingByIdWithErrorHandling");
         try {
-            // Validate input parameters
-            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)));
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
+                Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventId)),
+                app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
+                "getEvent");
 
             if (validationResults.isEmpty()) {
                 Meeting meeting = getMeetingById(eventId);

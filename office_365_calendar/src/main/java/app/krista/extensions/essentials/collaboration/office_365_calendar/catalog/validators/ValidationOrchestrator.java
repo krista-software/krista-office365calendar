@@ -4,6 +4,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.M
 import org.jvnet.hk2.annotations.Service;
 
 import javax.inject.Inject;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,14 +51,45 @@ public class ValidationOrchestrator {
      * the list is empty if all resources are valid
      */
     public List<ValidationResult> validate(Map<Validator.ValidationResource, String> resources) {
+        return validate(resources, null, null);
+    }
+
+    /**
+     * Validates the provided resources using the registered validators for each {@link Validator.ValidationResource}.
+     * <p>
+     * This overloaded method allows for dynamic field attribute extraction from the specified method,
+     * eliminating the need for hardcoded field attributes.
+     * </p>
+     *
+     * @param resources a map where the key is a {@link Validator.ValidationResource} and the value is the resource string to validate
+     * @param sourceClass the class containing the catalog request method (can be null for fallback to hardcoded attributes)
+     * @param methodName the name of the catalog request method (can be null for fallback to hardcoded attributes)
+     * @return a list of {@link ValidationResult} objects representing the outcome of failed validations;
+     * the list is empty if all resources are valid
+     */
+    public List<ValidationResult> validate(Map<Validator.ValidationResource, String> resources, Class<?> sourceClass, String methodName) {
         List<ValidationResult> results = new ArrayList<>();
+
+        // Extract field attributes dynamically if method information is provided
+        Method sourceMethod = null;
+        Map<String, Validator.ValidationResource> fieldNameToResourceMapping = new HashMap<>();
+
+        if (sourceClass != null && methodName != null) {
+            sourceMethod = FieldAttributeExtractor.getMethodByName(sourceClass, methodName);
+            if (sourceMethod != null) {
+                fieldNameToResourceMapping = FieldAttributeExtractor.createFieldNameToResourceMapping(sourceMethod);
+            }
+        }
+
         for (Map.Entry<Validator.ValidationResource, String> entry : resources.entrySet()) {
             Validator validator = validators.get(entry.getKey());
             if (validator != null && !validator.validate(entry.getValue(), resources)) {
+                Map<String, Object> fieldAttributes = getFieldAttributesForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
+
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
                         validator.getFetchFieldName(), validator.getFetchStepMessage(),
                         validator.getErrMessage(entry.getValue()), getFieldTypeForResource(entry.getKey()),
-                        getFieldAttributesForResource(entry.getKey())));
+                        fieldAttributes));
             }
         }
         return results;
@@ -84,18 +116,84 @@ public class ValidationOrchestrator {
     /**
      * Maps a ValidationResource to its corresponding field attributes for proper field creation.
      * This ensures that the correct field attributes are used when generating fetch responses.
+     * <p>
+     * This method now supports dynamic field attribute extraction from method annotations
+     * when method information is provided, falling back to hardcoded attributes when necessary.
+     * </p>
+     *
+     * @param resource the ValidationResource to map
+     * @param sourceMethod the method containing field annotations (can be null)
+     * @param fieldNameToResourceMapping mapping of field names to validation resources (can be null)
+     * @return the field attributes map corresponding to the resource
+     */
+    private Map<String, Object> getFieldAttributesForResource(Validator.ValidationResource resource,
+                                                              Method sourceMethod,
+                                                              Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
+
+        // Try to extract attributes dynamically if method information is available
+        if (sourceMethod != null && fieldNameToResourceMapping != null) {
+            // Find the field name that corresponds to this validation resource
+            String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
+            if (fieldName != null) {
+                Map<String, Object> extractedAttributes = FieldAttributeExtractor.extractFieldAttributes(sourceMethod, fieldName);
+                if (!extractedAttributes.isEmpty()) {
+                    return extractedAttributes;
+                }
+            }
+        }
+
+        // Fallback to hardcoded attributes for backward compatibility
+        return getFieldAttributesForResourceFallback(resource);
+    }
+
+    /**
+     * Finds the field name that corresponds to a given validation resource.
+     *
+     * @param resource the validation resource to find the field name for
+     * @param fieldNameToResourceMapping the mapping of field names to validation resources
+     * @return the field name if found, null otherwise
+     */
+    private String findFieldNameForResource(Validator.ValidationResource resource,
+                                           Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
+        for (Map.Entry<String, Validator.ValidationResource> entry : fieldNameToResourceMapping.entrySet()) {
+            if (resource.equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Fallback method for hardcoded field attributes.
+     * This method maintains backward compatibility when dynamic extraction is not available.
      *
      * @param resource the ValidationResource to map
      * @return the field attributes map corresponding to the resource
      */
-    private Map<String, Object> getFieldAttributesForResource(Validator.ValidationResource resource) {
+    private Map<String, Object> getFieldAttributesForResourceFallback(Validator.ValidationResource resource) {
         return switch (resource) {
-            case FROM_DATE, TO_DATE, DATE_RANGE ,DATE_RANGE_TO -> Map.of("includeTimeOfDay", "true");
+            case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> Map.of("includeTimeOfDay", "true");
             case EMAIL -> Map.of(); // No special attributes for email fields
             case EVENT_ID -> Map.of(); // No special attributes for text fields
             case NUMBER_OF_MEETINGS -> Map.of(); // No special attributes for number fields
             case ATTENDEES -> Map.of(); // No special attributes for attendee email fields
             default -> Map.of(); // Default empty attributes
         };
+    }
+
+    /**
+     * Maps a ValidationResource to its corresponding field attributes for proper field creation.
+     * This ensures that the correct field attributes are used when generating fetch responses.
+     * <p>
+     * This is the legacy method that uses hardcoded attributes for backward compatibility.
+     * </p>
+     *
+     * @param resource the ValidationResource to map
+     * @return the field attributes map corresponding to the resource
+     * @deprecated Use {@link #getFieldAttributesForResource(Validator.ValidationResource, Method, Map)} instead
+     */
+    @Deprecated
+    private Map<String, Object> getFieldAttributesForResource(Validator.ValidationResource resource) {
+        return getFieldAttributesForResourceFallback(resource);
     }
 }
