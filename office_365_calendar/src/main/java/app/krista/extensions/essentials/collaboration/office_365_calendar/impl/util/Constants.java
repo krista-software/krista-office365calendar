@@ -77,8 +77,8 @@ public final class Constants {
     public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
     public static final String FAILED_TO_GET_EVENTS_FOR_USER = "Failed to get events for user ";
     public static final String USER_EMAIL = "userEmail";
-    public static final String FROM_DATE = "fromDate";
-    public static final String TO_DATE = "toDate";
+    public static final String FROM_DATE = "Date From";
+    public static final String TO_DATE = "Date To";
     public static final String EVENTS = "Events";
     public static final String HANDLE_RE_ENTER_GET_EVENTS_FOR_USER = "handleReEnterGetEventsForUser";
     public static final String CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";

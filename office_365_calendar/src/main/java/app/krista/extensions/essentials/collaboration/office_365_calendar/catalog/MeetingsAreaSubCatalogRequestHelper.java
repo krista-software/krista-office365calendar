@@ -425,7 +425,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetSchedules(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, fromDate: Number, toDate: Number, attendees: [ Text ], timeZone: Text }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], timeZone: Text }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET SCHEDULES START ===");
         System.out.println("Input map: " + map);
 
@@ -490,7 +490,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
     public ExtensionResponse handleReenterGetSchedules(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, fromDate: Number, toDate: Number, attendees: [ Text ], timeZone: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], timeZone: Text }") Map<String, Object> map) {
         System.out.println("=== HANDLE REENTER GET SCHEDULES START ===");
         System.out.println("Input map: " + map);
         LOGGER.info("SubCatalogRequest handleReenterGetSchedules start: {}", map);
