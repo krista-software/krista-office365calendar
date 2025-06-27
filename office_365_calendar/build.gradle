@@ -77,9 +77,9 @@ configurations {
 }
 
 dependencies {
-    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.114'
+    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.115-rc5'
 
-    implementation 'app.krista:krista-apis:1.0.114'
+    implementation 'app.krista:krista-apis:1.0.115-rc5'
     implementation 'commons-validator:commons-validator:1.7'
     implementation 'com.microsoft.graph:microsoft-graph:5.80.0'
     implementation 'com.microsoft.graph:microsoft-graph-auth:0.3.0'
