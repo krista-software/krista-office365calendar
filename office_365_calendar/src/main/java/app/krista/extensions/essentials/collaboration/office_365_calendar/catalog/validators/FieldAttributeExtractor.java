@@ -116,6 +116,8 @@ public class FieldAttributeExtractor {
      * @param fieldName the name of the field to extract the type for
      * @return the field type string, or null if no matching field is found
      */
+
+    //Future I need to add a new annotation type, I only need to add it here.
     public static String extractFieldType(Method method, String fieldName) {
         System.out.println("    → FieldAttributeExtractor.extractFieldType()");
         System.out.println("    → Method: " + (method != null ? method.getName() : "null"));
