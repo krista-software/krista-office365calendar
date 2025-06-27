@@ -105,9 +105,12 @@ public class ValidationOrchestrator {
                 Map<String, Object> fieldAttributes = getFieldAttributesForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
                 System.out.println("Extracted field attributes: " + fieldAttributes);
 
+                String fieldType = getFieldTypeForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
+                System.out.println("Extracted field type: " + fieldType);
+
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
                         validator.getFetchFieldName(), validator.getFetchStepMessage(),
-                        validator.getErrMessage(entry.getValue()), getFieldTypeForResource(entry.getKey()),
+                        validator.getErrMessage(entry.getValue()), fieldType,
                         fieldAttributes));
             } else {
                 System.out.println("✓ Validation passed for: " + entry.getKey());
@@ -122,19 +125,85 @@ public class ValidationOrchestrator {
     /**
      * Maps a ValidationResource to its corresponding field type for proper field creation.
      * This ensures that the correct field type is used when generating fetch responses.
+     * <p>
+     * This method now supports dynamic field type extraction from method annotations
+     * when method information is provided, falling back to hardcoded types when necessary.
+     * </p>
+     *
+     * @param resource the ValidationResource to map
+     * @param sourceMethod the method containing field annotations (can be null)
+     * @param fieldNameToResourceMapping mapping of field names to validation resources (can be null)
+     * @return the field type string corresponding to the resource
+     */
+    private String getFieldTypeForResource(Validator.ValidationResource resource,
+                                          Method sourceMethod,
+                                          Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
+
+        System.out.println("  → Getting field type for resource: " + resource);
+
+        // Try to extract field type dynamically if method information is available
+        if (sourceMethod != null && fieldNameToResourceMapping != null) {
+            System.out.println("  → Attempting dynamic field type extraction...");
+
+            // Find the field name that corresponds to this validation resource
+            String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
+            System.out.println("  → Found field name for resource " + resource + ": " + fieldName);
+
+            if (fieldName != null) {
+                String extractedFieldType = FieldAttributeExtractor.extractFieldType(sourceMethod, fieldName);
+                System.out.println("  → Extracted field type for field '" + fieldName + "': " + extractedFieldType);
+
+                if (extractedFieldType != null) {
+                    System.out.println("  → Using dynamically extracted field type: " + extractedFieldType);
+                    return extractedFieldType;
+                } else {
+                    System.out.println("  → No field type found, falling back to hardcoded");
+                }
+            } else {
+                System.out.println("  → No field name found for resource, falling back to hardcoded");
+            }
+        } else {
+            System.out.println("  → No method information available, using hardcoded field types");
+        }
+
+        // Fallback to hardcoded field types for backward compatibility
+        String fallbackFieldType = getFieldTypeForResourceFallback(resource);
+        System.out.println("  → Using fallback field type: " + fallbackFieldType);
+        return fallbackFieldType;
+    }
+
+    /**
+     * Fallback method for hardcoded field types.
+     * This method maintains backward compatibility when dynamic extraction is not available.
      *
      * @param resource the ValidationResource to map
      * @return the field type string corresponding to the resource
      */
-    private String getFieldTypeForResource(Validator.ValidationResource resource) {
+    private String getFieldTypeForResourceFallback(Validator.ValidationResource resource) {
         return switch (resource) {
-            case FROM_DATE, TO_DATE, DATE_RANGE,DATE_RANGE_TO -> "Date";
+            case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> "Date";
             case EMAIL -> "Email";
             case EVENT_ID -> "Text";
             case NUMBER_OF_MEETINGS -> "Number";
-            case ATTENDEES -> "Email"; // For list of emails, we'll use Email type
+            case ATTENDEES -> "[ Email ]"; // For list of emails, we'll use the list format
             default -> "Text"; // Default fallback
         };
+    }
+
+    /**
+     * Maps a ValidationResource to its corresponding field type for proper field creation.
+     * This ensures that the correct field type is used when generating fetch responses.
+     * <p>
+     * This is the legacy method that uses hardcoded field types for backward compatibility.
+     * </p>
+     *
+     * @param resource the ValidationResource to map
+     * @return the field type string corresponding to the resource
+     * @deprecated Use {@link #getFieldTypeForResource(Validator.ValidationResource, Method, Map)} instead
+     */
+    @Deprecated
+    private String getFieldTypeForResource(Validator.ValidationResource resource) {
+        return getFieldTypeForResourceFallback(resource);
     }
 
     /**

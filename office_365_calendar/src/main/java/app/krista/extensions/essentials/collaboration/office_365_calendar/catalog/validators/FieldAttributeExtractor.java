@@ -106,6 +106,89 @@ public class FieldAttributeExtractor {
     }
 
     /**
+     * Extracts the field type for a specific field name from a given method.
+     * <p>
+     * This method uses reflection to examine the method parameters and their annotations
+     * to extract the field type associated with a field that matches the given field name.
+     * </p>
+     *
+     * @param method the method to examine for field annotations
+     * @param fieldName the name of the field to extract the type for
+     * @return the field type string, or null if no matching field is found
+     */
+    public static String extractFieldType(Method method, String fieldName) {
+        System.out.println("    → FieldAttributeExtractor.extractFieldType()");
+        System.out.println("    → Method: " + (method != null ? method.getName() : "null"));
+        System.out.println("    → Field Name: " + fieldName);
+
+        if (method == null || fieldName == null) {
+            System.out.println("    → Null method or field name, returning null");
+            return null;
+        }
+
+        Parameter[] parameters = method.getParameters();
+        System.out.println("    → Examining " + parameters.length + " parameters for field type...");
+
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter parameter = parameters[i];
+            System.out.println("    → Parameter " + i + ": " + parameter.getType().getSimpleName());
+
+            // Check for @Field annotation
+            Field fieldAnnotation = parameter.getAnnotation(Field.class);
+            if (fieldAnnotation != null) {
+                System.out.println("    → Found @Field annotation with name: " + fieldAnnotation.name());
+                if (fieldName.equals(fieldAnnotation.name())) {
+                    System.out.println("    → ✓ Field name matches! Field type: " + fieldAnnotation.type());
+                    return fieldAnnotation.type();
+                }
+            }
+
+            // Check for @Field.Date annotation
+            Field.Date dateAnnotation = parameter.getAnnotation(Field.Date.class);
+            if (dateAnnotation != null) {
+                System.out.println("    → Found @Field.Date annotation with name: " + dateAnnotation.name());
+                if (fieldName.equals(dateAnnotation.name())) {
+                    System.out.println("    → ✓ Field name matches! Field type: Date");
+                    return "Date";
+                }
+            }
+
+            // Check for @Field.Text annotation
+            Field.Text textAnnotation = parameter.getAnnotation(Field.Text.class);
+            if (textAnnotation != null) {
+                System.out.println("    → Found @Field.Text annotation with name: " + textAnnotation.name());
+                if (fieldName.equals(textAnnotation.name())) {
+                    System.out.println("    → ✓ Field name matches! Field type: Text");
+                    return "Text";
+                }
+            }
+
+            // Check for @Field.Boolean annotation
+            Field.Boolean booleanAnnotation = parameter.getAnnotation(Field.Boolean.class);
+            if (booleanAnnotation != null) {
+                System.out.println("    → Found @Field.Boolean annotation with name: " + booleanAnnotation.name());
+                if (fieldName.equals(booleanAnnotation.name())) {
+                    System.out.println("    → ✓ Field name matches! Field type: Boolean");
+                    return "Boolean";
+                }
+            }
+
+            // Check for @Field.Desc annotation (for list types like attendees)
+            Field.Desc descAnnotation = parameter.getAnnotation(Field.Desc.class);
+            if (descAnnotation != null) {
+                System.out.println("    → Found @Field.Desc annotation with name: " + descAnnotation.name());
+                if (fieldName.equals(descAnnotation.name())) {
+                    System.out.println("    → ✓ Field name matches! Field type: " + descAnnotation.type());
+                    return descAnnotation.type();
+                }
+            }
+        }
+
+        System.out.println("    → No matching field annotation found for field type extraction: " + fieldName);
+        return null;
+    }
+
+    /**
      * Extracts attributes from a @Field annotation.
      *
      * @param fieldAnnotation the @Field annotation
