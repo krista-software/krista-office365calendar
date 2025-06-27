@@ -34,6 +34,7 @@ public class ValidationOrchestrator {
         validators.put(Validator.ValidationResource.FROM_DATE, new DateValidator());
         validators.put(Validator.ValidationResource.TO_DATE, new ToDateValidator());
         validators.put(Validator.ValidationResource.NUMBER_OF_MEETINGS, new NumberValidator());
+        validators.put(Validator.ValidationResource.TIME_ZONE, new TimeZoneValidator());
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
@@ -186,6 +187,7 @@ public class ValidationOrchestrator {
             case EVENT_ID -> "Text";
             case NUMBER_OF_MEETINGS -> "Number";
             case ATTENDEES -> "[ Email ]"; // For list of emails, we'll use the list format
+            case TIME_ZONE -> "Text"; // Time zone is a text field
             default -> "Text"; // Default fallback
         };
     }
@@ -287,6 +289,7 @@ public class ValidationOrchestrator {
             case EVENT_ID -> Map.of(); // No special attributes for text fields
             case NUMBER_OF_MEETINGS -> Map.of(); // No special attributes for number fields
             case ATTENDEES -> Map.of(); // No special attributes for attendee email fields
+            case TIME_ZONE -> Map.of(); // No special attributes for time zone fields
             default -> Map.of(); // Default empty attributes
         };
     }

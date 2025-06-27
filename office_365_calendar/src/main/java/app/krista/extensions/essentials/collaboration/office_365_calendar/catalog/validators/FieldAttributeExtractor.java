@@ -438,6 +438,10 @@ public class FieldAttributeExtractor {
             System.out.println("      → Matched specific field name '" + fieldName + "' → NUMBER_OF_MEETINGS");
             return Validator.ValidationResource.NUMBER_OF_MEETINGS;
         }
+        if ("Time Zone".equals(fieldName)) {
+            System.out.println("      → Matched specific field name 'Time Zone' → TIME_ZONE");
+            return Validator.ValidationResource.TIME_ZONE;
+        }
 
         // Default fallback
         System.out.println("      → No mapping found for field '" + fieldName + "' (type: '" + fieldType + "') → null");
