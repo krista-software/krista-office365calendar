@@ -595,4 +595,200 @@ public class MeetingsAreaSubCatalogRequestHelper {
         System.out.println("=== GET VALIDATION RESULTS END ===");
         return validationResults;
     }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting free slots.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, and meetingDuration
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_FREE_SLOTS,
+            description = "Checks if user wants to re-enter details for getting free slots and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetFreeSlots(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET FREE SLOTS START ===");
+        System.out.println("Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("Extracted values:");
+        System.out.println("  reenter: " + reenter);
+        System.out.println("  stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("Validation results: " + validationResults);
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("User declined to reenter, generating deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET FREE SLOTS DENY END ===");
+            return response;
+        }
+
+        System.out.println("User accepted to reenter, generating fetch response");
+
+        // Extract parameters for the fetch response
+        Object dateFromObj = map.get(Constants.FROM_DATE);
+        Object dateToObj = map.get(Constants.TO_DATE);
+        Object isOrganizerOptionalObj = map.get(Constants.IS_ORGANIZER_OPTIONAL);
+        Object requiredAttendeeObj = map.get(Constants.REQUIRED_ATTENDEE);
+        Object optionalAttendeeObj = map.get(Constants.OPTIONAL_ATTENDEE);
+        Object timeZoneObj = map.get(Constants.TIME_ZONE);
+        Object meetingDurationObj = map.get(Constants.MEETING_DURATION);
+
+        System.out.println("Extracted parameters:");
+        System.out.println("  dateFromObj: " + dateFromObj);
+        System.out.println("  dateToObj: " + dateToObj);
+        System.out.println("  isOrganizerOptionalObj: " + isOrganizerOptionalObj);
+        System.out.println("  requiredAttendeeObj: " + requiredAttendeeObj);
+        System.out.println("  optionalAttendeeObj: " + optionalAttendeeObj);
+        System.out.println("  timeZoneObj: " + timeZoneObj);
+        System.out.println("  meetingDurationObj: " + meetingDurationObj);
+
+        Map<String, Object> fetchParams = Map.of(
+                Constants.STATE_ID, stateId,
+                Constants.FROM_DATE, dateFromObj != null ? dateFromObj : 0L,
+                Constants.TO_DATE, dateToObj != null ? dateToObj : 0L,
+                Constants.IS_ORGANIZER_OPTIONAL, isOrganizerOptionalObj != null ? isOrganizerOptionalObj : false,
+                Constants.REQUIRED_ATTENDEE, requiredAttendeeObj != null ? requiredAttendeeObj : List.of(),
+                Constants.OPTIONAL_ATTENDEE, optionalAttendeeObj != null ? optionalAttendeeObj : List.of(),
+                Constants.TIME_ZONE, timeZoneObj != null ? timeZoneObj : "",
+                Constants.MEETING_DURATION, meetingDurationObj != null ? meetingDurationObj : "");
+
+        System.out.println("Fetch parameters: " + fetchParams);
+
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_FREE_SLOTS, fetchParams);
+        System.out.println("=== CONFIRM REENTER GET FREE SLOTS ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual retrieval of free slots after the user has re-entered the details.
+     *
+     * @param map input map containing dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, and meetingDuration
+     * @return an extension response containing the free slots or an error response
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_FREE_SLOTS,
+            description = "Handle re-entered details for getting free slots",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
+    public ExtensionResponse handleReenterGetFreeSlots(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET FREE SLOTS START ===");
+        System.out.println("Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetFreeSlots start: {}", map);
+
+        try {
+            // Extract parameters from the map
+            Object dateFromObj = map.get(Constants.FROM_DATE);
+            Object dateToObj = map.get(Constants.TO_DATE);
+            Object isOrganizerOptionalObj = map.get(Constants.IS_ORGANIZER_OPTIONAL);
+            Object requiredAttendeeObj = map.get(Constants.REQUIRED_ATTENDEE);
+            Object optionalAttendeeObj = map.get(Constants.OPTIONAL_ATTENDEE);
+            String timeZone = (String) map.get(Constants.TIME_ZONE);
+            String meetingDuration = (String) map.get(Constants.MEETING_DURATION);
+
+            System.out.println("Extracted raw parameters:");
+            System.out.println("  dateFromObj: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
+            System.out.println("  dateToObj: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
+            System.out.println("  isOrganizerOptionalObj: " + isOrganizerOptionalObj + " (type: " + (isOrganizerOptionalObj != null ? isOrganizerOptionalObj.getClass().getSimpleName() : "null") + ")");
+            System.out.println("  requiredAttendeeObj: " + requiredAttendeeObj + " (type: " + (requiredAttendeeObj != null ? requiredAttendeeObj.getClass().getSimpleName() : "null") + ")");
+            System.out.println("  optionalAttendeeObj: " + optionalAttendeeObj + " (type: " + (optionalAttendeeObj != null ? optionalAttendeeObj.getClass().getSimpleName() : "null") + ")");
+            System.out.println("  timeZone: " + timeZone);
+            System.out.println("  meetingDuration: " + meetingDuration);
+
+            // Convert parameters to appropriate types
+            Long dateFrom = null;
+            Long dateTo = null;
+            Boolean isOrganizerOptional = null;
+            List<String> requiredAttendee = null;
+            List<String> optionalAttendee = null;
+
+            // Handle date conversion
+            if (dateFromObj instanceof Number) {
+                dateFrom = ((Number) dateFromObj).longValue();
+                System.out.println("Converted dateFrom: " + dateFrom);
+            } else {
+                System.out.println("dateFromObj is not a Number, keeping as null");
+            }
+
+            if (dateToObj instanceof Number) {
+                dateTo = ((Number) dateToObj).longValue();
+                System.out.println("Converted dateTo: " + dateTo);
+            } else {
+                System.out.println("dateToObj is not a Number, keeping as null");
+            }
+
+            // Handle boolean conversion
+            if (isOrganizerOptionalObj instanceof Boolean) {
+                isOrganizerOptional = (Boolean) isOrganizerOptionalObj;
+                System.out.println("Converted isOrganizerOptional: " + isOrganizerOptional);
+            } else {
+                System.out.println("isOrganizerOptionalObj is not a Boolean, keeping as null");
+            }
+
+            // Handle list conversion for required attendees
+            if (requiredAttendeeObj instanceof List) {
+                requiredAttendee = (List<String>) requiredAttendeeObj;
+                System.out.println("Converted requiredAttendee: " + requiredAttendee);
+            } else {
+                System.out.println("requiredAttendeeObj is not a List, keeping as null");
+            }
+
+            // Handle list conversion for optional attendees
+            if (optionalAttendeeObj instanceof List) {
+                optionalAttendee = (List<String>) optionalAttendeeObj;
+                System.out.println("Converted optionalAttendee: " + optionalAttendee);
+            } else {
+                System.out.println("optionalAttendeeObj is not a List, keeping as null");
+            }
+
+            System.out.println("Final parameters for meetingDao.getFreeSlot:");
+            System.out.println("  dateFrom: " + dateFrom);
+            System.out.println("  dateTo: " + dateTo);
+            System.out.println("  isOrganizerOptional: " + isOrganizerOptional);
+            System.out.println("  requiredAttendee: " + requiredAttendee);
+            System.out.println("  optionalAttendee: " + optionalAttendee);
+            System.out.println("  timeZone: " + timeZone);
+            System.out.println("  meetingDuration: " + meetingDuration);
+
+            // Perform the get free slots operation
+            System.out.println("Calling meetingDao.getFreeSlot...");
+            List<Map<String, Object>> freeSlots = meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
+            System.out.println("Retrieved free slots: " + (freeSlots != null ? freeSlots.size() + " items" : "null"));
+            if (freeSlots != null && !freeSlots.isEmpty()) {
+                System.out.println("First free slot item: " + freeSlots.get(0));
+            }
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Free Slots", freeSlots)).build();
+            System.out.println("=== HANDLE REENTER GET FREE SLOTS SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET FREE SLOTS EXCEPTION ===");
+            System.out.println("Exception: " + cause.getClass().getSimpleName());
+            System.out.println("Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetFreeSlots: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_FREE_SLOTS_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("=== HANDLE REENTER GET FREE SLOTS EXCEPTION END ===");
+            return response;
+        }
+    }
 }

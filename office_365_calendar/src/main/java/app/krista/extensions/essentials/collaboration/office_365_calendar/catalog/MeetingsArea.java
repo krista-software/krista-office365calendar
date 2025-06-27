@@ -350,8 +350,14 @@ public final class MeetingsArea {
     /**
      * Retrieves free meeting slots based on the provided criteria.
      *
-     * @return a list of suggested free slots
-     * @throws DatatypeConfigurationException if date configuration fails
+     * @param dateFrom start date (epoch millis)
+     * @param dateTo end date (epoch millis)
+     * @param isOrganizerOptional whether organizer is optional
+     * @param requiredAttendee list of required attendee emails
+     * @param optionalAttendee list of optional attendee emails
+     * @param timeZone time zone (optional)
+     * @param meetingDuration meeting duration (optional)
+     * @return an extension response containing free slots or error response with validation prompts
      */
     @CatalogRequest(
             id = "localDomainRequest_7bbeb961-4ba2-4c89-8589-87a5226c33a4",
@@ -360,16 +366,117 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
-    public List<Map<String, Object>> getFreeSlots(
+    public ExtensionResponse getFreeSlots(
             @Field.Date(name = "Date From", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateFrom,
             @Field.Date(name = "Date To", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateTo,
             @Field.Boolean(name = "Is Organizer Optional", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Boolean isOrganizerOptional,
             @Field.Desc(name = "Required Attendee", type = "[ Email ]") List<String> requiredAttendee,
             @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false) List<String> optionalAttendee,
             @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}) String timeZone,
-            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration)
-            throws DatatypeConfigurationException {
-        return meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
+            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration) {
+        try {
+            System.out.println("=== GET FREE SLOTS START ===");
+            System.out.println("Input parameters:");
+            System.out.println("  dateFrom: " + dateFrom);
+            System.out.println("  dateTo: " + dateTo);
+            System.out.println("  isOrganizerOptional: " + isOrganizerOptional);
+            System.out.println("  requiredAttendee: " + requiredAttendee);
+            System.out.println("  optionalAttendee: " + optionalAttendee);
+            System.out.println("  timeZone: " + timeZone);
+            System.out.println("  meetingDuration: " + meetingDuration);
+            LOGGER.info("getFreeSlots: dateFrom={}, dateTo={}, isOrganizerOptional={}, requiredAttendee={}, optionalAttendee={}, timeZone={}, meetingDuration={}",
+                dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
+
+            // Prepare validation parameters
+            System.out.println("Preparing validation parameters...");
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate date range
+            if (dateFrom != null && dateTo != null) {
+                System.out.println("Adding date validation parameters:");
+                System.out.println("  FROM_DATE: " + String.valueOf(dateFrom));
+                System.out.println("  TO_DATE: " + String.valueOf(dateTo));
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+            } else {
+                System.out.println("Skipping date validation - dateFrom or dateTo is null");
+            }
+
+            // Validate time zone
+            if (timeZone != null && !timeZone.trim().isEmpty()) {
+                System.out.println("Adding time zone validation parameter:");
+                System.out.println("  TIME_ZONE: " + timeZone);
+                validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
+            } else {
+                System.out.println("Skipping time zone validation - timeZone is null or empty");
+            }
+
+            System.out.println("Final validation parameters: " + validationParams);
+
+            // Validate input parameters using dynamic field attribute extraction
+            System.out.println("Calling validation orchestrator with dynamic attribute extraction...");
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getFreeSlots");
+
+            System.out.println("Validation results count: " + validationResults.size());
+            if (!validationResults.isEmpty()) {
+                System.out.println("Validation results:");
+                for (ValidationOrchestrator.ValidationResult result : validationResults) {
+                    System.out.println("  - " + result);
+                }
+            }
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get free slots operation
+                System.out.println("Validation passed, calling meetingDao.getFreeSlot...");
+                List<Map<String, Object>> freeSlots = meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
+                System.out.println("Retrieved free slots count: " + (freeSlots != null ? freeSlots.size() : "null"));
+                ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Free Slots", freeSlots)).build();
+                System.out.println("=== GET FREE SLOTS SUCCESS END ===");
+                return response;
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                System.out.println("Validation failed, preparing confirmation response...");
+                String stateId = UUID.randomUUID().toString();
+                System.out.println("Generated stateId: " + stateId);
+
+                Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
+                System.out.println("Storing state data: " + stateData);
+                errorHandlingStateManager.put(stateId, stateData);
+
+                Map<String, Object> confirmationParams = Map.of(
+                        Constants.STATE_ID, stateId,
+                        Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
+                        Constants.TO_DATE, dateTo != null ? dateTo : 0L,
+                        Constants.IS_ORGANIZER_OPTIONAL, isOrganizerOptional != null ? isOrganizerOptional : false,
+                        Constants.REQUIRED_ATTENDEE, requiredAttendee != null ? requiredAttendee : List.of(),
+                        Constants.OPTIONAL_ATTENDEE, optionalAttendee != null ? optionalAttendee : List.of(),
+                        Constants.TIME_ZONE, timeZone != null ? timeZone : "",
+                        Constants.MEETING_DURATION, meetingDuration != null ? meetingDuration : "");
+                System.out.println("Confirmation parameters: " + confirmationParams);
+
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_FREE_SLOTS, confirmationParams);
+                System.out.println("=== GET FREE SLOTS VALIDATION FAILED END ===");
+                return response;
+            }
+        } catch (Exception cause) {
+            System.out.println("=== GET FREE SLOTS EXCEPTION ===");
+            System.out.println("Exception: " + cause.getClass().getSimpleName());
+            System.out.println("Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in getFreeSlots: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get free slots: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("=== GET FREE SLOTS EXCEPTION END ===");
+            return response;
+        }
     }
 
     /**

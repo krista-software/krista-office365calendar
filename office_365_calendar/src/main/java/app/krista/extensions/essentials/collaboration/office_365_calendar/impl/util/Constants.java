@@ -100,6 +100,13 @@ public final class Constants {
     public static final String CONFIRM_REENTER_GET_SCHEDULES = "confirmReenterGetSchedules";
     public static final String TIME_ZONE = "Time Zone";
     public static final String ATTENDEES = "attendees";
+    public static final String FAILED_TO_GET_FREE_SLOTS_VALIDATION = "Failed to get free slots - validation error ";
+    public static final String HANDLE_REENTER_GET_FREE_SLOTS = "handleReenterGetFreeSlots";
+    public static final String CONFIRM_REENTER_GET_FREE_SLOTS = "confirmReenterGetFreeSlots";
+    public static final String REQUIRED_ATTENDEE = "Required Attendee";
+    public static final String OPTIONAL_ATTENDEE = "Optional Attendee";
+    public static final String IS_ORGANIZER_OPTIONAL = "Is Organizer Optional";
+    public static final String MEETING_DURATION = "Meeting Duration";
 
     private Constants() {
     }
