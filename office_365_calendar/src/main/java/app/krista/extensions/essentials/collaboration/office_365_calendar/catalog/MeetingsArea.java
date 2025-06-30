@@ -14,6 +14,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.catalo
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
 import app.krista.model.base.File;
 import com.microsoft.graph.http.GraphServiceException;
 import org.slf4j.Logger;
@@ -258,7 +259,7 @@ public final class MeetingsArea {
     /**
      * Schedules a new meeting with the provided details.
      *
-     * @return the details of the scheduled event
+     * @return an extension response containing the scheduled event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_f9cf27ee-ffe7-4b65-8e0a-ce0afa25f5dc",
@@ -267,7 +268,7 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails scheduleMeeting(
+    public ExtensionResponse scheduleMeeting(
             @Field.Text(name = "Title", required = false, attributes = {}, options = {}) String title,
             @Field.Text(name = "Location", required = false, attributes = {}, options = {}) String location,
             @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = false, allowFuture = false, attributes = {}, options = {}) Long dateFrom,
@@ -291,7 +292,103 @@ public final class MeetingsArea {
             @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) List<File> attachments,
             @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L")}, options = {}) String details,
             @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isTeamsMeeting) {
-        return CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+        try {
+            LOGGER.info("scheduleMeeting: title={}, location={}, dateFrom={}, dateTo={}, timeZone={}, recurrenceInterval={}, daysOfWeek={}, numberedOccurrences={}",
+                    title, location, dateFrom, dateTo, timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences);
+
+            // Prepare validation parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate date range
+            if (dateFrom != null && dateTo != null) {
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+            }
+
+            // Validate time zone
+            if (timeZone != null && !timeZone.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
+            }
+
+            // Validate recurrence interval
+            if (recurrenceInterval != null) {
+                validationParams.put(Validator.ValidationResource.RECURRENCE_INTERVAL, String.valueOf(recurrenceInterval));
+            }
+
+            // Validate days of week
+            if (daysOfWeek != null && !daysOfWeek.isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DAYS_OF_WEEK, Constants.GSON.toJson(daysOfWeek));
+            }
+
+            // Validate numbered occurrences
+            if (numberedOccurrences != null) {
+                validationParams.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, String.valueOf(numberedOccurrences));
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "scheduleMeeting");
+
+            System.out.println("Final Validation Results:");
+            Print.prettyPrint(validationResults);
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the schedule meeting operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_SCHEDULE_MEETING,
+                        createScheduleMeetingConfirmationParams(stateId, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in scheduleMeeting: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in schedule meeting: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Helper method to create confirmation parameters for schedule meeting error handling.
+     */
+    private Map<String, Object> createScheduleMeetingConfirmationParams(String stateId, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<File> attachments, String details, Boolean isTeamsMeeting) {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.STATE_ID, stateId);
+        params.put(Constants.TITLE, title != null ? title : "");
+        params.put(Constants.LOCATION, location != null ? location : "");
+        params.put(Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L);
+        params.put(Constants.DATE_TO, dateTo != null ? dateTo : 0L);
+        params.put(Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of());
+        params.put(Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of());
+        params.put(Constants.IS_ALL_DAY, isAllDay != null ? isAllDay : false);
+        params.put(Constants.TIME_ZONE, timeZone != null ? timeZone : "");
+        params.put(Constants.REMINDER, reminder != null ? reminder : "");
+        params.put(Constants.RECURRENCE, recurrence != null ? recurrence : "");
+        params.put(Constants.RECURRENCE_INTERVAL, recurrenceInterval != null ? recurrenceInterval : 0.0);
+        params.put(Constants.DAYS_OF_WEEK, daysOfWeek != null ? daysOfWeek : List.of());
+        params.put(Constants.RECURRENCE_TYPE, recurrenceType != null ? recurrenceType : "");
+        params.put(Constants.DAY_OF_MONTH, dayOfMonth != null ? dayOfMonth : 0.0);
+        params.put(Constants.REPEAT_INDEX, repeatIndex != null ? repeatIndex : "");
+        params.put(Constants.REPEAT_DAY, repeatDay != null ? repeatDay : "");
+        params.put(Constants.REPEAT_MONTH, repeatMonth != null ? repeatMonth : "");
+        params.put(Constants.END_RECURRENCE, endRecurrence != null ? endRecurrence : "");
+        params.put(Constants.END_DATE, endDate != null ? endDate : 0L);
+        params.put(Constants.NUMBERED_OCCURRENCES, numberedOccurrences != null ? numberedOccurrences : 0.0);
+        params.put(Constants.ATTACHMENTS_FIELD, attachments != null ? attachments : List.of());
+        params.put(Constants.DETAILS, details != null ? details : "");
+        params.put(Constants.IS_TEAMS_MEETING, isTeamsMeeting != null ? isTeamsMeeting : false);
+        return params;
     }
 
     /**

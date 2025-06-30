@@ -35,6 +35,9 @@ public class ValidationOrchestrator {
         validators.put(Validator.ValidationResource.TO_DATE, new ToDateValidator());
         validators.put(Validator.ValidationResource.NUMBER_OF_MEETINGS, new NumberValidator());
         validators.put(Validator.ValidationResource.TIME_ZONE, new TimeZoneValidator());
+        validators.put(Validator.ValidationResource.RECURRENCE_INTERVAL, new RecurrenceIntervalValidator());
+        validators.put(Validator.ValidationResource.DAYS_OF_WEEK, new DaysOfWeekValidator());
+        validators.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, new NumberedOccurrencesValidator());
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
@@ -185,9 +188,10 @@ public class ValidationOrchestrator {
             case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> "Date";
             case EMAIL -> "Email";
             case EVENT_ID -> "Text";
-            case NUMBER_OF_MEETINGS -> "Number";
+            case NUMBER_OF_MEETINGS, RECURRENCE_INTERVAL, NUMBERED_OCCURRENCES -> "Number";
             case ATTENDEES -> "[ Email ]"; // For list of emails, we'll use the list format
             case TIME_ZONE -> "Text"; // Time zone is a text field
+            case DAYS_OF_WEEK -> "[ Text ]"; // For list of day names
             default -> "Text"; // Default fallback
         };
     }
@@ -287,9 +291,10 @@ public class ValidationOrchestrator {
             case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> Map.of("includeTimeOfDay", "true");
             case EMAIL -> Map.of(); // No special attributes for email fields
             case EVENT_ID -> Map.of(); // No special attributes for text fields
-            case NUMBER_OF_MEETINGS -> Map.of(); // No special attributes for number fields
+            case NUMBER_OF_MEETINGS, RECURRENCE_INTERVAL, NUMBERED_OCCURRENCES -> Map.of(); // No special attributes for number fields
             case ATTENDEES -> Map.of(); // No special attributes for attendee email fields
             case TIME_ZONE -> Map.of(); // No special attributes for time zone fields
+            case DAYS_OF_WEEK -> Map.of(); // No special attributes for days of week fields
             default -> Map.of(); // Default empty attributes
         };
     }

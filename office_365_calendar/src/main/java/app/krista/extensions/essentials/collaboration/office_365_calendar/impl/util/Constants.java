@@ -78,7 +78,7 @@ public final class Constants {
     public static final String FAILED_TO_GET_EVENTS_FOR_USER = "Failed to get events for user ";
     public static final String USER_EMAIL = "userEmail";
     public static final String FROM_DATE = "Date From";
-    public static final String TO_DATE = "Date To";
+    public static final String TO_DATE = "Date to";
     public static final String EVENTS = "Events";
     public static final String HANDLE_RE_ENTER_GET_EVENTS_FOR_USER = "handleReEnterGetEventsForUser";
     public static final String CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";
@@ -117,6 +117,30 @@ public final class Constants {
     public static final String FAILED_TO_TENTATIVE_INVITATION_VALIDATION = "Failed to tentative invitation - validation error ";
     public static final String HANDLE_REENTER_TENTATIVE_INVITATION = "handleReenterTentativeInvitation";
     public static final String CONFIRM_REENTER_TENTATIVE_INVITATION = "confirmReenterTentativeInvitation";
+    public static final String FAILED_TO_SCHEDULE_MEETING_VALIDATION = "Failed to schedule meeting - validation error ";
+    public static final String HANDLE_REENTER_SCHEDULE_MEETING = "handleReenterScheduleMeeting";
+    public static final String CONFIRM_REENTER_SCHEDULE_MEETING = "confirmReenterScheduleMeeting";
+    public static final String TITLE = "Title";
+    public static final String LOCATION = "Location";
+    public static final String DATE_TO = "Date to";
+    public static final String REQUIRED_ATTENDEE_EMAIL = "Required Attendee Email";
+    public static final String OPTIONAL_ATTENDEE_EMAIL = "Optional Attendee Email";
+    public static final String IS_ALL_DAY = "Is All Day";
+    public static final String REMINDER = "Reminder";
+    public static final String RECURRENCE = "Recurrence";
+    public static final String RECURRENCE_INTERVAL = "Recurrence Interval";
+    public static final String DAYS_OF_WEEK = "Days Of Week";
+    public static final String RECURRENCE_TYPE = "Recurrence Type";
+    public static final String DAY_OF_MONTH = "Day Of Month";
+    public static final String REPEAT_INDEX = "Repeat Index";
+    public static final String REPEAT_DAY = "Repeat Day";
+    public static final String REPEAT_MONTH = "Repeat Month";
+    public static final String END_RECURRENCE = "End Recurrence";
+    public static final String END_DATE = "End Date";
+    public static final String NUMBERED_OCCURRENCES = "Numbered Occurrences";
+    public static final String ATTACHMENTS_FIELD = "Attachments";
+    public static final String DETAILS = "Details";
+    public static final String IS_TEAMS_MEETING = "Is Teams Meeting";
 
     private Constants() {
     }
