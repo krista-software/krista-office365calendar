@@ -114,6 +114,9 @@ public final class Constants {
     public static final String FAILED_TO_ACCEPT_INVITATION_VALIDATION = "Failed to accept invitation - validation error ";
     public static final String HANDLE_REENTER_ACCEPT_INVITATION = "handleReenterAcceptInvitation";
     public static final String CONFIRM_REENTER_ACCEPT_INVITATION = "confirmReenterAcceptInvitation";
+    public static final String FAILED_TO_TENTATIVE_INVITATION_VALIDATION = "Failed to tentative invitation - validation error ";
+    public static final String HANDLE_REENTER_TENTATIVE_INVITATION = "handleReenterTentativeInvitation";
+    public static final String CONFIRM_REENTER_TENTATIVE_INVITATION = "confirmReenterTentativeInvitation";
 
     private Constants() {
     }

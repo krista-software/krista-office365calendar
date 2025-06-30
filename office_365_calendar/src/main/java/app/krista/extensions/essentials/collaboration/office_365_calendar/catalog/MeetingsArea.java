@@ -152,7 +152,7 @@ public final class MeetingsArea {
      * Marks the invitation as tentative for the given event ID.
      *
      * @param eventId the ID of the event
-     * @return the details of the event
+     * @return an extension response containing the tentative event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_5bf7458f-953f-40c4-b75c-17b1f76a08b1",
@@ -161,9 +161,43 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails tentativeInvitation(
+    public ExtensionResponse tentativeInvitation(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        return CatalogTypes.fromEvent(meetingDao.tentativeMeetingInvitation(eventId));
+        try {
+            LOGGER.info("tentativeInvitation: eventId={}", eventId);
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(Map.of(
+                            Validator.ValidationResource.EVENT_ID, eventId),
+                            MeetingsArea.class, "tentativeInvitation");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the tentative invitation operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.tentativeMeetingInvitation(eventId));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_TENTATIVE_INVITATION,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in tentativeInvitation: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in tentative invitation: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
