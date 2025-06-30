@@ -70,7 +70,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterGetAttachmentsForAGivenUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, Event Id: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -92,7 +92,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
-    public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, Event Id: Text}") Map<String, Object> map) {
         try {
             String userEmail = (String) map.get(Constants.EMAIL);
             String eventID = (String) map.get(Constants.EVENT_ID);
@@ -113,7 +113,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterGetAttachments", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -135,7 +135,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT, description = "Handle re-enter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
-    public ExtensionResponse handleReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse handleReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
         try {
             String eventID = (String) map.get(Constants.EVENT_ID);
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
@@ -214,7 +214,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterCancelEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
-    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -235,7 +235,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_CANCEL_EVENT, description = "Handle re-enter event id for cancellation", type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
-    public ExtensionResponse handleReEnterCancelEvent(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse handleReEnterCancelEvent(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
         try {
             String eventId = (String) map.get(Constants.EVENT_ID);
             Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
@@ -306,7 +306,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterGetEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -327,7 +327,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_EVENT, description = "Handle re-enter event id for retrieval", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public ExtensionResponse handleReEnterGetEvent(@Field.Desc(name = "inputMap", type = "{eventId: Text}") Map<String, Object> map) {
+    public ExtensionResponse handleReEnterGetEvent(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
         try {
             String eventId = (String) map.get(Constants.EVENT_ID);
             Meeting meeting = meetingDao.getMeetingById(eventId);
@@ -359,7 +359,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterDeclineInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, eventId: Text }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -389,7 +389,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterDeclineInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterDeclineInvitation start: {}", map);
 
         // Extract parameters from the map
@@ -807,7 +807,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterForwardEvent(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, eventId: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -834,7 +834,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field(name = "IsForwarded", type = "Switch", required = false)
     public ExtensionResponse handleReenterForwardEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterForwardEvent start: {}", map);
 
         try {
@@ -876,7 +876,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAcceptInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, eventId: Text }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -903,7 +903,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterAcceptInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterAcceptInvitation start: {}", map);
 
         try {
@@ -943,7 +943,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterTentativeInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, eventId: Text }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -970,7 +970,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterTentativeInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterTentativeInvitation start: {}", map);
 
         try {
