@@ -78,7 +78,7 @@ public final class Constants {
     public static final String FAILED_TO_GET_EVENTS_FOR_USER = "Failed to get events for user ";
     public static final String USER_EMAIL = "userEmail";
     public static final String FROM_DATE = "Date From";
-    public static final String TO_DATE = "Date to";
+    public static final String TO_DATE = "Date To";
     public static final String EVENTS = "Events";
     public static final String HANDLE_RE_ENTER_GET_EVENTS_FOR_USER = "handleReEnterGetEventsForUser";
     public static final String CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";
@@ -122,7 +122,7 @@ public final class Constants {
     public static final String CONFIRM_REENTER_SCHEDULE_MEETING = "confirmReenterScheduleMeeting";
     public static final String TITLE = "Title";
     public static final String LOCATION = "Location";
-    public static final String DATE_TO = "Date to";
+    public static final String DATE_TO = "Date To";
     public static final String REQUIRED_ATTENDEE_EMAIL = "Required Attendee Email";
     public static final String OPTIONAL_ATTENDEE_EMAIL = "Optional Attendee Email";
     public static final String IS_ALL_DAY = "Is All Day";

@@ -734,6 +734,10 @@ public final class MeetingsArea {
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getSchedules");
 
+
+            System.out.println("Final Validation Results:");
+            Print.prettyPrint(validationResults);
+
             System.out.println("Validation results count: " + validationResults.size());
             if (!validationResults.isEmpty()) {
                 System.out.println("Validation results:");

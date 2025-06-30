@@ -112,8 +112,11 @@ public class ValidationOrchestrator {
                 String fieldType = getFieldTypeForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
                 System.out.println("Extracted field type: " + fieldType);
 
+                String fieldName = getFieldNameForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
+                System.out.println("Extracted field name: " + fieldName);
+
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
-                        validator.getFetchFieldName(), validator.getFetchStepMessage(),
+                        fieldName, validator.getFetchStepMessage(),
                         validator.getErrMessage(entry.getValue()), fieldType,
                         fieldAttributes));
             } else {
@@ -194,6 +197,50 @@ public class ValidationOrchestrator {
             case DAYS_OF_WEEK -> "[ Text ]"; // For list of day names
             default -> "Text"; // Default fallback
         };
+    }
+
+    /**
+     * Maps a ValidationResource to its corresponding field name for proper field creation.
+     * This ensures that the correct field name is used when generating fetch responses.
+     * <p>
+     * This method supports dynamic field name extraction from method annotations
+     * when method information is provided, falling back to validator field names when necessary.
+     * </p>
+     *
+     * @param resource the ValidationResource to map
+     * @param sourceMethod the method containing field annotations (can be null)
+     * @param fieldNameToResourceMapping mapping of field names to validation resources (can be null)
+     * @return the field name string corresponding to the resource
+     */
+    private String getFieldNameForResource(Validator.ValidationResource resource,
+                                          Method sourceMethod,
+                                          Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
+
+        System.out.println("  → Getting field name for resource: " + resource);
+
+        // Try to extract field name dynamically if method information is available
+        if (sourceMethod != null && fieldNameToResourceMapping != null) {
+            System.out.println("  → Attempting dynamic field name extraction...");
+
+            // Find the field name that corresponds to this validation resource
+            String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
+            System.out.println("  → Found field name for resource " + resource + ": " + fieldName);
+
+            if (fieldName != null) {
+                System.out.println("  → Using dynamically extracted field name: " + fieldName);
+                return fieldName;
+            } else {
+                System.out.println("  → No field name found for resource, falling back to validator field name");
+            }
+        } else {
+            System.out.println("  → No method information available, using validator field name");
+        }
+
+        // Fallback to validator field name for backward compatibility
+        Validator validator = validators.get(resource);
+        String fallbackFieldName = validator != null ? validator.getFetchFieldName() : "Unknown Field";
+        System.out.println("  → Using fallback field name: " + fallbackFieldName);
+        return fallbackFieldName;
     }
 
     /**
