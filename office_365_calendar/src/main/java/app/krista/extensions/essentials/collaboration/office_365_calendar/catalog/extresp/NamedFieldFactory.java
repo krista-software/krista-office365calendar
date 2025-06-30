@@ -408,26 +408,41 @@ public class NamedFieldFactory {
 
     /**
      * Creates a list field containing elements of the specified inner field type with custom attributes.
+     * This method follows the predefined configuration format for list fields where the inner field type
+     * is defined in a fieldMap with type 'Field', fieldType set to the logical name, and the fieldMap
+     * is converted to JSON and stored in the 'field' attribute of the list's attributes.
      *
      * @param fieldName the name of the list field
      * @param innerFieldType the type of fields that the list will contain (Text, Date, Email, Number, etc.)
-     * @param attributes custom attributes for the list field
-     * @return a new NamedField instance configured as a list field with attributes
+     * @param attributes custom attributes for the inner field type (optional config)
+     * @return a new NamedField instance configured as a list field with nested field structure
      */
+
+    // Need To Handle For All Type of Input
     public static NamedField createListFieldWithAttributes(String fieldName, String innerFieldType, Map<String, Object> attributes) {
         // Map the inner field type to the appropriate logical name
         String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
 
-        // Create the list field configuration
-        Map<String, Object> listConfig = new HashMap<>();
-        listConfig.put("innerFieldType", innerFieldLogicalName);
+        // Create inner attributes map (optional config)
+        Map<String, Object> innerAttributes = new HashMap<>();
 
-        // Merge with provided attributes
-        Map<String, Object> mergedAttributes = new HashMap<>(attributes);
-        mergedAttributes.putAll(listConfig);
+        // Create the inner field configuration
+        Map<String, Object> fieldMap = new HashMap<>();
+        fieldMap.put("type", "Field");
+        fieldMap.put("fieldType", innerFieldLogicalName);
+        fieldMap.put("attributes", innerAttributes);
 
-        return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, mergedAttributes, Map.of());
+        // This defines that the list holds fields of the specified type
+        String fieldMapJson = convertMapToJson(fieldMap);
+
+        // Create the list field attributes
+        Map<String, Object> listAttributes = new HashMap<>();
+        listAttributes.put("field", fieldMapJson);
+
+        return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, listAttributes, Map.of());
     }
+
+
 
     // ========== Private Helper Methods ==========
 
