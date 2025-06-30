@@ -111,6 +111,9 @@ public final class Constants {
     public static final String HANDLE_REENTER_FORWARD_EVENT = "handleReenterForwardEvent";
     public static final String CONFIRM_REENTER_FORWARD_EVENT = "confirmReenterForwardEvent";
     public static final String ATTENDEE_EMAIL = "Attendee Email";
+    public static final String FAILED_TO_ACCEPT_INVITATION_VALIDATION = "Failed to accept invitation - validation error ";
+    public static final String HANDLE_REENTER_ACCEPT_INVITATION = "handleReenterAcceptInvitation";
+    public static final String CONFIRM_REENTER_ACCEPT_INVITATION = "confirmReenterAcceptInvitation";
 
     private Constants() {
     }

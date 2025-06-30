@@ -860,4 +860,71 @@ public class MeetingsAreaSubCatalogRequestHelper {
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for accepting an invitation.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and eventId
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_ACCEPT_INVITATION,
+            description = "Checks if user wants to re-enter details for accepting invitation and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterAcceptInvitation(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, eventId: Text }", required = true) Map<String, Object> map) {
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reenter)) {
+            return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+        }
+
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_ACCEPT_INVITATION, map);
+    }
+
+    /**
+     * Handles the actual accept invitation operation after the user has re-entered the event ID.
+     *
+     * @param map input map containing stateId and eventId
+     * @return an extension response containing the accepted event details or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_ACCEPT_INVITATION,
+            description = "Handle re-entered event ID for accepting invitation",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterAcceptInvitation(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text }") Map<String, Object> map) {
+        LOGGER.info("SubCatalogRequest handleReenterAcceptInvitation start: {}", map);
+
+        try {
+            String eventId = (String) map.get(Constants.EVENT_ID);
+
+            LOGGER.info("handleReenterAcceptInvitation: eventId={}", eventId);
+
+            // Accept the invitation
+            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.acceptMeetingInvitation(eventId));
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            LOGGER.info("SubCatalogRequest handleReenterAcceptInvitation success");
+            return response;
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in handleReenterAcceptInvitation: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_ACCEPT_INVITATION_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
 }

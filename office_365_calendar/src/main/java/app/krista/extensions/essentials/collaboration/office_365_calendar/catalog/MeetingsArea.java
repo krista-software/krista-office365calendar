@@ -342,7 +342,7 @@ public final class MeetingsArea {
      * Accepts the invitation for the given event ID.
      *
      * @param eventId the ID of the event to accept
-     * @return the details of the accepted event
+     * @return an extension response containing the accepted event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_d564897b-ad17-4289-af2c-bd79425c5341",
@@ -351,9 +351,43 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails acceptInvitation(
+    public ExtensionResponse acceptInvitation(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        return CatalogTypes.fromEvent(meetingDao.acceptMeetingInvitation(eventId));
+        try {
+            LOGGER.info("acceptInvitation: eventId={}", eventId);
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(Map.of(
+                            Validator.ValidationResource.EVENT_ID, eventId),
+                            MeetingsArea.class, "acceptInvitation");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the accept invitation operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.acceptMeetingInvitation(eventId));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_ACCEPT_INVITATION,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in acceptInvitation: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in accept invitation: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
