@@ -68,7 +68,7 @@ public final class Constants {
     public static final String ATTACHMENTS = "Attachments";
     public static final String VALIDATION_RESULTS = "Validation Results";
     public static final String STATE_ID = "stateId";
-    public static final String EVENT_ID = "eventId";
+    public static final String EVENT_ID = "Event Id";
     public static final String RE_ENTER = "re-enter";
     public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
     public static final String HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER = "handleReEnterGetAttachmentForGivenUser";
@@ -141,6 +141,12 @@ public final class Constants {
     public static final String ATTACHMENTS_FIELD = "Attachments";
     public static final String DETAILS = "Details";
     public static final String IS_TEAMS_MEETING = "Is Teams Meeting";
+    public static final String FAILED_TO_ADD_ATTENDEES_VALIDATION = "Failed to add attendees - validation error ";
+    public static final String HANDLE_REENTER_ADD_ATTENDEES = "handleReenterAddAttendees";
+    public static final String CONFIRM_REENTER_ADD_ATTENDEES = "confirmReenterAddAttendees";
+    public static final String FAILED_TO_REMOVE_ATTENDEE_VALIDATION = "Failed to remove attendee - validation error ";
+    public static final String HANDLE_REENTER_REMOVE_ATTENDEE = "handleReenterRemoveAttendee";
+    public static final String CONFIRM_REENTER_REMOVE_ATTENDEE = "confirmReenterRemoveAttendee";
 
     private Constants() {
     }

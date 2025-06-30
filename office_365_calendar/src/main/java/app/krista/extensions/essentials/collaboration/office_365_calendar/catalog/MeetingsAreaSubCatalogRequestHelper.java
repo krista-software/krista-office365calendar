@@ -1146,4 +1146,219 @@ public class MeetingsAreaSubCatalogRequestHelper {
             return response;
         }
     }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for adding attendees.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, eventId, requiredAttendeeEmail, and optionalAttendeeEmail
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_ADD_ATTENDEES,
+            description = "Checks if user wants to re-enter details for adding attendees and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterAddAttendees(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER ADD ATTENDEES START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterAddAttendees");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER ADD ATTENDEES DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_ADD_ATTENDEES);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_ADD_ATTENDEES, map);
+        System.out.println("=== CONFIRM REENTER ADD ATTENDEES ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual add attendees operation after the user has re-entered the details.
+     *
+     * @param map input map containing stateId, eventId, requiredAttendeeEmail, and optionalAttendeeEmail
+     * @return an extension response containing the updated event details or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_ADD_ATTENDEES,
+            description = "Handle re-entered details for adding attendees",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterAddAttendees(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER ADD ATTENDEES START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterAddAttendees");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterAddAttendees start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            @SuppressWarnings("unchecked")
+            List<String> requiredAttendeeEmail = (List<String>) map.get(Constants.REQUIRED_ATTENDEE_EMAIL);
+            @SuppressWarnings("unchecked")
+            List<String> optionalAttendeeEmail = (List<String>) map.get(Constants.OPTIONAL_ATTENDEE_EMAIL);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventId);
+            System.out.println("    → Required Attendee Email: " + requiredAttendeeEmail);
+            System.out.println("    → Optional Attendee Email: " + optionalAttendeeEmail);
+
+            LOGGER.info("handleReenterAddAttendees: eventId={}, requiredAttendeeEmail={}, optionalAttendeeEmail={}", eventId, requiredAttendeeEmail, optionalAttendeeEmail);
+
+            System.out.println("  → Calling meetingDao.addAttendees...");
+            // Add attendees to the event
+            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
+
+            System.out.println("  → Attendees added successfully");
+            System.out.println("  → Event Details: " + eventDetails);
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterAddAttendees success");
+            System.out.println("=== HANDLE REENTER ADD ATTENDEES SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER ADD ATTENDEES EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterAddAttendees: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_ADD_ATTENDEES_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER ADD ATTENDEES EXCEPTION END ===");
+            return response;
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for removing attendee.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, eventId, and attendeeEmail
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_REMOVE_ATTENDEE,
+            description = "Checks if user wants to re-enter details for removing attendee and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterRemoveAttendee(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterRemoveAttendee");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_REMOVE_ATTENDEE);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_REMOVE_ATTENDEE, map);
+        System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual remove attendee operation after the user has re-entered the details.
+     *
+     * @param map input map containing stateId, eventId, and attendeeEmail
+     * @return an extension response containing the updated event details or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_REMOVE_ATTENDEE,
+            description = "Handle re-entered details for removing attendee",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterRemoveAttendee(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER REMOVE ATTENDEE START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterRemoveAttendee");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterRemoveAttendee start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            @SuppressWarnings("unchecked")
+            List<String> attendeeEmail = (List<String>) map.get(Constants.ATTENDEE_EMAIL);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventId);
+            System.out.println("    → Attendee Email: " + attendeeEmail);
+
+            LOGGER.info("handleReenterRemoveAttendee: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+
+            System.out.println("  → Calling meetingDao.removeAttendees...");
+            // Remove attendees from the event
+            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.removeAttendees(eventId, attendeeEmail));
+
+            System.out.println("  → Attendees removed successfully");
+            System.out.println("  → Event Details: " + eventDetails);
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterRemoveAttendee success");
+            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterRemoveAttendee: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_REMOVE_ATTENDEE_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE EXCEPTION END ===");
+            return response;
+        }
+    }
 }

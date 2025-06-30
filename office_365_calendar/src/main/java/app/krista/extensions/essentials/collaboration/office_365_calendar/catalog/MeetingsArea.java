@@ -413,7 +413,7 @@ public final class MeetingsArea {
      * @param eventId the ID of the event
      * @param requiredAttendeeEmail list of required attendee emails
      * @param optionalAttendeeEmail list of optional attendee emails
-     * @return the updated event details
+     * @return an extension response containing the updated event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_2e73b843-ace4-4b80-bfab-4f466706e5c5",
@@ -422,11 +422,63 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails addAttendees(
+    public ExtensionResponse addAttendees(
             @Field(name = "Event Id", type = "Text") String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail) {
-        return CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
+        try {
+            LOGGER.info("addAttendees: eventId={}, requiredAttendeeEmail={}, optionalAttendeeEmail={}", eventId, requiredAttendeeEmail, optionalAttendeeEmail);
+
+            // Prepare validation parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID
+            if (eventId != null && !eventId.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+            }
+
+            // Validate required attendee emails
+            if (requiredAttendeeEmail != null && !requiredAttendeeEmail.isEmpty()) {
+                for (String email : requiredAttendeeEmail) {
+                    if (email != null && !email.trim().isEmpty()) {
+                        validationParams.put(Validator.ValidationResource.EMAIL, email);
+                        break; // Just validate one email as representative
+                    }
+                }
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "addAttendees");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the add attendees operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_ADD_ATTENDEES,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : "",
+                              Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of(),
+                              Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of()));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in addAttendees: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in add attendees: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -526,7 +578,7 @@ public final class MeetingsArea {
      *
      * @param eventId the ID of the event
      * @param attendeeEmail list of attendee emails to remove
-     * @return the updated event details
+     * @return an extension response containing the updated event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_653a694e-2327-41d5-8a8c-48b30b07dc89",
@@ -535,10 +587,61 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails removeAttendee(
+    public ExtensionResponse removeAttendee(
             @Field(name = "Event Id", type = "Text") String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
-        return CatalogTypes.fromEvent(meetingDao.removeAttendees(eventId, attendeeEmail));
+        try {
+            LOGGER.info("removeAttendee: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+
+            // Prepare validation parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID
+            if (eventId != null && !eventId.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+            }
+
+            // Validate attendee emails
+            if (attendeeEmail != null && !attendeeEmail.isEmpty()) {
+                for (String email : attendeeEmail) {
+                    if (email != null && !email.trim().isEmpty()) {
+                        validationParams.put(Validator.ValidationResource.EMAIL, email);
+                        break; // Just validate one email as representative
+                    }
+                }
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "removeAttendee");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the remove attendee operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.removeAttendees(eventId, attendeeEmail));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_REMOVE_ATTENDEE,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : "",
+                              Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in removeAttendee: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in remove attendee: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**

@@ -418,13 +418,16 @@ public class NamedFieldFactory {
      * @return a new NamedField instance configured as a list field with nested field structure
      */
 
-    // Need To Handle For All Type of Input
+    // In the Future need to make Support other field in the list
     public static NamedField createListFieldWithAttributes(String fieldName, String innerFieldType, Map<String, Object> attributes) {
         // Map the inner field type to the appropriate logical name
         String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
 
         // Create inner attributes map (optional config)
         Map<String, Object> innerAttributes = new HashMap<>();
+        if (attributes != null) {
+            innerAttributes.putAll(attributes);
+        }
 
         // Create the inner field configuration
         Map<String, Object> fieldMap = new HashMap<>();
