@@ -1,5 +1,7 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp;
 
+import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.attributes.FieldAttributeProviderRegistry;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
 import app.krista.model.field.NamedField;
 import com.google.gson.Gson;
 
@@ -143,11 +145,17 @@ public class NamedFieldFactory {
         // Map the inner field type to the appropriate logical name
         String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
 
+        // Get default attributes for the inner field type and merge with provided attributes
+        Map<String, Object> finalAttributes = getDefaultAttributesForFieldType(innerFieldType);
+        if (innerAttributes != null && !innerAttributes.isEmpty()) {
+            finalAttributes.putAll(innerAttributes); // Override defaults with provided attributes
+        }
+
         // Create the inner field configuration
         Map<String, Object> fieldMap = new HashMap<>();
         fieldMap.put("type", "Field");
         fieldMap.put("fieldType", innerFieldLogicalName);
-        fieldMap.put("attributes", innerAttributes != null ? innerAttributes : Map.of());
+        fieldMap.put("attributes", finalAttributes);
 
         // Convert the field configuration to JSON
         String fieldMapJson = convertMapToJson(fieldMap);
@@ -309,13 +317,20 @@ public class NamedFieldFactory {
 
     /**
      * Creates a text field with the specified name and attributes.
+     * Default text field attributes are automatically applied and can be overridden by provided attributes.
      *
      * @param fieldName the name of the field
-     * @param attributes the attributes to apply to the field
+     * @param attributes the attributes to apply to the field (will override defaults)
      * @return a new NamedField instance configured as a text field with attributes
      */
     public static NamedField createTextFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
-        return new NamedField(fieldName, FieldTypes.TEXT_FIELD, attributes, Map.of());
+        // Get default attributes for text fields and merge with provided attributes
+        Map<String, Object> finalAttributes = getDefaultAttributesForFieldType("Text");
+        if (attributes != null && !attributes.isEmpty()) {
+            finalAttributes.putAll(attributes); // Override defaults with provided attributes
+        }
+
+        return new NamedField(fieldName, FieldTypes.TEXT_FIELD, finalAttributes, Map.of());
     }
 
     /**
@@ -375,13 +390,20 @@ public class NamedFieldFactory {
 
     /**
      * Creates a file field with the specified name and attributes.
+     * Default file field attributes are automatically applied and can be overridden by provided attributes.
      *
      * @param fieldName the name of the field
-     * @param attributes the attributes to apply to the field
+     * @param attributes the attributes to apply to the field (will override defaults)
      * @return a new NamedField instance configured as a file field with attributes
      */
     public static NamedField createFileFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
-        return new NamedField(fieldName, FieldTypes.FILE_FIELD, attributes, Map.of());
+        // Get default attributes for file fields and merge with provided attributes
+        Map<String, Object> finalAttributes = getDefaultAttributesForFieldType("File");
+        if (attributes != null && !attributes.isEmpty()) {
+            finalAttributes.putAll(attributes); // Override defaults with provided attributes
+        }
+
+        return new NamedField(fieldName, FieldTypes.FILE_FIELD, finalAttributes, Map.of());
     }
 
     /**
@@ -423,17 +445,14 @@ public class NamedFieldFactory {
         // Map the inner field type to the appropriate logical name
         String innerFieldLogicalName = getLogicalNameForFieldType(innerFieldType);
 
-        // Create inner attributes map (optional config)
-        Map<String, Object> innerAttributes = new HashMap<>();
-        if (attributes != null) {
-            innerAttributes.putAll(attributes);
-        }
+        // Get default attributes for the inner field type and merge with provided attributes
+        Map<String, Object> finalAttributes = getDefaultAttributesForFieldType(innerFieldType);
 
         // Create the inner field configuration
         Map<String, Object> fieldMap = new HashMap<>();
         fieldMap.put("type", "Field");
         fieldMap.put("fieldType", innerFieldLogicalName);
-        fieldMap.put("attributes", innerAttributes);
+        fieldMap.put("attributes", finalAttributes);
 
         // This defines that the list holds fields of the specified type
         String fieldMapJson = convertMapToJson(fieldMap);
@@ -441,6 +460,8 @@ public class NamedFieldFactory {
         // Create the list field attributes
         Map<String, Object> listAttributes = new HashMap<>();
         listAttributes.put("field", fieldMapJson);
+        System.out.println("List Attributes:");
+        Print.prettyPrint(listAttributes);
 
         return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, listAttributes, Map.of());
     }
@@ -477,6 +498,18 @@ public class NamedFieldFactory {
             case "location" -> FieldTypes.LOCATION_FIELD_LOGICAL_NAME;
             default -> FieldTypes.TEXT_FIELD_LOGICAL_NAME; // Default fallback
         };
+    }
+
+    /**
+     * Gets default attributes for the specified field type.
+     * This method can be used by any field creation method to get appropriate default attributes.
+     *
+     * @param fieldType the field type string (e.g., "Text", "File", "Date")
+     * @return a map containing default attributes for the field type
+     */
+    public static Map<String, Object> getDefaultAttributesForFieldType(String fieldType) {
+        System.out.println("→ NamedFieldFactory: Getting default attributes for field type: " + fieldType);
+        return FieldAttributeProviderRegistry.getDefaultAttributes(fieldType);
     }
 
     /**
