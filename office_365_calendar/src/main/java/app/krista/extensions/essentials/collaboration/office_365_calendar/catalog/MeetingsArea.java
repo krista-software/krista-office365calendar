@@ -271,8 +271,8 @@ public final class MeetingsArea {
     public ExtensionResponse scheduleMeeting(
             @Field.Text(name = "Title", required = false, attributes = {}, options = {}) String title,
             @Field.Text(name = "Location", required = false, attributes = {}, options = {}) String location,
-            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = false, allowFuture = false, attributes = {}, options = {}) Long dateFrom,
-            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = false, allowFuture = false, attributes = {}, options = {}) Long dateTo,
+            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {}, options = {})  Long dateFrom,
+            @Field.Date(name = "Date to", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {}, options = {})  Long dateTo,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
             @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isAllDay,
