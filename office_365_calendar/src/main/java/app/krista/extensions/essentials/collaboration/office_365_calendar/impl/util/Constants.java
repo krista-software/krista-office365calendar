@@ -107,6 +107,10 @@ public final class Constants {
     public static final String OPTIONAL_ATTENDEE = "Optional Attendee";
     public static final String IS_ORGANIZER_OPTIONAL = "Is Organizer Optional";
     public static final String MEETING_DURATION = "Meeting Duration";
+    public static final String FAILED_TO_FORWARD_EVENT_VALIDATION = "Failed to forward event - validation error ";
+    public static final String HANDLE_REENTER_FORWARD_EVENT = "handleReenterForwardEvent";
+    public static final String CONFIRM_REENTER_FORWARD_EVENT = "confirmReenterForwardEvent";
+    public static final String ATTENDEE_EMAIL = "Attendee Email";
 
     private Constants() {
     }

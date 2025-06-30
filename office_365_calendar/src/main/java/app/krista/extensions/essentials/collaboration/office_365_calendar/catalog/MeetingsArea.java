@@ -171,8 +171,7 @@ public final class MeetingsArea {
      *
      * @param eventId the ID of the event to forward
      * @param attendeeEmail the list of attendee emails
-     * @return true if forwarding was successful
-     * @throws IOException if forwarding fails
+     * @return an extension response indicating success or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_f2007cf4-d127-4a30-af0c-794b28f41de8",
@@ -181,14 +180,44 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field(name = "IsForwarded", type = "Switch", required = false)
-    public Boolean forwardEvent(
+    public ExtensionResponse forwardEvent(
             @Field(name = "Event Id", type = "Text") String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) throws IOException {
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
         try {
-            meetingDao.forwardMeeting(eventId, attendeeEmail);
-            return true;
-        } catch (IOException cause) {
-            throw new IOException("Failed to forward event " + cause.getMessage());
+            LOGGER.info("forwardEvent: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(Map.of(
+                            Validator.ValidationResource.EVENT_ID, eventId),
+                            MeetingsArea.class, "forwardEvent");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the forward event operation
+                meetingDao.forwardMeeting(eventId, attendeeEmail);
+                return new ExtensionResponseBuilder().success(Map.of("IsForwarded", true)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_FORWARD_EVENT,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : "",
+                              Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in forwardEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in forward event: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
         }
     }
 

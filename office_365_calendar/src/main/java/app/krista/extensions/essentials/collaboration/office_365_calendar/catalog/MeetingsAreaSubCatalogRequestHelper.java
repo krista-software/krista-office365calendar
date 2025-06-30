@@ -791,4 +791,73 @@ public class MeetingsAreaSubCatalogRequestHelper {
             return response;
         }
     }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for forwarding an event.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, eventId, and attendeeEmail
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_FORWARD_EVENT,
+            description = "Checks if user wants to re-enter details for forwarding event and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterForwardEvent(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, eventId: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        Map<String, Object> state = internalStateManager.get(stateId);
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+
+        if (Boolean.FALSE.equals(reenter)) {
+            return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+        }
+
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_FORWARD_EVENT, map);
+    }
+
+    /**
+     * Handles the actual forward event operation after the user has re-entered the event ID.
+     *
+     * @param map input map containing stateId, eventId, and attendeeEmail
+     * @return an extension response indicating success or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_FORWARD_EVENT,
+            description = "Handle re-entered event ID and attendee emails for forwarding event",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field(name = "IsForwarded", type = "Switch", required = false)
+    public ExtensionResponse handleReenterForwardEvent(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, eventId: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
+        LOGGER.info("SubCatalogRequest handleReenterForwardEvent start: {}", map);
+
+        try {
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            @SuppressWarnings("unchecked")
+            List<String> attendeeEmail = (List<String>) map.get(Constants.ATTENDEE_EMAIL);
+
+            LOGGER.info("handleReenterForwardEvent: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+
+            // Forward the event
+            meetingDao.forwardMeeting(eventId, attendeeEmail);
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("IsForwarded", true)).build();
+            LOGGER.info("SubCatalogRequest handleReenterForwardEvent success");
+            return response;
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in handleReenterForwardEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_FORWARD_EVENT_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
 }
