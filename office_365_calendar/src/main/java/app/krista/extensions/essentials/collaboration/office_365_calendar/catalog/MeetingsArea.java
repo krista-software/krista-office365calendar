@@ -325,6 +325,11 @@ public final class MeetingsArea {
                 validationParams.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, String.valueOf(numberedOccurrences));
             }
 
+            // Validate attachments (only PDF files allowed)
+            if (attachments != null && !attachments.isEmpty()) {
+                validationParams.put(Validator.ValidationResource.ATTACHMENTS, Constants.GSON.toJson(attachments));
+            }
+
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "scheduleMeeting");
@@ -388,6 +393,7 @@ public final class MeetingsArea {
         params.put(Constants.ATTACHMENTS_FIELD, attachments != null ? attachments : List.of());
         params.put(Constants.DETAILS, details != null ? details : "");
         params.put(Constants.IS_TEAMS_MEETING, isTeamsMeeting != null ? isTeamsMeeting : false);
+        Print.prettyPrint(params);
         return params;
     }
 

@@ -225,6 +225,9 @@ public class FieldAttributeExtractor {
         } else if (strategy.getAnnotationType() == Field.Desc.class) {
             Field.Desc annotation = parameter.getAnnotation(Field.Desc.class);
             return annotation != null ? annotation.name() : null;
+        } else if (strategy.getAnnotationType() == Field.File.class) {
+            Field.File annotation = parameter.getAnnotation(Field.File.class);
+            return annotation != null ? annotation.name() : null;
         }
 
         return null;

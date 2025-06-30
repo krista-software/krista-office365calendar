@@ -31,7 +31,8 @@ public class FieldAnnotationStrategyRegistry {
             new DateFieldAnnotationStrategy(),
             new TextFieldAnnotationStrategy(),
             new BooleanFieldAnnotationStrategy(),
-            new DescFieldAnnotationStrategy()
+            new DescFieldAnnotationStrategy(),
+            new FileFieldAnnotationStrategy()
         );
     }
 

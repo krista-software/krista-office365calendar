@@ -397,13 +397,17 @@ public class NamedFieldFactory {
      * @return a new NamedField instance configured as a file field with attributes
      */
     public static NamedField createFileFieldWithAttributes(String fieldName, Map<String, Object> attributes) {
-        // Get default attributes for file fields and merge with provided attributes
-        Map<String, Object> finalAttributes = getDefaultAttributesForFieldType("File");
-        if (attributes != null && !attributes.isEmpty()) {
-            finalAttributes.putAll(attributes); // Override defaults with provided attributes
-        }
+        Map<String, Object> fileUploadConfig = new HashMap<>();
 
-        return new NamedField(fieldName, FieldTypes.FILE_FIELD, finalAttributes, Map.of());
+        fileUploadConfig.put("visualWidth", "S");
+        fileUploadConfig.put("multipleFileUpload", attributes.getOrDefault("multipleFileUpload", false));
+        fileUploadConfig.put("minFileSizeUnit", "KB");
+        fileUploadConfig.put("maxFileSizeUnit", "MB");
+        fileUploadConfig.put("fileTypes", "[\"Document\",\"Image gallery\",\"Camera\",\"Contact\",\"Audio\"]");
+
+        Print.prettyPrint(fileUploadConfig);
+
+        return new NamedField(fieldName, FieldTypes.FILE_FIELD, fileUploadConfig, Map.of());
     }
 
     /**

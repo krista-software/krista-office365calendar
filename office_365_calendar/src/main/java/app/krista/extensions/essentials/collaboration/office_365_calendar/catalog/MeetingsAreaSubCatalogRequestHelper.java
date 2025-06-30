@@ -11,6 +11,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.catalo
 import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.model.base.File;
@@ -1009,7 +1010,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterScheduleMeeting(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: [ File ], Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+            type = "{ Reenter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER SCHEDULE MEETING START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterScheduleMeeting");
         System.out.println("  → Input map: " + map);
@@ -1024,6 +1025,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
         System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        System.out.println("Validation Result Inside confirmReenterScheduleMeeting: ");
+        Print.prettyPrint(validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
             System.out.println("  → User declined re-entry, generating fetch deny response");
@@ -1053,7 +1056,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterScheduleMeeting(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: [ File ], Details: Text, Is Teams Meeting: Boolean }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }") Map<String, Object> map) {
         System.out.println("=== HANDLE REENTER SCHEDULE MEETING START ===");
         System.out.println("→ SubCatalogRequest: handleReenterScheduleMeeting");
         System.out.println("  → Input map: " + map);

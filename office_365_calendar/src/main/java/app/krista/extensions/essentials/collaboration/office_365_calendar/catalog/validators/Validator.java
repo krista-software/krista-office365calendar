@@ -16,7 +16,8 @@ public interface Validator {
         TIME_ZONE,
         RECURRENCE_INTERVAL,
         DAYS_OF_WEEK,
-        NUMBERED_OCCURRENCES
+        NUMBERED_OCCURRENCES,
+        ATTACHMENTS
     }
 
     Boolean validate(String resourceId, Map<ValidationResource, String> context);

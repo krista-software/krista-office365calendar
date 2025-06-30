@@ -38,6 +38,7 @@ public class ValidationOrchestrator {
         validators.put(Validator.ValidationResource.RECURRENCE_INTERVAL, new RecurrenceIntervalValidator());
         validators.put(Validator.ValidationResource.DAYS_OF_WEEK, new DaysOfWeekValidator());
         validators.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, new NumberedOccurrencesValidator());
+        validators.put(Validator.ValidationResource.ATTACHMENTS, new AttachmentsValidator());
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
@@ -195,6 +196,7 @@ public class ValidationOrchestrator {
             case ATTENDEES -> "[ Email ]"; // For list of emails, we'll use the list format
             case TIME_ZONE -> "Text"; // Time zone is a text field
             case DAYS_OF_WEEK -> "[ Text ]"; // For list of day names
+            case ATTACHMENTS -> "[ File ]"; // For list of file attachments
             default -> "Text"; // Default fallback
         };
     }
@@ -342,6 +344,7 @@ public class ValidationOrchestrator {
             case ATTENDEES -> Map.of(); // No special attributes for attendee email fields
             case TIME_ZONE -> Map.of(); // No special attributes for time zone fields
             case DAYS_OF_WEEK -> Map.of(); // No special attributes for days of week fields
+            case ATTACHMENTS -> Map.of(); // No special attributes for attachment fields
             default -> Map.of(); // Default empty attributes
         };
     }
