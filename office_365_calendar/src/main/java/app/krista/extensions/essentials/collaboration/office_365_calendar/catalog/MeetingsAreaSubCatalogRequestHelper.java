@@ -105,106 +105,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
         }
     }
 
-    /**
-     * Handles confirmation of whether the user wants to re-enter details for getting attachments for the authenticated user.
-     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
-     *
-     * @param map input map containing reEnter flag, stateId, and eventId
-     * @return an extension response prompting for re-entry or indicating failure
-     */
-    @SubCatalogRequest(name = "confirmReenterGetAttachments", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
-        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
-        String stateId = (String) map.get(Constants.STATE_ID);
-        Map<String, Object> state = internalStateManager.get(stateId);
-        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
 
-        if (Boolean.FALSE.equals(reEnter)) {
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
 
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_ATTACHMENT, Map.of(Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
-    }
 
-    /**
-     * Handles the actual retrieval of attachments after the user has re-entered the event ID for the authenticated user.
-     *
-     * @param map input map containing eventId
-     * @return an extension response containing the attachments or an error response
-     */
-    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT, description = "Handle re-enter event id", type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
-    public ExtensionResponse handleReenterGetAttachments(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
-        try {
-            String eventID = (String) map.get(Constants.EVENT_ID);
-            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-            List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
-            return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
-        } catch (Exception cause) {
-            System.out.println(cause.getMessage() + " cause.getMessage() ");
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-    }
-
-    /**
-     * Handles confirmation of whether the user wants to re-enter details for getting events for a given user.
-     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
-     *
-     * @param map input map containing reEnter flag, stateId, userEmail, fromDate, and toDate
-     * @return an extension response prompting for re-entry or indicating failure
-     */
-    @SubCatalogRequest(name = "confirmReenterGetEventsForUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, userEmail: Text, fromDate: Number, toDate: Number}") Map<String, Object> map) {
-        Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
-        String stateId = (String) map.get(Constants.STATE_ID);
-        Map<String, Object> state = internalStateManager.get(stateId);
-        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-
-        if (Boolean.FALSE.equals(reEnter)) {
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENTS_FOR_USER, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEventsForAGivenUser ");
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_EVENTS_FOR_USER, map);
-    }
-
-    /**
-     * Handles the actual retrieval of events after the user has re-entered user email and date range.
-     *
-     * @param map input map containing userEmail, fromDate, and toDate
-     * @return an extension response containing the events or an error response
-     */
-    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_EVENTS_FOR_USER, description = "Handle re-enter user email and date range", type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
-    public ExtensionResponse handleReEnterGetEventsForUser(@Field.Desc(name = "inputMap", type = "{ userEmail: Text, fromDate: Number, toDate: Number}") Map<String, Object> map) {
-        try {
-            String userEmail = (String) map.get(Constants.USER_EMAIL);
-            Object fromDateObj = map.get(Constants.FROM_DATE);
-            Object toDateObj = map.get(Constants.TO_DATE);
-
-            Long fromDate = null;
-            Long toDate = null;
-
-            if (fromDateObj instanceof Number) {
-                fromDate = ((Number) fromDateObj).longValue();
-            }
-            if (toDateObj instanceof Number) {
-                toDate = ((Number) toDateObj).longValue();
-            }
-
-            if (fromDate != null && toDate != null && fromDate > toDate) {
-                throw new IllegalArgumentException("Failed to Get Events for a given User" + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
-            }
-
-            List<Meeting> meetings = meetingDao.getEventsForUser(userEmail, fromDate, toDate);
-            List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
-            return new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
-        } catch (Exception cause) {
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENTS_FOR_USER, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEventsForAGivenUser ");
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-    }
 
     /**
      * Handles confirmation of whether the user wants to re-enter details for cancelling an event.
@@ -227,25 +130,6 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_CANCEL_EVENT, map);
     }
 
-    /**
-     * Handles the actual cancellation of an event after the user has re-entered the event ID.
-     *
-     * @param map input map containing eventId
-     * @return an extension response containing the cancelled event details or an error response
-     */
-    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_CANCEL_EVENT, description = "Handle re-enter event id for cancellation", type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
-    public ExtensionResponse handleReEnterCancelEvent(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
-        try {
-            String eventId = (String) map.get(Constants.EVENT_ID);
-            Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
-            EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
-            return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
-        } catch (Exception cause) {
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_CANCEL_EVENT_VALIDATION, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> cancelEvent ");
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-    }
 
     /**
      * Handles confirmation of whether the user wants to re-enter details for getting upcoming meetings.
@@ -319,25 +203,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_EVENT, map);
     }
 
-    /**
-     * Handles the actual retrieval of an event after the user has re-entered the event ID.
-     *
-     * @param map input map containing eventId
-     * @return an extension response containing the event details or an error response
-     */
-    @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_EVENT, description = "Handle re-enter event id for retrieval", type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public ExtensionResponse handleReEnterGetEvent(@Field.Desc(name = "inputMap", type = "{Event Id: Text}") Map<String, Object> map) {
-        try {
-            String eventId = (String) map.get(Constants.EVENT_ID);
-            Meeting meeting = meetingDao.getMeetingById(eventId);
-            EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
-            return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-        } catch (Exception cause) {
-            ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEvent ");
-            return new ExtensionResponseBuilder().failure(error).build();
-        }
-    }
+
 
     /**
      * Processes the provided state map and performs validations, returning a list of validation results.
@@ -1498,6 +1364,521 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
             System.out.println("  → Error response created: " + error);
             System.out.println("=== HANDLE REENTER UPDATE EVENT EXCEPTION END ===");
+            return response;
+        }
+    }
+
+
+
+    /**
+     * Handles the actual cancel event operation after the user has re-entered the event ID.
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_RE_ENTER_CANCEL_EVENT,
+            description = "Handle re-entered event ID for cancelling event",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterCancelEvent(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER CANCEL EVENT START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterCancelEvent");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterCancelEvent start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String eventId = (String) map.get(Constants.EVENT_ID);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventId);
+
+            LOGGER.info("handleReenterCancelEvent: eventId={}", eventId);
+
+            System.out.println("  → Calling meetingDao.cancelMeeting...");
+            // Cancel the event
+            Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+            EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+
+            System.out.println("  → Event cancelled successfully");
+            System.out.println("  → Event Details: " + eventDetails);
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterCancelEvent success");
+            System.out.println("=== HANDLE REENTER CANCEL EVENT SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER CANCEL EVENT EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterCancelEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_CANCEL_EVENT_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER CANCEL EVENT EXCEPTION END ===");
+            return response;
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting next upcoming meetings.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and numberOfMeeting
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
+            description = "Checks if user wants to re-enter details for getting next upcoming meetings and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetNextUpcomingMeetings(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Number of meeting: Number }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterGetNextUpcomingMeetings");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS, map);
+        System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual get next upcoming meetings operation after the user has re-entered the number of meetings.
+     *
+     * @param map input map containing stateId and numberOfMeeting
+     * @return an extension response containing the upcoming meetings or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS,
+            description = "Handle re-entered number of meetings for getting next upcoming meetings",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+    public ExtensionResponse handleReenterGetNextUpcomingMeetings(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Number of meeting: Number }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterGetNextUpcomingMeetings");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetNextUpcomingMeetings start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            Double numberOfMeeting = map.get(Constants.NUMBER_OF_MEETING) != null ? ((Number) map.get(Constants.NUMBER_OF_MEETING)).doubleValue() : null;
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Number of meeting: " + numberOfMeeting);
+
+            LOGGER.info("handleReenterGetNextUpcomingMeetings: numberOfMeeting={}", numberOfMeeting);
+
+            System.out.println("  → Calling meetingDao.getMeetings...");
+            // Get next upcoming meetings
+            List<Meeting> meetings = meetingDao.getMeetings(numberOfMeeting.intValue());
+            List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+
+            System.out.println("  → Meetings retrieved successfully");
+            System.out.println("  → Number of meetings found: " + events.size());
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterGetNextUpcomingMeetings success");
+            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetNextUpcomingMeetings: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_NEXT_UPCOMING_MEETINGS_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION END ===");
+            return response;
+        }
+    }
+
+
+
+    /**
+     * Handles the actual get event operation after the user has re-entered the event ID.
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_EVENT,
+            description = "Handle re-entered event ID for getting event",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterGetEvent(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET EVENT START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterGetEvent");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetEvent start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventID);
+
+            LOGGER.info("handleReenterGetEvent: eventID={}", eventID);
+
+            System.out.println("  → Calling meetingDao.getMeetingById...");
+            // Get the event
+            Meeting meeting = meetingDao.getMeetingById(eventID);
+            EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+
+            System.out.println("  → Event retrieved successfully");
+            System.out.println("  → Event Details: " + eventDetails);
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterGetEvent success");
+            System.out.println("=== HANDLE REENTER GET EVENT SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET EVENT EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_EVENT_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER GET EVENT EXCEPTION END ===");
+            return response;
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting events for a user.
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_EVENTS_FOR_USER,
+            description = "Checks if user wants to re-enter details for getting events for user and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterGetEventsForUser");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER, map);
+        System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual get events for user operation after the user has re-entered the details.
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER,
+            description = "Handle re-entered details for getting events for user",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
+    public ExtensionResponse handleReenterGetEventsForUser(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Email, From: Number, To: Number }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET EVENTS FOR USER START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterGetEventsForUser");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetEventsForUser start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String userEmail = (String) map.get(Constants.USER_EMAIL);
+            Long from = map.get(Constants.FROM) != null ? ((Number) map.get(Constants.FROM)).longValue() : null;
+            Long to = map.get(Constants.TO) != null ? ((Number) map.get(Constants.TO)).longValue() : null;
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → User Email: " + userEmail);
+            System.out.println("    → From: " + from);
+            System.out.println("    → To: " + to);
+
+            LOGGER.info("handleReenterGetEventsForUser: userEmail={}, from={}, to={}", userEmail, from, to);
+
+            System.out.println("  → Calling meetingDao.getEventsForUser...");
+            // Get events for user
+            List<Meeting> meetings = meetingDao.getEventsForUser(userEmail, from, to);
+            List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+
+            System.out.println("  → Events retrieved successfully");
+            System.out.println("  → Number of events found: " + events.size());
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterGetEventsForUser success");
+            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetEventsForUser: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_EVENTS_FOR_USER_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER EXCEPTION END ===");
+            return response;
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting attachments for a user.
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER,
+            description = "Checks if user wants to re-enter details for getting attachments for user and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetAttachmentsForUser(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterGetAttachmentsForUser");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER, map);
+        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual get attachments for user operation after the user has re-entered the details.
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER,
+            description = "Handle re-entered details for getting attachments for user",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    public ExtensionResponse handleReenterGetAttachmentsForUser(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Text, Event ID: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterGetAttachmentsForUser");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetAttachmentsForUser start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String userEmail = (String) map.get(Constants.USER_EMAIL);
+            String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → User Email: " + userEmail);
+            System.out.println("    → Event ID: " + eventID);
+
+            LOGGER.info("handleReenterGetAttachmentsForUser: userEmail={}, eventID={}", userEmail, eventID);
+
+            System.out.println("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
+            // Get attachments for user
+            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+            List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+
+            System.out.println("  → Attachments retrieved successfully");
+            System.out.println("  → Number of attachments found: " + attachments.size());
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterGetAttachmentsForUser success");
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetAttachmentsForUser: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_ATTACHMENTS_FOR_USER_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION END ===");
+            return response;
+        }
+    }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for getting attachments.
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_GET_ATTACHMENTS,
+            description = "Checks if user wants to re-enter details for getting attachments and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.QUERY_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterGetAttachments");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER GET ATTACHMENTS DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_ATTACHMENTS);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_GET_ATTACHMENTS, map);
+        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual get attachments operation after the user has re-entered the event ID.
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_GET_ATTACHMENTS,
+            description = "Handle re-entered event ID for getting attachments",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    public ExtensionResponse handleReenterGetAttachments(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER GET ATTACHMENTS START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterGetAttachments");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterGetAttachments start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventID);
+
+            LOGGER.info("handleReenterGetAttachments: eventID={}", eventID);
+
+            System.out.println("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
+            // Get attachments
+            List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+            List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+
+            System.out.println("  → Attachments retrieved successfully");
+            System.out.println("  → Number of attachments found: " + attachments.size());
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterGetAttachments success");
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterGetAttachments: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_GET_ATTACHMENTS_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER GET ATTACHMENTS EXCEPTION END ===");
             return response;
         }
     }

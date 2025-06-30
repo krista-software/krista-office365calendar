@@ -73,15 +73,12 @@ public final class Constants {
     public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
     public static final String HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER = "handleReEnterGetAttachmentForGivenUser";
     public static final String HANDLE_RE_ENTER_GET_ATTACHMENT = "handleReEnterGetAttachments";
-    public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS_FOR_GIVEN_USER = "confirmReenterGetAttachmentsForAGivenUser";
     public static final String CONFIRM_RE_ENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
     public static final String FAILED_TO_GET_EVENTS_FOR_USER = "Failed to get events for user ";
     public static final String USER_EMAIL = "userEmail";
     public static final String FROM_DATE = "Date From";
     public static final String TO_DATE = "Date To";
     public static final String EVENTS = "Events";
-    public static final String HANDLE_RE_ENTER_GET_EVENTS_FOR_USER = "handleReEnterGetEventsForUser";
-    public static final String CONFIRM_RE_ENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";
     public static final String FAILED_TO_CANCEL_EVENT_VALIDATION = "Failed to cancel event - validation error ";
     public static final String HANDLE_RE_ENTER_CANCEL_EVENT = "handleReEnterCancelEvent";
     public static final String CONFIRM_RE_ENTER_CANCEL_EVENT = "confirmReenterCancelEvent";
@@ -150,6 +147,25 @@ public final class Constants {
     public static final String FAILED_TO_UPDATE_EVENT_VALIDATION = "Failed to update event - validation error ";
     public static final String HANDLE_REENTER_UPDATE_EVENT = "handleReenterUpdateEvent";
     public static final String CONFIRM_REENTER_UPDATE_EVENT = "confirmReenterUpdateEvent";
+    public static final String FAILED_TO_GET_EVENT_VALIDATION = "Failed to get event - validation error ";
+    public static final String HANDLE_REENTER_GET_EVENT = "handleReenterGetEvent";
+    public static final String CONFIRM_REENTER_GET_EVENT = "confirmReenterGetEvent";
+    public static final String FAILED_TO_GET_EVENTS_FOR_USER_VALIDATION = "Failed to get events for user - validation error ";
+    public static final String HANDLE_REENTER_GET_EVENTS_FOR_USER = "handleReenterGetEventsForUser";
+    public static final String CONFIRM_REENTER_GET_EVENTS_FOR_USER = "confirmReenterGetEventsForUser";
+    public static final String FAILED_TO_GET_ATTACHMENTS_FOR_USER_VALIDATION = "Failed to get attachments for user - validation error ";
+    public static final String HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER = "handleReenterGetAttachmentsForUser";
+    public static final String CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER = "confirmReenterGetAttachmentsForUser";
+    public static final String FAILED_TO_GET_ATTACHMENTS_VALIDATION = "Failed to get attachments - validation error ";
+    public static final String HANDLE_REENTER_GET_ATTACHMENTS = "handleReenterGetAttachments";
+    public static final String CONFIRM_REENTER_GET_ATTACHMENTS = "confirmReenterGetAttachments";
+    public static final String FROM = "From";
+    public static final String TO = "To";
+    public static final String EVENT_ID_FIELD = "Event ID";
+    public static final String FAILED_TO_GET_NEXT_UPCOMING_MEETINGS_VALIDATION = "Failed to get next upcoming meetings - validation error ";
+    public static final String HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS = "handleReenterGetNextUpcomingMeetings";
+    public static final String CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS = "confirmReenterGetNextUpcomingMeetings";
+    public static final String NUMBER_OF_MEETING = "Number of meeting";
 
     private Constants() {
     }

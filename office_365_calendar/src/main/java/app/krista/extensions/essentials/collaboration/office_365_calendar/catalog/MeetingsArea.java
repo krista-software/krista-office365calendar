@@ -9,19 +9,17 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.catalo
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
 import app.krista.extension.executor.ExtensionResponseBuilder;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.RemediationActionFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.model.base.File;
-import com.microsoft.graph.http.GraphServiceException;
+import com.microsoft.graph.models.FileAttachment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.inject.Inject;
-import javax.xml.datatype.DatatypeConfigurationException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +74,48 @@ public final class MeetingsArea {
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        return meetingDao.cancelMeetingWithErrorHandling(eventId, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("cancelEvent: eventId={}", eventId);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID (required)
+            if (eventId != null && !eventId.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "cancelEvent");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the cancel event operation
+                Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+                EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID, eventId != null ? eventId : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in cancelEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in cancel event: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -94,7 +133,48 @@ public final class MeetingsArea {
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse getNextUpcomingMeetings(
             @Field(name = "Number of meeting", type = "Number") Double numberOfMeeting) {
-        return meetingDao.getMeetingsWithErrorHandling(numberOfMeeting, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("getNextUpcomingMeetings: numberOfMeeting={}", numberOfMeeting);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Number of meetings (required)
+            if (numberOfMeeting != null) {
+                validationParams.put(Validator.ValidationResource.NUMBER_OF_MEETINGS, String.valueOf(numberOfMeeting));
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getNextUpcomingMeetings");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get next upcoming meetings operation
+                List<Meeting> meetings = meetingDao.getMeetings(numberOfMeeting.intValue());
+                List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.NUMBER_OF_MEETING, numberOfMeeting != null ? numberOfMeeting : 0.0));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getNextUpcomingMeetings: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get next upcoming meetings: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -1017,7 +1097,48 @@ public final class MeetingsArea {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse getEvent(
             @Field(name = "Event ID", type = "Text") String eventID) {
-        return meetingDao.getMeetingByIdWithErrorHandling(eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("getEvent: eventID={}", eventID);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID (required)
+            if (eventID != null && !eventID.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEvent");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get event operation
+                Meeting meeting = meetingDao.getMeetingById(eventID);
+                EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_EVENT,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get event: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -1057,7 +1178,56 @@ public final class MeetingsArea {
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
             @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to) {
-        return meetingDao.getEventsForUserWithErrorHandling(userEmail, from, to, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("getEventsForAGivenUser: userEmail={}, from={}, to={}", userEmail, from, to);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate User Email (required)
+            if (userEmail != null && !userEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EMAIL, userEmail);
+            }
+
+            // Validate date range (required)
+            if (from != null && to != null) {
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(from));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(to));
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEventsForAGivenUser");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get events operation
+                List<Meeting> meetings = meetingDao.getEventsForUser(userEmail, from, to);
+                List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_EVENTS_FOR_USER,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.USER_EMAIL, userEmail != null ? userEmail : "",
+                              Constants.FROM, from != null ? from : 0L,
+                              Constants.TO, to != null ? to : 0L));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getEventsForAGivenUser: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get events for user: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -1079,7 +1249,54 @@ public final class MeetingsArea {
                     @Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Text(name = "Event ID", required = true, attributes = {
                     @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
-        return meetingDao.getAttachmentsForGivenUserWithErrorHandling(userEmail, eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("getAttachmentsForAGivenUser: userEmail={}, eventID={}", userEmail, eventID);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate User Email (required)
+            if (userEmail != null && !userEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EMAIL, userEmail);
+            }
+
+            // Validate Event ID (required)
+            if (eventID != null && !eventID.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getAttachmentsForAGivenUser");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get attachments operation
+                List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.USER_EMAIL, userEmail != null ? userEmail : "",
+                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getAttachmentsForAGivenUser: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get attachments for user: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 
     /**
@@ -1097,6 +1314,47 @@ public final class MeetingsArea {
     @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
     public ExtensionResponse getAttachments(
             @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID) {
-        return meetingDao.getAttachmentsForAuthenticatedUserWithErrorHandling(eventID, validationOrchestrator, catalogTypes, errorHandlingStateManager);
+        try {
+            LOGGER.info("getAttachments: eventID={}", eventID);
+
+            // Validate input parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID (required)
+            if (eventID != null && !eventID.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getAttachments");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the get attachments operation
+                List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+                List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_GET_ATTACHMENTS,
+                        Map.of(Constants.STATE_ID, stateId,
+                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getAttachments: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in get attachments: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
     }
 }
