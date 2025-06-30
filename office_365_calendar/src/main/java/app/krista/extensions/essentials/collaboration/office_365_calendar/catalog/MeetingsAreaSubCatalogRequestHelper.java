@@ -189,18 +189,20 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @param map input map containing reEnter flag, stateId, and eventId
      * @return an extension response prompting for re-entry or indicating failure
      */
-    @SubCatalogRequest(name = "confirmReenterGetEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
+    @SubCatalogRequest(name = Constants.CONFIRM_REENTER_GET_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
+    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event ID: Text}") Map<String, Object> map) {
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("Validation Result Inside confirmReenterGetEvent: ");
+        Print.prettyPrint(validationResults);
 
         if (Boolean.FALSE.equals(reEnter)) {
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEvent ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_EVENT, map);
+        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_REENTER_GET_EVENT, map);
     }
 
 

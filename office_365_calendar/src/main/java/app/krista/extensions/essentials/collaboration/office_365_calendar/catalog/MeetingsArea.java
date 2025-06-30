@@ -1112,6 +1112,9 @@ public final class MeetingsArea {
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEvent");
 
+            System.out.println("First Validation Result");
+            Print.prettyPrint(validationResults);
+
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get event operation
                 Meeting meeting = meetingDao.getMeetingById(eventID);
