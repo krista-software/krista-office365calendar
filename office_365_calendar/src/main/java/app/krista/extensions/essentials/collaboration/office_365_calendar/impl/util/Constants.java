@@ -147,6 +147,9 @@ public final class Constants {
     public static final String FAILED_TO_REMOVE_ATTENDEE_VALIDATION = "Failed to remove attendee - validation error ";
     public static final String HANDLE_REENTER_REMOVE_ATTENDEE = "handleReenterRemoveAttendee";
     public static final String CONFIRM_REENTER_REMOVE_ATTENDEE = "confirmReenterRemoveAttendee";
+    public static final String FAILED_TO_UPDATE_EVENT_VALIDATION = "Failed to update event - validation error ";
+    public static final String HANDLE_REENTER_UPDATE_EVENT = "handleReenterUpdateEvent";
+    public static final String CONFIRM_REENTER_UPDATE_EVENT = "confirmReenterUpdateEvent";
 
     private Constants() {
     }

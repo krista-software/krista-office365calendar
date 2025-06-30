@@ -490,7 +490,7 @@ public final class MeetingsArea {
     /**
      * Updates the event with the given details.
      *
-     * @return the updated event details
+     * @return an extension response containing the updated event details or error information
      */
     @CatalogRequest(
             id = "localDomainRequest_ff16001f-6709-44a8-9f00-5de09287e70e",
@@ -499,7 +499,7 @@ public final class MeetingsArea {
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
-    public EventDetails updateEvent(
+    public ExtensionResponse updateEvent(
             @Field(name = "Event Id", type = "Text") String eventId,
             @Field(name = "Title", type = "Text", required = false) String title,
             @Field(name = "Location", type = "Text", required = false) String location,
@@ -523,8 +523,105 @@ public final class MeetingsArea {
             @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
             @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
             @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting) {
+        try {
+            LOGGER.info("updateEvent: eventId={}, title={}, location={}, dateFrom={}, dateTo={}, timeZone={}, recurrenceInterval={}, daysOfWeek={}, numberedOccurrences={}",
+                    eventId, title, location, dateFrom, dateTo, timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences);
 
-        return CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+            // Prepare validation parameters
+            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Event ID (required)
+            if (eventId != null && !eventId.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+            }
+
+            // Validate date range (if provided)
+            if (dateFrom != null && dateTo != null) {
+                validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
+                validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+            }
+
+            // Validate time zone (if provided)
+            if (timeZone != null && !timeZone.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
+            }
+
+            // Validate recurrence interval (if provided)
+            if (recurrenceInterval != null) {
+                validationParams.put(Validator.ValidationResource.RECURRENCE_INTERVAL, String.valueOf(recurrenceInterval));
+            }
+
+            // Validate days of week (if provided)
+            if (daysOfWeek != null && !daysOfWeek.isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DAYS_OF_WEEK, Constants.GSON.toJson(daysOfWeek));
+            }
+
+            // Validate numbered occurrences (if provided)
+            if (numberedOccurrences != null) {
+                validationParams.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, String.valueOf(numberedOccurrences));
+            }
+
+            // Validate input parameters using dynamic field attribute extraction
+            List<ValidationOrchestrator.ValidationResult> validationResults =
+                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "updateEvent");
+
+            if (validationResults.isEmpty()) {
+                // Validation passed, perform the update event operation
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            } else {
+                // Store validation results and call confirmation SubCatalogRequest
+                String stateId = UUID.randomUUID().toString();
+                errorHandlingStateManager.put(stateId, Map.of(
+                        Constants.VALIDATION_RESULTS, validationResults));
+
+                return responseGenerator.generateConfirmationResponse(
+                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                        Constants.CONFIRM_REENTER_UPDATE_EVENT,
+                        createUpdateEventConfirmationParams(stateId, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+            }
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in updateEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    "Error occurred in update event: " + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                    ""
+            );
+            return new ExtensionResponseBuilder().failure(error).build();
+        }
+    }
+
+    /**
+     * Helper method to create confirmation parameters for update event error handling.
+     */
+    private Map<String, Object> createUpdateEventConfirmationParams(String stateId, String eventId, String title, String location, Long dateFrom, Long dateTo, String details, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.STATE_ID, stateId);
+        params.put(Constants.EVENT_ID, eventId != null ? eventId : "");
+        params.put(Constants.TITLE, title != null ? title : "");
+        params.put(Constants.LOCATION, location != null ? location : "");
+        params.put(Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L);
+        params.put(Constants.DATE_TO, dateTo != null ? dateTo : 0L);
+        params.put(Constants.DETAILS, details != null ? details : "");
+        params.put(Constants.TIME_ZONE, timeZone != null ? timeZone : "");
+        params.put(Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of());
+        params.put(Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of());
+        params.put(Constants.IS_ALL_DAY, isAllDay != null ? isAllDay : false);
+        params.put(Constants.REMINDER, reminder != null ? reminder : "");
+        params.put(Constants.RECURRENCE, recurrence != null ? recurrence : "");
+        params.put(Constants.RECURRENCE_INTERVAL, recurrenceInterval != null ? recurrenceInterval : 0.0);
+        params.put(Constants.DAYS_OF_WEEK, daysOfWeek != null ? daysOfWeek : List.of());
+        params.put(Constants.RECURRENCE_TYPE, recurrenceType != null ? recurrenceType : "");
+        params.put(Constants.DAY_OF_MONTH, dayOfMonth != null ? dayOfMonth : 0.0);
+        params.put(Constants.REPEAT_INDEX, repeatIndex != null ? repeatIndex : "");
+        params.put(Constants.REPEAT_DAY, repeatDay != null ? repeatDay : "");
+        params.put(Constants.REPEAT_MONTH, repeatMonth != null ? repeatMonth : "");
+        params.put(Constants.END_RECURRENCE, endRecurrence != null ? endRecurrence : "");
+        params.put(Constants.END_DATE, endDate != null ? endDate : 0L);
+        params.put(Constants.NUMBERED_OCCURRENCES, numberedOccurrences != null ? numberedOccurrences : 0.0);
+        params.put(Constants.IS_TEAMS_MEETING, isTeamsMeeting != null ? isTeamsMeeting : false);
+        return params;
     }
 
     /**

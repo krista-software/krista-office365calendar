@@ -1364,4 +1364,141 @@ public class MeetingsAreaSubCatalogRequestHelper {
             return response;
         }
     }
+
+    /**
+     * Handles confirmation of whether the user wants to re-enter details for updating an event.
+     * If re-entry is declined, returns a failure response; otherwise, prompts for re-entry.
+     *
+     * @param map input map containing reEnter flag, stateId, and all update event parameters
+     * @return an extension response prompting for re-entry or indicating failure
+     */
+    @SubCatalogRequest(
+            name = Constants.CONFIRM_REENTER_UPDATE_EVENT,
+            description = "Checks if user wants to re-enter details for updating event and if yes, sends prompt to do so",
+            type = CatalogRequest.Type.CHANGE_SYSTEM
+    )
+    @SuppressWarnings("unchecked")
+    public ExtensionResponse confirmReenterUpdateEvent(@Field.Desc(name = "inputMap",
+            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+        System.out.println("=== CONFIRM REENTER UPDATE EVENT START ===");
+        System.out.println("→ SubCatalogRequest: confirmReenterUpdateEvent");
+        System.out.println("  → Input map: " + map);
+
+        Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
+        String stateId = (String) map.get(Constants.STATE_ID);
+        System.out.println("  → Extracted reenter: " + reenter);
+        System.out.println("  → Extracted stateId: " + stateId);
+
+        Map<String, Object> state = internalStateManager.get(stateId);
+        System.out.println("  → Retrieved state: " + state);
+
+        List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+
+        if (Boolean.FALSE.equals(reenter)) {
+            System.out.println("  → User declined re-entry, generating fetch deny response");
+            ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                    validationResults, null, Map.of());
+            System.out.println("=== CONFIRM REENTER UPDATE EVENT DENY END ===");
+            return response;
+        }
+
+        System.out.println("  → User accepted re-entry, generating fetch response");
+        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_UPDATE_EVENT);
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+                validationResults, Constants.HANDLE_REENTER_UPDATE_EVENT, map);
+        System.out.println("=== CONFIRM REENTER UPDATE EVENT ACCEPT END ===");
+        return response;
+    }
+
+    /**
+     * Handles the actual update event operation after the user has re-entered the event details.
+     *
+     * @param map input map containing stateId and all update event parameters
+     * @return an extension response containing the updated event details or error information
+     */
+    @SubCatalogRequest(
+            name = Constants.HANDLE_REENTER_UPDATE_EVENT,
+            description = "Handle re-entered event details for updating event",
+            type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    public ExtensionResponse handleReenterUpdateEvent(
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }") Map<String, Object> map) {
+        System.out.println("=== HANDLE REENTER UPDATE EVENT START ===");
+        System.out.println("→ SubCatalogRequest: handleReenterUpdateEvent");
+        System.out.println("  → Input map: " + map);
+        LOGGER.info("SubCatalogRequest handleReenterUpdateEvent start: {}", map);
+
+        try {
+            System.out.println("  → Starting parameter extraction...");
+            // Extract all parameters from the map
+            String eventId = (String) map.get(Constants.EVENT_ID);
+            String title = (String) map.get(Constants.TITLE);
+            String location = (String) map.get(Constants.LOCATION);
+            Long dateFrom = map.get(Constants.FROM_DATE) != null ? ((Number) map.get(Constants.FROM_DATE)).longValue() : null;
+            Long dateTo = map.get(Constants.DATE_TO) != null ? ((Number) map.get(Constants.DATE_TO)).longValue() : null;
+            String details = (String) map.get(Constants.DETAILS);
+            String timeZone = (String) map.get(Constants.TIME_ZONE);
+            @SuppressWarnings("unchecked")
+            List<String> requiredAttendeeEmail = (List<String>) map.get(Constants.REQUIRED_ATTENDEE_EMAIL);
+            @SuppressWarnings("unchecked")
+            List<String> optionalAttendeeEmail = (List<String>) map.get(Constants.OPTIONAL_ATTENDEE_EMAIL);
+            Boolean isAllDay = (Boolean) map.get(Constants.IS_ALL_DAY);
+            String reminder = (String) map.get(Constants.REMINDER);
+            String recurrence = (String) map.get(Constants.RECURRENCE);
+            Double recurrenceInterval = map.get(Constants.RECURRENCE_INTERVAL) != null ? ((Number) map.get(Constants.RECURRENCE_INTERVAL)).doubleValue() : null;
+            @SuppressWarnings("unchecked")
+            List<String> daysOfWeek = (List<String>) map.get(Constants.DAYS_OF_WEEK);
+            String recurrenceType = (String) map.get(Constants.RECURRENCE_TYPE);
+            Double dayOfMonth = map.get(Constants.DAY_OF_MONTH) != null ? ((Number) map.get(Constants.DAY_OF_MONTH)).doubleValue() : null;
+            String repeatIndex = (String) map.get(Constants.REPEAT_INDEX);
+            String repeatDay = (String) map.get(Constants.REPEAT_DAY);
+            String repeatMonth = (String) map.get(Constants.REPEAT_MONTH);
+            String endRecurrence = (String) map.get(Constants.END_RECURRENCE);
+            Long endDate = map.get(Constants.END_DATE) != null ? ((Number) map.get(Constants.END_DATE)).longValue() : null;
+            Double numberedOccurrences = map.get(Constants.NUMBERED_OCCURRENCES) != null ? ((Number) map.get(Constants.NUMBERED_OCCURRENCES)).doubleValue() : null;
+            Boolean isTeamsMeeting = (Boolean) map.get(Constants.IS_TEAMS_MEETING);
+
+            System.out.println("  → Extracted parameters:");
+            System.out.println("    → Event ID: " + eventId);
+            System.out.println("    → Title: " + title);
+            System.out.println("    → Location: " + location);
+            System.out.println("    → Date From: " + dateFrom);
+            System.out.println("    → Date To: " + dateTo);
+            System.out.println("    → Time Zone: " + timeZone);
+            System.out.println("    → Recurrence Interval: " + recurrenceInterval);
+            System.out.println("    → Days Of Week: " + daysOfWeek);
+            System.out.println("    → Numbered Occurrences: " + numberedOccurrences);
+
+            LOGGER.info("handleReenterUpdateEvent: eventId={}, title={}, dateFrom={}, dateTo={}, timeZone={}", eventId, title, dateFrom, dateTo, timeZone);
+
+            System.out.println("  → Calling meetingDao.updateMeeting...");
+            // Update the event
+            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+
+            System.out.println("  → Event updated successfully");
+            System.out.println("  → Event Details: " + eventDetails);
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+            System.out.println("  → Success response created");
+            LOGGER.info("SubCatalogRequest handleReenterUpdateEvent success");
+            System.out.println("=== HANDLE REENTER UPDATE EVENT SUCCESS END ===");
+            return response;
+        } catch (Exception cause) {
+            System.out.println("=== HANDLE REENTER UPDATE EVENT EXCEPTION ===");
+            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
+            System.out.println("  → Message: " + cause.getMessage());
+            cause.printStackTrace();
+            LOGGER.error("Error occurred in handleReenterUpdateEvent: {}", cause.getMessage());
+            ExtensionResponse.Error error = new ExtensionResponse.Error(
+                    Constants.FAILED_TO_UPDATE_EVENT_VALIDATION + cause.getMessage(),
+                    System.currentTimeMillis(),
+                    ExtensionResponse.Error.ExceptionType.LOGIC_ERROR,
+                    ""
+            );
+            ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
+            System.out.println("  → Error response created: " + error);
+            System.out.println("=== HANDLE REENTER UPDATE EVENT EXCEPTION END ===");
+            return response;
+        }
+    }
 }
