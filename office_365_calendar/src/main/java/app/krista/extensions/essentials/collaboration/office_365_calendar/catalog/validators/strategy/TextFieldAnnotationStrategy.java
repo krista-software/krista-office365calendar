@@ -148,6 +148,11 @@ public class TextFieldAnnotationStrategy implements FieldAnnotationStrategy {
             System.out.println("          → ✓ Matched specific field name 'User Email' → EMAIL");
             return Validator.ValidationResource.EMAIL;
         }
+
+        if("Meeting Duration".equals(fieldName)){
+            System.out.println("          → ✓ Matched specific field name 'Meeting Duration' → MEETING_DURATION");
+            return Validator.ValidationResource.MEETING_DURATION;
+        }
         //
 
         // Default fallback

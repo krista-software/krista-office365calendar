@@ -891,6 +891,15 @@ public final class MeetingsArea {
                 System.out.println("Skipping time zone validation - timeZone is null or empty");
             }
 
+            // Validate meeting duration
+            if (meetingDuration != null && !meetingDuration.trim().isEmpty()) {
+                System.out.println("Adding meeting duration validation parameter:");
+                System.out.println("  MEETING_DURATION: " + meetingDuration);
+                validationParams.put(Validator.ValidationResource.MEETING_DURATION, meetingDuration);
+            } else {
+                System.out.println("Skipping meeting duration validation - meetingDuration is null or empty");
+            }
+
             System.out.println("Final validation parameters: " + validationParams);
 
             // Validate input parameters using dynamic field attribute extraction
