@@ -165,11 +165,11 @@ public class DateFieldAnnotationStrategy implements FieldAnnotationStrategy {
         System.out.println("          → Mapping date field '" + fieldName + "' (type: '" + fieldType + "') to validation resource");
 
         // Handle specific field names
-        if ("Date From".equals(fieldName)) {
+        if ("Date From".equals(fieldName) || "From".equals(fieldName)) {
             System.out.println("          → ✓ Matched specific field name 'Date From' → FROM_DATE");
             return Validator.ValidationResource.FROM_DATE;
         }
-        if ("Date To".equals(fieldName) || "Date to".equals(fieldName)) {
+        if ("Date To".equals(fieldName) || "Date to".equals(fieldName) || "To".equals(fieldName)) {
             System.out.println("          → ✓ Matched specific field name 'Date To' → TO_DATE");
             return Validator.ValidationResource.TO_DATE;
         }

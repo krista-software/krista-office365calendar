@@ -138,20 +138,7 @@ public class FieldAttributeExtractor {
         return null;
     }
 
-    /**
-     * Creates a mapping of field names to their validation resources for a given method.
-     * <p>
-     * This method helps map field names from the catalog request method to their
-     * corresponding validation resource types.
-     * </p>
-     * <p>
-     * Uses the Strategy pattern to delegate validation resource mapping to the appropriate strategy
-     * based on the annotation type found.
-     * </p>
-     *
-     * @param method the method to examine
-     * @return a map of field names to validation resource types
-     */
+
     public static Map<String, Validator.ValidationResource> createFieldNameToResourceMapping(Method method) {
         System.out.println("    → FieldAttributeExtractor.createFieldNameToResourceMapping()");
         System.out.println("    → Method: " + (method != null ? method.getName() : "null"));

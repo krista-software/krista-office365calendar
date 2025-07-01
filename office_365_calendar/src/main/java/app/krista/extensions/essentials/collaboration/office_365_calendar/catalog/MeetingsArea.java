@@ -1187,11 +1187,6 @@ public final class MeetingsArea {
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
-            // Validate User Email (required)
-            if (userEmail != null && !userEmail.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EMAIL, userEmail);
-            }
-
             // Validate date range (required)
             if (from != null && to != null) {
                 validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(from));
