@@ -7,18 +7,35 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Validator implementation for validating attachments within the Office 365 calendar extension.
  * <p>
- * This class validates that attachment files are only PDF files by checking file extensions.
- * It provides user-facing messages for fetch, confirmation, and error steps.
+ * This class validates that attachment files have valid file extensions by checking against
+ * a predefined set of allowed file types including documents, spreadsheets, presentations,
+ * images, and archives. It provides user-facing messages for fetch, confirmation, and error steps.
  * </p>
  */
 // Update this Validator
 public class AttachmentsValidator implements Validator {
 
     private static final Gson gson = new Gson();
+
+    private final static Set<String> validFileExtensions = Set.of(
+            // Document formats
+            "pdf", "doc", "docx", "rtf", "txt",
+            // Spreadsheet formats
+            "xls", "xlsx", "csv",
+            // Presentation formats
+            "ppt", "pptx",
+            // Image formats
+            "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff",
+            // Archive formats
+            "zip", "rar"
+            // Other common formats - commenting below formats as they are restricted by krista
+//            "xml", "html", "htm"
+    );
 
     @Override
     public Boolean validate(String attachmentsStr, Map<ValidationResource, String> context) {
@@ -37,7 +54,7 @@ public class AttachmentsValidator implements Validator {
                 return true;
             }
 
-            // Check if all attachments are PDF files
+            // Check if all attachments have valid file extensions
             for (Map<String, Object> attachment : attachments) {
                 if (attachment == null) {
                     continue;
@@ -57,10 +74,11 @@ public class AttachmentsValidator implements Validator {
                     return false; // No file name found
                 }
 
-                // Check if the file extension is PDF
+                // Check if the file extension is valid
                 String lowerCaseFileName = fileName.toLowerCase();
-                if (!lowerCaseFileName.endsWith(".pdf")) {
-                    return false; // Non-PDF file found
+                String fileExtension = getFileExtension(lowerCaseFileName);
+                if (fileExtension == null || !validFileExtensions.contains(fileExtension)) {
+                    return false; // Invalid file extension found
                 }
             }
 
@@ -70,6 +88,24 @@ public class AttachmentsValidator implements Validator {
         }
     }
 
+    /**
+     * Extracts the file extension from a filename.
+     * @param fileName the filename (should be lowercase)
+     * @return the file extension without the dot, or null if no extension found
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            return null;
+        }
+
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {
+            return null; // No extension or dot at the end
+        }
+
+        return fileName.substring(lastDotIndex + 1);
+    }
+
     @Override
     public String getFetchFieldName() {
         return "Attachments";
@@ -77,16 +113,16 @@ public class AttachmentsValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please attach only PDF files. Other file types are not allowed.";
+        return "Please attach files with valid extensions only. Supported formats: PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR.";
     }
 
     @Override
     public String getConfirmationStepMessage(String attachmentsStr, Map<ValidationResource, String> context) {
-        return String.format("The provided attachments contain non-PDF files: %s. Only PDF files are allowed for meeting attachments.", attachmentsStr);
+        return "Please attach files with valid extensions only. Supported formats: PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR.";
     }
 
     @Override
     public String getErrMessage(String attachmentsStr) {
-        return String.format("Invalid attachments: %s. Only PDF files are allowed.", attachmentsStr);
+        return String.format("Invalid attachments: %s. Only files with supported extensions are allowed (PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR).", attachmentsStr);
     }
 }
