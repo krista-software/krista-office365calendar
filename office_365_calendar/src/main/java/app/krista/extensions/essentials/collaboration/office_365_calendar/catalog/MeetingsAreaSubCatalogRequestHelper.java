@@ -227,7 +227,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterDeclineInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -294,7 +294,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetSchedules(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET SCHEDULES START ===");
         System.out.println("Input map: " + map);
 
@@ -479,7 +479,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetFreeSlots(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET FREE SLOTS START ===");
         System.out.println("Input map: " + map);
 
@@ -675,7 +675,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterForwardEvent(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -744,7 +744,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAcceptInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -811,7 +811,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterTentativeInvitation(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -878,7 +878,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterScheduleMeeting(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER SCHEDULE MEETING START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterScheduleMeeting");
         System.out.println("  → Input map: " + map);
@@ -1032,7 +1032,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAddAttendees(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER ADD ATTENDEES START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterAddAttendees");
         System.out.println("  → Input map: " + map);
@@ -1141,7 +1141,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterRemoveAttendee(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterRemoveAttendee");
         System.out.println("  → Input map: " + map);
@@ -1247,7 +1247,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterUpdateEvent(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER UPDATE EVENT START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterUpdateEvent");
         System.out.println("  → Input map: " + map);
@@ -1441,7 +1441,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetNextUpcomingMeetings(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Number of meeting: Number }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Number of meeting: Number }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterGetNextUpcomingMeetings");
         System.out.println("  → Input map: " + map);
@@ -1598,7 +1598,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterGetEventsForUser");
         System.out.println("  → Input map: " + map);
@@ -1699,7 +1699,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachmentsForUser(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterGetAttachmentsForUser");
         System.out.println("  → Input map: " + map);
@@ -1798,7 +1798,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap",
-            type = "{ Reenter: Boolean, stateId: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event ID: Text }", required = true) Map<String, Object> map) {
         System.out.println("=== CONFIRM REENTER GET ATTACHMENTS START ===");
         System.out.println("→ SubCatalogRequest: confirmReenterGetAttachments");
         System.out.println("  → Input map: " + map);

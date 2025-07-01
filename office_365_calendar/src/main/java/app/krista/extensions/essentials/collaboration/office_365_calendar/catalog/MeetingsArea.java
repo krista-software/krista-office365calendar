@@ -881,7 +881,6 @@ public final class MeetingsArea {
             } else {
                 System.out.println("Skipping date validation - dateFrom or dateTo is null");
             }
-
             // Validate time zone
             if (timeZone != null && !timeZone.trim().isEmpty()) {
                 System.out.println("Adding time zone validation parameter:");
