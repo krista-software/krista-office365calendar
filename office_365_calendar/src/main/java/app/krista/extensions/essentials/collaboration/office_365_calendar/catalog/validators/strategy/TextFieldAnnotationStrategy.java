@@ -144,6 +144,12 @@ public class TextFieldAnnotationStrategy implements FieldAnnotationStrategy {
             return Validator.ValidationResource.EVENT_ID;
         }
 
+        if("User Email".equals(fieldName)){
+            System.out.println("          → ✓ Matched specific field name 'User Email' → EMAIL");
+            return Validator.ValidationResource.EMAIL;
+        }
+        //
+
         // Default fallback
         System.out.println("          → ⚠ No mapping found for text field '" + fieldName + "' → null");
         return null;
