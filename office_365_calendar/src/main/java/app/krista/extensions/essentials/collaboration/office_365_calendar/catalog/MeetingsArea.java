@@ -1330,7 +1330,11 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get attachments operation
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+                System.out.println("  → Attachments retrieved successfully");
+                System.out.println("  → Number of attachments found: " + fileAttachments.size());
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+                System.out.println("  → Attachments converted to Krista File objects");
+                System.out.println("  → Number of Krista File objects: " + attachments.size());
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest

@@ -1837,7 +1837,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_ATTACHMENTS,
             description = "Handle re-entered event ID for getting attachments",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
     public ExtensionResponse handleReenterGetAttachments(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
         System.out.println("=== HANDLE REENTER GET ATTACHMENTS START ===");
@@ -1857,11 +1857,15 @@ public class MeetingsAreaSubCatalogRequestHelper {
             System.out.println("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
             // Get attachments
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
+            System.out.println("  → Attachments retrieved successfully");
+            System.out.println("  → Number of attachments found: " + fileAttachments.size());
             List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
+            System.out.println("  → Attachments converted to Krista File objects");
+            System.out.println("  → Number of Krista File objects: " + attachments.size());
 
             System.out.println("  → Attachments retrieved successfully");
             System.out.println("  → Number of attachments found: " + attachments.size());
-            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Attachments", attachments)).build();
             System.out.println("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetAttachments success");
             System.out.println("=== HANDLE REENTER GET ATTACHMENTS SUCCESS END ===");

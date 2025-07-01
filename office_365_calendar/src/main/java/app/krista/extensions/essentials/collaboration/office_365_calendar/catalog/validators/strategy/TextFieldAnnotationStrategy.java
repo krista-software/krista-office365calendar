@@ -139,6 +139,11 @@ public class TextFieldAnnotationStrategy implements FieldAnnotationStrategy {
             return Validator.ValidationResource.TIME_ZONE;
         }
 
+        if ("Event ID".equals(fieldName) || "Event Id".equals(fieldName) || "EventId".equals(fieldName)) {
+            System.out.println("          → ✓ Matched specific field name 'Event ID' → EVENT_ID");
+            return Validator.ValidationResource.EVENT_ID;
+        }
+
         // Default fallback
         System.out.println("          → ⚠ No mapping found for text field '" + fieldName + "' → null");
         return null;
