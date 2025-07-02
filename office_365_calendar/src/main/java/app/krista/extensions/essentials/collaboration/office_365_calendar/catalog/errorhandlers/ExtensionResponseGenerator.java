@@ -54,9 +54,24 @@ public class ExtensionResponseGenerator {
      * @return an {@link ExtensionResponse} prompting the user for confirmation or correction
      */
     public ExtensionResponse generateConfirmationResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
+        LOGGER.info("→ Generating confirmation response for {} validation results", validationResults.size());
+        LOGGER.debug("→ Exception type: {}, SubCatalogRequest: {}", exceptionType, subCatalogRequestName);
+
         List<NamedField> fields = List.of(NamedFieldFactory.createSwitchField(Constants.RE_ENTER));
+        LOGGER.debug("→ Created switch field for re-entry confirmation");
+
         Map<String, Object> validationResponse = generateResponse(validationResults, false);
-        return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error((String) validationResponse.get(ERROR_MESSAGE), exceptionType).remediationActions(List.of(RemediationActionFactory.createAskAction((String) validationResponse.get(STEP_MESSAGE), fields)), subCatalogRequestName).state(state).build();
+        LOGGER.debug("→ Generated validation response with confirmation messages");
+
+        ExtensionResponse response = new ExtensionResponseBuilder()
+                .result(ExtensionResponse.Result.FAILURE)
+                .error((String) validationResponse.get(ERROR_MESSAGE), exceptionType)
+                .remediationActions(List.of(RemediationActionFactory.createAskAction((String) validationResponse.get(STEP_MESSAGE), fields)), subCatalogRequestName)
+                .state(state)
+                .build();
+
+        LOGGER.info("→ Confirmation response generated successfully");
+        return response;
     }
 
     /**
@@ -68,20 +83,32 @@ public class ExtensionResponseGenerator {
      * @return a map containing step message, error message, and optionally fields for further input
      */
     private Map<String, Object> generateResponse(List<ValidationOrchestrator.ValidationResult> validationResults, boolean fetchResponse) {
+        LOGGER.debug("→ Generating response for {} validation results, fetchResponse={}", validationResults.size(), fetchResponse);
+
         StringBuilder stepMessage = new StringBuilder();
         StringBuilder errMessage = new StringBuilder();
         List<NamedField> fields = new ArrayList<>();
+
         for (ValidationOrchestrator.ValidationResult validationResult : validationResults) {
-            stepMessage.append(!fetchResponse ? validationResult.confirmStepMessage() : validationResult.fetchStepMessage()).append("\n");
+            String currentStepMessage = !fetchResponse ? validationResult.confirmStepMessage() : validationResult.fetchStepMessage();
+            stepMessage.append(currentStepMessage).append("\n");
             errMessage.append(validationResult.errMessage()).append("\n");
+
+            LOGGER.debug("→ Processing validation result: fieldName={}, stepMessage={}, errorMessage={}",
+                    validationResult.fetchFieldName(), currentStepMessage, validationResult.errMessage());
+
             if (fetchResponse) {
                 // Use the field type and attributes from ValidationResult to create the appropriate field
                 String fieldType = validationResult.fieldType();
                 Map<String, Object> fieldAttributes = validationResult.fieldAttributes();
-                System.out.println("Creating field: name=" + validationResult.fetchFieldName() + ", type=" + fieldType + ", attributes=" + fieldAttributes);
+                LOGGER.debug("→ Creating field: name={}, type={}, attributes={}", validationResult.fetchFieldName(), fieldType, fieldAttributes);
                 fields.add(NamedFieldFactory.createFieldWithAttributes(validationResult.fetchFieldName(), fieldType, fieldAttributes));
             }
         }
+
+        LOGGER.debug("→ Generated response: stepMessage length={}, errorMessage length={}, fields count={}",
+                stepMessage.length(), errMessage.length(), fields.size());
+
         return Map.of(STEP_MESSAGE, stepMessage.toString(), ERROR_MESSAGE, errMessage.toString(), FIELD, fields);
     }
 
@@ -99,9 +126,21 @@ public class ExtensionResponseGenerator {
      */
     @SuppressWarnings("unchecked")
     public ExtensionResponse generateFetchResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
-        LOGGER.info("Validation failed for : {}", validationResults.size());
+        LOGGER.info("→ Generating fetch response for {} validation failures", validationResults.size());
+        LOGGER.debug("→ Exception type: {}, SubCatalogRequest: {}", exceptionType, subCatalogRequestName);
+
         Map<String, Object> stringStringMap = generateResponse(validationResults, true);
-        return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error((String) stringStringMap.get(ERROR_MESSAGE), exceptionType).remediationActions(List.of(RemediationActionFactory.createAskAction((String) stringStringMap.get(STEP_MESSAGE), (List<NamedField>) stringStringMap.get(FIELD))), subCatalogRequestName).state(state).build();
+        LOGGER.debug("→ Generated validation response with fetch fields");
+
+        ExtensionResponse response = new ExtensionResponseBuilder()
+                .result(ExtensionResponse.Result.FAILURE)
+                .error((String) stringStringMap.get(ERROR_MESSAGE), exceptionType)
+                .remediationActions(List.of(RemediationActionFactory.createAskAction((String) stringStringMap.get(STEP_MESSAGE), (List<NamedField>) stringStringMap.get(FIELD))), subCatalogRequestName)
+                .state(state)
+                .build();
+
+        LOGGER.info("→ Fetch response generated successfully");
+        return response;
     }
 
     /**

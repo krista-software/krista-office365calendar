@@ -56,10 +56,12 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @Inject
     public MeetingsAreaSubCatalogRequestHelper(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ErrorHandlingStateManager internalStateManager, ExtensionResponseGenerator responseGenerator) {
+        LOGGER.info("Initializing MeetingsAreaSubCatalogRequestHelper with dependencies");
         this.meetingDao = meetingDao;
         this.catalogTypes = catalogTypes;
         this.internalStateManager = internalStateManager;
         this.responseGenerator = responseGenerator;
+        LOGGER.info("MeetingsAreaSubCatalogRequestHelper initialized successfully");
     }
 
     /**
@@ -71,17 +73,29 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = "confirmReenterGetAttachmentsForAGivenUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
     public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, Event Id: Text}") Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterGetAttachmentsForAGivenUser: Starting confirmation for re-entering attachment details");
+        LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: Input map: {}", map);
+
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: Extracted values - reEnter: {}, stateId: {}", reEnter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reEnter)) {
+            LOGGER.warn("→ confirmReenterGetAttachmentsForAGivenUser: User declined to re-enter, returning failure response");
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
-
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, Map.of(Constants.EMAIL, map.get(Constants.EMAIL), Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+
+        LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, Map.of(Constants.EMAIL, map.get(Constants.EMAIL), Constants.EVENT_ID, map.get(Constants.EVENT_ID)));
+        LOGGER.info("→ confirmReenterGetAttachmentsForAGivenUser: Successfully generated fetch response");
+        return response;
     }
 
     /**
@@ -93,13 +107,26 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, Event Id: Text}") Map<String, Object> map) {
+        LOGGER.info("→ handleReEnterGetAttachmentForGivenUser: Starting attachment retrieval for given user");
+        LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Input map: {}", map);
+
         try {
             String userEmail = (String) map.get(Constants.EMAIL);
             String eventID = (String) map.get(Constants.EVENT_ID);
+            LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Extracted parameters - userEmail: {}, eventID: {}", userEmail, eventID);
+
+            LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Calling meetingDao.getAttachmentsForGivenUser...");
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForGivenUser(userEmail, eventID);
+            LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Retrieved {} file attachments", fileAttachments != null ? fileAttachments.size() : 0);
+
             List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
-            return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Converted to {} Krista files", attachments != null ? attachments.size() : 0);
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
+            LOGGER.info("→ handleReEnterGetAttachmentForGivenUser: Successfully retrieved attachments");
+            return response;
         } catch (Exception cause) {
+            LOGGER.error("→ handleReEnterGetAttachmentForGivenUser: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
@@ -118,16 +145,29 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = "confirmReenterCancelEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
     public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterCancelEvent: Starting confirmation for re-entering cancel event details");
+        LOGGER.debug("→ confirmReenterCancelEvent: Input map: {}", map);
+
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterCancelEvent: Extracted values - reEnter: {}, stateId: {}", reEnter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterCancelEvent: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterCancelEvent: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reEnter)) {
+            LOGGER.warn("→ confirmReenterCancelEvent: User declined to re-enter, returning failure response");
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_CANCEL_EVENT_VALIDATION, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> cancelEvent ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_CANCEL_EVENT, map);
+
+        LOGGER.debug("→ confirmReenterCancelEvent: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_CANCEL_EVENT, map);
+        LOGGER.info("→ confirmReenterCancelEvent: Successfully generated fetch response");
+        return response;
     }
 
 
@@ -140,16 +180,29 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = "confirmReenterGetUpcomingMeetings", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
     public ExtensionResponse confirmReenterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, numberOfMeetings: Number}") Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterGetUpcomingMeetings: Starting confirmation for re-entering upcoming meetings details");
+        LOGGER.debug("→ confirmReenterGetUpcomingMeetings: Input map: {}", map);
+
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterGetUpcomingMeetings: Extracted values - reEnter: {}, stateId: {}", reEnter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterGetUpcomingMeetings: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterGetUpcomingMeetings: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reEnter)) {
+            LOGGER.warn("→ confirmReenterGetUpcomingMeetings: User declined to re-enter, returning failure response");
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getNextUpcomingMeetings ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, map);
+
+        LOGGER.debug("→ confirmReenterGetUpcomingMeetings: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, map);
+        LOGGER.info("→ confirmReenterGetUpcomingMeetings: Successfully generated fetch response");
+        return response;
     }
 
     /**
@@ -161,22 +214,39 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, description = "Handle re-enter number of meetings", type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse handleReEnterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{numberOfMeetings: Number}") Map<String, Object> map) {
+        LOGGER.info("→ handleReEnterGetUpcomingMeetings: Starting upcoming meetings retrieval");
+        LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Input map: {}", map);
+
         try {
             Object numberOfMeetingsObj = map.get(Constants.NUMBER_OF_MEETINGS);
+            LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Raw numberOfMeetings object: {} (type: {})", numberOfMeetingsObj, numberOfMeetingsObj != null ? numberOfMeetingsObj.getClass().getSimpleName() : "null");
+
             Double numberOfMeetings = null;
 
             if (numberOfMeetingsObj instanceof Number) {
                 numberOfMeetings = ((Number) numberOfMeetingsObj).doubleValue();
+                LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Converted numberOfMeetings: {}", numberOfMeetings);
+            } else {
+                LOGGER.debug("→ handleReEnterGetUpcomingMeetings: numberOfMeetingsObj is not a Number, keeping as null");
             }
 
             if (numberOfMeetings == null || numberOfMeetings <= 0) {
+                LOGGER.warn("→ handleReEnterGetUpcomingMeetings: Invalid numberOfMeetings: {}", numberOfMeetings);
                 throw new IllegalArgumentException(Constants.NUMBER_OF_MEETINGS_SHOULD_BE_GREATER_THAN_0);
             }
 
+            LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Calling meetingDao.getMeetings with count: {}", numberOfMeetings.intValue());
             List<Meeting> meetings = meetingDao.getMeetings(numberOfMeetings.intValue());
+            LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Retrieved {} meetings", meetings != null ? meetings.size() : 0);
+
             List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
-            return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+            LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Converted to {} event details", events.size());
+
+            ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
+            LOGGER.info("→ handleReEnterGetUpcomingMeetings: Successfully retrieved upcoming meetings");
+            return response;
         } catch (Exception cause) {
+            LOGGER.error("→ handleReEnterGetUpcomingMeetings: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getNextUpcomingMeetings ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
@@ -191,18 +261,29 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @SubCatalogRequest(name = Constants.CONFIRM_REENTER_GET_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
     public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event ID: Text}") Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterGetEvent: Starting confirmation for re-entering get event details");
+        LOGGER.debug("→ confirmReenterGetEvent: Input map: {}", map);
+
         Boolean reEnter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterGetEvent: Extracted values - reEnter: {}, stateId: {}", reEnter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterGetEvent: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("Validation Result Inside confirmReenterGetEvent: ");
-        Print.prettyPrint(validationResults);
+        LOGGER.debug("→ confirmReenterGetEvent: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reEnter)) {
+            LOGGER.warn("→ confirmReenterGetEvent: User declined to re-enter, returning failure response");
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getEvent ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_REENTER_GET_EVENT, map);
+
+        LOGGER.debug("→ confirmReenterGetEvent: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults, Constants.HANDLE_REENTER_GET_EVENT, map);
+        LOGGER.info("→ confirmReenterGetEvent: Successfully generated fetch response");
+        return response;
     }
 
 
@@ -295,30 +376,28 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetSchedules(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET SCHEDULES START ===");
-        System.out.println("Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET SCHEDULES START");
+        LOGGER.info("→ Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("Extracted values:");
-        System.out.println("  reenter: " + reenter);
-        System.out.println("  stateId: " + stateId);
+        LOGGER.debug("→ Extracted values: reenter={}, stateId={}", reenter, stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("Retrieved state: " + state);
+        LOGGER.debug("→ Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("Validation results: " + validationResults);
+        LOGGER.debug("→ Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("User declined to reenter, generating deny response");
+            LOGGER.debug("→ User declined to reenter, generating deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET SCHEDULES DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET SCHEDULES DENY END");
             return response;
         }
 
-        System.out.println("User accepted to reenter, preparing fetch response");
+        LOGGER.debug("→ User accepted to reenter, preparing fetch response");
         LOGGER.info("Reenter was true. Hence continuing.");
 
         Object dateFromObj = map.get(Constants.FROM_DATE);
@@ -326,11 +405,11 @@ public class MeetingsAreaSubCatalogRequestHelper {
         Object attendeesObj = map.get(Constants.ATTENDEES);
         Object timeZoneObj = map.get(Constants.TIME_ZONE);
 
-        System.out.println("Raw values from map:");
-        System.out.println("  FROM_DATE: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  TO_DATE: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  ATTENDEES: " + attendeesObj + " (type: " + (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  TIME_ZONE: " + timeZoneObj + " (type: " + (timeZoneObj != null ? timeZoneObj.getClass().getSimpleName() : "null") + ")");
+        LOGGER.debug("→ Raw values from map: FROM_DATE={} (type: {}), TO_DATE={} (type: {}), ATTENDEES={} (type: {}), TIME_ZONE={} (type: {})",
+                dateFromObj, (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null"),
+                dateToObj, (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null"),
+                attendeesObj, (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null"),
+                timeZoneObj, (timeZoneObj != null ? timeZoneObj.getClass().getSimpleName() : "null"));
 
         Map<String, Object> fetchParams = Map.of(
                 Constants.STATE_ID, stateId,
@@ -339,11 +418,11 @@ public class MeetingsAreaSubCatalogRequestHelper {
                 Constants.ATTENDEES, attendeesObj != null ? attendeesObj : List.of(),
                 Constants.TIME_ZONE, timeZoneObj != null ? timeZoneObj : "");
 
-        System.out.println("Fetch parameters: " + fetchParams);
+        LOGGER.debug("→ Fetch parameters: {}", fetchParams);
 
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_SCHEDULES, fetchParams);
-        System.out.println("=== CONFIRM REENTER GET SCHEDULES ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET SCHEDULES ACCEPT END");
         return response;
     }
 
@@ -360,9 +439,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
     public ExtensionResponse handleReenterGetSchedules(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET SCHEDULES START ===");
-        System.out.println("Input map: " + map);
-        LOGGER.info("SubCatalogRequest handleReenterGetSchedules start: {}", map);
+        LOGGER.info("→ HANDLE REENTER GET SCHEDULES START");
+        LOGGER.info("→ Input map: {}", map);
 
         // Extract parameters from the map
         Object dateFromObj = map.get(Constants.FROM_DATE);
@@ -370,11 +448,11 @@ public class MeetingsAreaSubCatalogRequestHelper {
         Object attendeesObj = map.get(Constants.ATTENDEES);
         String timeZone = (String) map.get(Constants.TIME_ZONE);
 
-        System.out.println("Extracted raw objects:");
-        System.out.println("  dateFromObj: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  dateToObj: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  attendeesObj: " + attendeesObj + " (type: " + (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null") + ")");
-        System.out.println("  timeZone: " + timeZone);
+        LOGGER.debug("→ Extracted raw objects: dateFromObj={} (type: {}), dateToObj={} (type: {}), attendeesObj={} (type: {}), timeZone={}",
+                dateFromObj, (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null"),
+                dateToObj, (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null"),
+                attendeesObj, (attendeesObj != null ? attendeesObj.getClass().getSimpleName() : "null"),
+                timeZone);
 
         try {
             Long dateFrom = null;
@@ -384,50 +462,43 @@ public class MeetingsAreaSubCatalogRequestHelper {
             // Handle dateFrom conversion
             if (dateFromObj instanceof Number) {
                 dateFrom = ((Number) dateFromObj).longValue();
-                System.out.println("Converted dateFrom: " + dateFrom);
+                LOGGER.debug("→ Converted dateFrom: {}", dateFrom);
             } else {
-                System.out.println("dateFromObj is not a Number, keeping as null");
+                LOGGER.debug("→ dateFromObj is not a Number, keeping as null");
             }
 
             // Handle dateTo conversion
             if (dateToObj instanceof Number) {
                 dateTo = ((Number) dateToObj).longValue();
-                System.out.println("Converted dateTo: " + dateTo);
+                LOGGER.debug("→ Converted dateTo: {}", dateTo);
             } else {
-                System.out.println("dateToObj is not a Number, keeping as null");
+                LOGGER.debug("→ dateToObj is not a Number, keeping as null");
             }
 
             // Handle attendees conversion
             if (attendeesObj instanceof List) {
                 attendees = (List<String>) attendeesObj;
-                System.out.println("Converted attendees: " + attendees);
+                LOGGER.debug("→ Converted attendees: {}", attendees);
             } else {
-                System.out.println("attendeesObj is not a List, keeping as null");
+                LOGGER.debug("→ attendeesObj is not a List, keeping as null");
             }
 
-            System.out.println("Final parameters for meetingDao.getSchedules:");
-            System.out.println("  dateFrom: " + dateFrom);
-            System.out.println("  dateTo: " + dateTo);
-            System.out.println("  attendees: " + attendees);
-            System.out.println("  timeZone: " + timeZone);
+            LOGGER.debug("→ Final parameters for meetingDao.getSchedules: dateFrom={}, dateTo={}, attendees={}, timeZone={}",
+                    dateFrom, dateTo, attendees, timeZone);
 
             // Perform the get schedules operation
-            System.out.println("Calling meetingDao.getSchedules...");
+            LOGGER.debug("→ Calling meetingDao.getSchedules...");
             List<Map<String, Object>> schedules = meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
-            System.out.println("Retrieved schedules: " + (schedules != null ? schedules.size() + " items" : "null"));
+            LOGGER.info("→ Retrieved schedules: {}", (schedules != null ? schedules.size() + " items" : "null"));
             if (schedules != null && !schedules.isEmpty()) {
-                System.out.println("First schedule item: " + schedules.get(0));
+                LOGGER.debug("→ First schedule item: {}", schedules.get(0));
             }
 
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Meetings", schedules)).build();
-            System.out.println("=== HANDLE REENTER GET SCHEDULES SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET SCHEDULES SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET SCHEDULES EXCEPTION ===");
-            System.out.println("Exception: " + cause.getClass().getSimpleName());
-            System.out.println("Message: " + cause.getMessage());
-            cause.printStackTrace();
-            LOGGER.error("Error occurred in handleReenterGetSchedules: {}", cause.getMessage());
+            LOGGER.error("→ HANDLE REENTER GET SCHEDULES EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_SCHEDULES_VALIDATION + cause.getMessage(),
                     System.currentTimeMillis(),
@@ -435,33 +506,33 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("=== HANDLE REENTER GET SCHEDULES EXCEPTION END ===");
+            LOGGER.error("→ HANDLE REENTER GET SCHEDULES EXCEPTION END");
             return response;
         }
     }
 
     @NotNull
     private static List<ValidationOrchestrator.ValidationResult> getValidationResults(Map<String, Object> state) {
-        System.out.println("=== GET VALIDATION RESULTS START ===");
-        System.out.println("State: " + state);
+        LOGGER.debug("→ GET VALIDATION RESULTS START");
+        LOGGER.debug("→ State: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = new ArrayList<>();
         List<?> results = (List<?>) state.get(Constants.VALIDATION_RESULTS);
-        System.out.println("Raw validation results from state: " + results);
+        LOGGER.debug("→ Raw validation results from state: {}", results);
 
         if (results != null) {
             for (Object item : results) {
-                System.out.println("Processing validation result item: " + item + " (type: " + (item != null ? item.getClass().getSimpleName() : "null") + ")");
+                LOGGER.debug("→ Processing validation result item: {} (type: {})", item, (item != null ? item.getClass().getSimpleName() : "null"));
                 ValidationOrchestrator.ValidationResult validationResult = Constants.GSON.fromJson(Constants.GSON.toJson(item), ValidationOrchestrator.ValidationResult.class);
-                System.out.println("Converted validation result: " + validationResult);
+                LOGGER.debug("→ Converted validation result: {}", validationResult);
                 validationResults.add(validationResult);
             }
         } else {
-            System.out.println("No validation results found in state");
+            LOGGER.debug("→ No validation results found in state");
         }
 
-        System.out.println("Final validation results: " + validationResults);
-        System.out.println("=== GET VALIDATION RESULTS END ===");
+        LOGGER.debug("→ Final validation results: {}", validationResults);
+        LOGGER.debug("→ GET VALIDATION RESULTS END");
         return validationResults;
     }
 
@@ -480,30 +551,28 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetFreeSlots(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET FREE SLOTS START ===");
-        System.out.println("Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET FREE SLOTS START");
+        LOGGER.info("→ Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("Extracted values:");
-        System.out.println("  reenter: " + reenter);
-        System.out.println("  stateId: " + stateId);
+        LOGGER.debug("→ Extracted values: reenter={}, stateId={}", reenter, stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("Retrieved state: " + state);
+        LOGGER.debug("→ Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("Validation results: " + validationResults);
+        LOGGER.debug("→ Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("User declined to reenter, generating deny response");
+            LOGGER.debug("→ User declined to reenter, generating deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET FREE SLOTS DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET FREE SLOTS DENY END");
             return response;
         }
 
-        System.out.println("User accepted to reenter, generating fetch response");
+        LOGGER.debug("→ User accepted to reenter, generating fetch response");
 
         // Extract parameters for the fetch response
         Object dateFromObj = map.get(Constants.FROM_DATE);
@@ -514,14 +583,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
         Object timeZoneObj = map.get(Constants.TIME_ZONE);
         Object meetingDurationObj = map.get(Constants.MEETING_DURATION);
 
-        System.out.println("Extracted parameters:");
-        System.out.println("  dateFromObj: " + dateFromObj);
-        System.out.println("  dateToObj: " + dateToObj);
-        System.out.println("  isOrganizerOptionalObj: " + isOrganizerOptionalObj);
-        System.out.println("  requiredAttendeeObj: " + requiredAttendeeObj);
-        System.out.println("  optionalAttendeeObj: " + optionalAttendeeObj);
-        System.out.println("  timeZoneObj: " + timeZoneObj);
-        System.out.println("  meetingDurationObj: " + meetingDurationObj);
+        LOGGER.debug("→ Extracted parameters: dateFromObj={}, dateToObj={}, isOrganizerOptionalObj={}, requiredAttendeeObj={}, optionalAttendeeObj={}, timeZoneObj={}, meetingDurationObj={}",
+                dateFromObj, dateToObj, isOrganizerOptionalObj, requiredAttendeeObj, optionalAttendeeObj, timeZoneObj, meetingDurationObj);
 
         Map<String, Object> fetchParams = Map.of(
                 Constants.STATE_ID, stateId,
@@ -533,11 +596,11 @@ public class MeetingsAreaSubCatalogRequestHelper {
                 Constants.TIME_ZONE, timeZoneObj != null ? timeZoneObj : "",
                 Constants.MEETING_DURATION, meetingDurationObj != null ? meetingDurationObj : "");
 
-        System.out.println("Fetch parameters: " + fetchParams);
+        LOGGER.debug("→ Fetch parameters: {}", fetchParams);
 
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_FREE_SLOTS, fetchParams);
-        System.out.println("=== CONFIRM REENTER GET FREE SLOTS ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET FREE SLOTS ACCEPT END");
         return response;
     }
 
@@ -554,8 +617,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
     public ExtensionResponse handleReenterGetFreeSlots(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET FREE SLOTS START ===");
-        System.out.println("Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET FREE SLOTS START");
+        LOGGER.info("→ Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetFreeSlots start: {}", map);
 
         try {
@@ -568,14 +631,14 @@ public class MeetingsAreaSubCatalogRequestHelper {
             String timeZone = (String) map.get(Constants.TIME_ZONE);
             String meetingDuration = (String) map.get(Constants.MEETING_DURATION);
 
-            System.out.println("Extracted raw parameters:");
-            System.out.println("  dateFromObj: " + dateFromObj + " (type: " + (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null") + ")");
-            System.out.println("  dateToObj: " + dateToObj + " (type: " + (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null") + ")");
-            System.out.println("  isOrganizerOptionalObj: " + isOrganizerOptionalObj + " (type: " + (isOrganizerOptionalObj != null ? isOrganizerOptionalObj.getClass().getSimpleName() : "null") + ")");
-            System.out.println("  requiredAttendeeObj: " + requiredAttendeeObj + " (type: " + (requiredAttendeeObj != null ? requiredAttendeeObj.getClass().getSimpleName() : "null") + ")");
-            System.out.println("  optionalAttendeeObj: " + optionalAttendeeObj + " (type: " + (optionalAttendeeObj != null ? optionalAttendeeObj.getClass().getSimpleName() : "null") + ")");
-            System.out.println("  timeZone: " + timeZone);
-            System.out.println("  meetingDuration: " + meetingDuration);
+            LOGGER.debug("Extracted raw parameters:");
+            LOGGER.debug("  dateFromObj: {} (type: {})", dateFromObj, (dateFromObj != null ? dateFromObj.getClass().getSimpleName() : "null"));
+            LOGGER.debug("  dateToObj: {} (type: {})", dateToObj, (dateToObj != null ? dateToObj.getClass().getSimpleName() : "null"));
+            LOGGER.debug("  isOrganizerOptionalObj: {} (type: {})", isOrganizerOptionalObj, (isOrganizerOptionalObj != null ? isOrganizerOptionalObj.getClass().getSimpleName() : "null"));
+            LOGGER.debug("  requiredAttendeeObj: {} (type: {})", requiredAttendeeObj, (requiredAttendeeObj != null ? requiredAttendeeObj.getClass().getSimpleName() : "null"));
+            LOGGER.debug("  optionalAttendeeObj: {} (type: {})", optionalAttendeeObj, (optionalAttendeeObj != null ? optionalAttendeeObj.getClass().getSimpleName() : "null"));
+            LOGGER.debug("  timeZone: " + timeZone);
+            LOGGER.debug("  meetingDuration: " + meetingDuration);
 
             // Convert parameters to appropriate types
             Long dateFrom = null;
@@ -587,67 +650,67 @@ public class MeetingsAreaSubCatalogRequestHelper {
             // Handle date conversion
             if (dateFromObj instanceof Number) {
                 dateFrom = ((Number) dateFromObj).longValue();
-                System.out.println("Converted dateFrom: " + dateFrom);
+                LOGGER.debug("Converted dateFrom: " + dateFrom);
             } else {
-                System.out.println("dateFromObj is not a Number, keeping as null");
+                LOGGER.debug("dateFromObj is not a Number, keeping as null");
             }
 
             if (dateToObj instanceof Number) {
                 dateTo = ((Number) dateToObj).longValue();
-                System.out.println("Converted dateTo: " + dateTo);
+                LOGGER.debug("Converted dateTo: " + dateTo);
             } else {
-                System.out.println("dateToObj is not a Number, keeping as null");
+                LOGGER.debug("dateToObj is not a Number, keeping as null");
             }
 
             // Handle boolean conversion
             if (isOrganizerOptionalObj instanceof Boolean) {
                 isOrganizerOptional = (Boolean) isOrganizerOptionalObj;
-                System.out.println("Converted isOrganizerOptional: " + isOrganizerOptional);
+                LOGGER.debug("Converted isOrganizerOptional: " + isOrganizerOptional);
             } else {
-                System.out.println("isOrganizerOptionalObj is not a Boolean, keeping as null");
+                LOGGER.debug("isOrganizerOptionalObj is not a Boolean, keeping as null");
             }
 
             // Handle list conversion for required attendees
             if (requiredAttendeeObj instanceof List) {
                 requiredAttendee = (List<String>) requiredAttendeeObj;
-                System.out.println("Converted requiredAttendee: " + requiredAttendee);
+                LOGGER.debug("Converted requiredAttendee: " + requiredAttendee);
             } else {
-                System.out.println("requiredAttendeeObj is not a List, keeping as null");
+                LOGGER.debug("requiredAttendeeObj is not a List, keeping as null");
             }
 
             // Handle list conversion for optional attendees
             if (optionalAttendeeObj instanceof List) {
                 optionalAttendee = (List<String>) optionalAttendeeObj;
-                System.out.println("Converted optionalAttendee: " + optionalAttendee);
+                LOGGER.debug("Converted optionalAttendee: " + optionalAttendee);
             } else {
-                System.out.println("optionalAttendeeObj is not a List, keeping as null");
+                LOGGER.debug("optionalAttendeeObj is not a List, keeping as null");
             }
 
-            System.out.println("Final parameters for meetingDao.getFreeSlot:");
-            System.out.println("  dateFrom: " + dateFrom);
-            System.out.println("  dateTo: " + dateTo);
-            System.out.println("  isOrganizerOptional: " + isOrganizerOptional);
-            System.out.println("  requiredAttendee: " + requiredAttendee);
-            System.out.println("  optionalAttendee: " + optionalAttendee);
-            System.out.println("  timeZone: " + timeZone);
-            System.out.println("  meetingDuration: " + meetingDuration);
+            LOGGER.debug("Final parameters for meetingDao.getFreeSlot:");
+            LOGGER.debug("  dateFrom: " + dateFrom);
+            LOGGER.debug("  dateTo: " + dateTo);
+            LOGGER.debug("  isOrganizerOptional: " + isOrganizerOptional);
+            LOGGER.debug("  requiredAttendee: " + requiredAttendee);
+            LOGGER.debug("  optionalAttendee: " + optionalAttendee);
+            LOGGER.debug("  timeZone: " + timeZone);
+            LOGGER.debug("  meetingDuration: " + meetingDuration);
 
             // Perform the get free slots operation
-            System.out.println("Calling meetingDao.getFreeSlot...");
+            LOGGER.debug("Calling meetingDao.getFreeSlot...");
             List<Map<String, Object>> freeSlots = meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
-            System.out.println("Retrieved free slots: " + (freeSlots != null ? freeSlots.size() + " items" : "null"));
+            LOGGER.info("Retrieved free slots: {}", (freeSlots != null ? freeSlots.size() + " items" : "null"));
             if (freeSlots != null && !freeSlots.isEmpty()) {
-                System.out.println("First free slot item: " + freeSlots.get(0));
+                LOGGER.debug("First free slot item: {}", freeSlots.get(0));
             }
 
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Free Slots", freeSlots)).build();
-            System.out.println("=== HANDLE REENTER GET FREE SLOTS SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET FREE SLOTS SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET FREE SLOTS EXCEPTION ===");
-            System.out.println("Exception: " + cause.getClass().getSimpleName());
-            System.out.println("Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET FREE SLOTS EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetFreeSlots: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_FREE_SLOTS_VALIDATION + cause.getMessage(),
@@ -656,7 +719,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("=== HANDLE REENTER GET FREE SLOTS EXCEPTION END ===");
+            LOGGER.info("→ HANDLE REENTER GET FREE SLOTS EXCEPTION END");
             return response;
         }
     }
@@ -676,18 +739,30 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterForwardEvent(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterForwardEvent: Starting confirmation for re-entering forward event details");
+        LOGGER.debug("→ confirmReenterForwardEvent: Input map: {}", map);
+
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterForwardEvent: Extracted values - reenter: {}, stateId: {}", reenter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterForwardEvent: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterForwardEvent: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
+            LOGGER.warn("→ confirmReenterForwardEvent: User declined to re-enter, returning deny response");
             return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
         }
 
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+        LOGGER.debug("→ confirmReenterForwardEvent: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_FORWARD_EVENT, map);
+        LOGGER.info("→ confirmReenterForwardEvent: Successfully generated fetch response");
+        return response;
     }
 
     /**
@@ -745,18 +820,30 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAcceptInvitation(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterAcceptInvitation: Starting confirmation for re-entering accept invitation details");
+        LOGGER.debug("→ confirmReenterAcceptInvitation: Input map: {}", map);
+
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterAcceptInvitation: Extracted values - reenter: {}, stateId: {}", reenter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterAcceptInvitation: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterAcceptInvitation: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
+            LOGGER.warn("→ confirmReenterAcceptInvitation: User declined to re-enter, returning deny response");
             return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
         }
 
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+        LOGGER.debug("→ confirmReenterAcceptInvitation: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_ACCEPT_INVITATION, map);
+        LOGGER.info("→ confirmReenterAcceptInvitation: Successfully generated fetch response");
+        return response;
     }
 
     /**
@@ -812,18 +899,30 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterTentativeInvitation(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+        LOGGER.info("→ confirmReenterTentativeInvitation: Starting confirmation for re-entering tentative invitation details");
+        LOGGER.debug("→ confirmReenterTentativeInvitation: Input map: {}", map);
+
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
+        LOGGER.debug("→ confirmReenterTentativeInvitation: Extracted values - reenter: {}, stateId: {}", reenter, stateId);
+
         Map<String, Object> state = internalStateManager.get(stateId);
+        LOGGER.debug("→ confirmReenterTentativeInvitation: Retrieved state: {}", state);
+
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
+        LOGGER.debug("→ confirmReenterTentativeInvitation: Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
+            LOGGER.warn("→ confirmReenterTentativeInvitation: User declined to re-enter, returning deny response");
             return responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
         }
 
-        return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
+        LOGGER.debug("→ confirmReenterTentativeInvitation: User accepted to re-enter, generating fetch response");
+        ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_TENTATIVE_INVITATION, map);
+        LOGGER.info("→ confirmReenterTentativeInvitation: Successfully generated fetch response");
+        return response;
     }
 
     /**
@@ -879,36 +978,36 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterScheduleMeeting(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER SCHEDULE MEETING START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterScheduleMeeting");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER SCHEDULE MEETING START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterScheduleMeeting");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
-        System.out.println("Validation Result Inside confirmReenterScheduleMeeting: ");
-        Print.prettyPrint(validationResults);
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("Validation Result Inside confirmReenterScheduleMeeting: ");
+        LOGGER.debug("Validation results: {}", validationResults);
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER SCHEDULE MEETING DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER SCHEDULE MEETING DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_SCHEDULE_MEETING);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_SCHEDULE_MEETING);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_SCHEDULE_MEETING, map);
-        System.out.println("=== CONFIRM REENTER SCHEDULE MEETING ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER SCHEDULE MEETING ACCEPT END");
         return response;
     }
 
@@ -925,13 +1024,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterScheduleMeeting(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER SCHEDULE MEETING START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterScheduleMeeting");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterScheduleMeeting");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterScheduleMeeting start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             // Extract all parameters from the map
             String title = (String) map.get(Constants.TITLE);
             String location = (String) map.get(Constants.LOCATION);
@@ -961,49 +1060,49 @@ public class MeetingsAreaSubCatalogRequestHelper {
             String details = (String) map.get(Constants.DETAILS);
             Boolean isTeamsMeeting = (Boolean) map.get(Constants.IS_TEAMS_MEETING);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Title: " + title);
-            System.out.println("    → Location: " + location);
-            System.out.println("    → Date From: " + dateFrom);
-            System.out.println("    → Date To: " + dateTo);
-            System.out.println("    → Required Attendee Email: " + requiredAttendeeEmail);
-            System.out.println("    → Optional Attendee Email: " + optionalAttendeeEmail);
-            System.out.println("    → Is All Day: " + isAllDay);
-            System.out.println("    → Time Zone: " + timeZone);
-            System.out.println("    → Reminder: " + reminder);
-            System.out.println("    → Recurrence: " + recurrence);
-            System.out.println("    → Recurrence Interval: " + recurrenceInterval);
-            System.out.println("    → Days Of Week: " + daysOfWeek);
-            System.out.println("    → Recurrence Type: " + recurrenceType);
-            System.out.println("    → Day Of Month: " + dayOfMonth);
-            System.out.println("    → Repeat Index: " + repeatIndex);
-            System.out.println("    → Repeat Day: " + repeatDay);
-            System.out.println("    → Repeat Month: " + repeatMonth);
-            System.out.println("    → End Recurrence: " + endRecurrence);
-            System.out.println("    → End Date: " + endDate);
-            System.out.println("    → Numbered Occurrences: " + numberedOccurrences);
-            System.out.println("    → Attachments: " + (attachments != null ? attachments.size() + " files" : "null"));
-            System.out.println("    → Details: " + (details != null ? details.length() + " chars" : "null"));
-            System.out.println("    → Is Teams Meeting: " + isTeamsMeeting);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Title: {}", title);
+            LOGGER.debug("    → Location: {}", location);
+            LOGGER.debug("    → Date From: {}", dateFrom);
+            LOGGER.debug("    → Date To: {}", dateTo);
+            LOGGER.debug("    → Required Attendee Email: {}", requiredAttendeeEmail);
+            LOGGER.debug("    → Optional Attendee Email: {}", optionalAttendeeEmail);
+            LOGGER.debug("    → Is All Day: {}", isAllDay);
+            LOGGER.debug("    → Time Zone: {}", timeZone);
+            LOGGER.debug("    → Reminder: {}", reminder);
+            LOGGER.debug("    → Recurrence: {}", recurrence);
+            LOGGER.debug("    → Recurrence Interval: {}", recurrenceInterval);
+            LOGGER.debug("    → Days Of Week: {}", daysOfWeek);
+            LOGGER.debug("    → Recurrence Type: {}", recurrenceType);
+            LOGGER.debug("    → Day Of Month: {}", dayOfMonth);
+            LOGGER.debug("    → Repeat Index: {}", repeatIndex);
+            LOGGER.debug("    → Repeat Day: {}", repeatDay);
+            LOGGER.debug("    → Repeat Month: {}", repeatMonth);
+            LOGGER.debug("    → End Recurrence: {}", endRecurrence);
+            LOGGER.debug("    → End Date: {}", endDate);
+            LOGGER.debug("    → Numbered Occurrences: {}", numberedOccurrences);
+            LOGGER.debug("    → Attachments: {}", (attachments != null ? attachments.size() + " files" : "null"));
+            LOGGER.debug("    → Details: {}", (details != null ? details.length() + " chars" : "null"));
+            LOGGER.debug("    → Is Teams Meeting: {}", isTeamsMeeting);
 
-            System.out.println("  → Calling meetingDao.addMeeting...");
+            LOGGER.debug("  → Calling meetingDao.addMeeting...");
             LOGGER.info("handleReenterScheduleMeeting: title={}, dateFrom={}, dateTo={}, timeZone={}", title, dateFrom, dateTo, timeZone);
 
             // Schedule the meeting
             EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
 
-            System.out.println("  → Meeting scheduled successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Meeting scheduled successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterScheduleMeeting success");
-            System.out.println("=== HANDLE REENTER SCHEDULE MEETING SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER SCHEDULE MEETING EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER SCHEDULE MEETING EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterScheduleMeeting: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_SCHEDULE_MEETING_VALIDATION + cause.getMessage(),
@@ -1012,8 +1111,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER SCHEDULE MEETING EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING EXCEPTION END");
             return response;
         }
     }
@@ -1033,34 +1132,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAddAttendees(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER ADD ATTENDEES START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterAddAttendees");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER ADD ATTENDEES START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterAddAttendees");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER ADD ATTENDEES DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER ADD ATTENDEES DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_ADD_ATTENDEES);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_ADD_ATTENDEES);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_ADD_ATTENDEES, map);
-        System.out.println("=== CONFIRM REENTER ADD ATTENDEES ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER ADD ATTENDEES ACCEPT END");
         return response;
     }
 
@@ -1077,42 +1176,42 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterAddAttendees(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER ADD ATTENDEES START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterAddAttendees");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER ADD ATTENDEES START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterAddAttendees");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterAddAttendees start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String eventId = (String) map.get(Constants.EVENT_ID);
             @SuppressWarnings("unchecked")
             List<String> requiredAttendeeEmail = (List<String>) map.get(Constants.REQUIRED_ATTENDEE_EMAIL);
             @SuppressWarnings("unchecked")
             List<String> optionalAttendeeEmail = (List<String>) map.get(Constants.OPTIONAL_ATTENDEE_EMAIL);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventId);
-            System.out.println("    → Required Attendee Email: " + requiredAttendeeEmail);
-            System.out.println("    → Optional Attendee Email: " + optionalAttendeeEmail);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventId);
+            LOGGER.debug("    → Required Attendee Email: {}", requiredAttendeeEmail);
+            LOGGER.debug("    → Optional Attendee Email: {}", optionalAttendeeEmail);
 
             LOGGER.info("handleReenterAddAttendees: eventId={}, requiredAttendeeEmail={}, optionalAttendeeEmail={}", eventId, requiredAttendeeEmail, optionalAttendeeEmail);
 
-            System.out.println("  → Calling meetingDao.addAttendees...");
+            LOGGER.debug("  → Calling meetingDao.addAttendees...");
             // Add attendees to the event
             EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
 
-            System.out.println("  → Attendees added successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Attendees added successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterAddAttendees success");
-            System.out.println("=== HANDLE REENTER ADD ATTENDEES SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER ADD ATTENDEES SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER ADD ATTENDEES EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER ADD ATTENDEES EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterAddAttendees: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_ADD_ATTENDEES_VALIDATION + cause.getMessage(),
@@ -1121,8 +1220,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER ADD ATTENDEES EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER ADD ATTENDEES EXCEPTION END");
             return response;
         }
     }
@@ -1142,34 +1241,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterRemoveAttendee(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterRemoveAttendee");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER REMOVE ATTENDEE START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterRemoveAttendee");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER REMOVE ATTENDEE DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_REMOVE_ATTENDEE);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_REMOVE_ATTENDEE);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_REMOVE_ATTENDEE, map);
-        System.out.println("=== CONFIRM REENTER REMOVE ATTENDEE ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER REMOVE ATTENDEE ACCEPT END");
         return response;
     }
 
@@ -1186,39 +1285,39 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterRemoveAttendee(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER REMOVE ATTENDEE START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterRemoveAttendee");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER REMOVE ATTENDEE START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterRemoveAttendee");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterRemoveAttendee start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String eventId = (String) map.get(Constants.EVENT_ID);
             @SuppressWarnings("unchecked")
             List<String> attendeeEmail = (List<String>) map.get(Constants.ATTENDEE_EMAIL);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventId);
-            System.out.println("    → Attendee Email: " + attendeeEmail);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventId);
+            LOGGER.debug("    → Attendee Email: {}", attendeeEmail);
 
             LOGGER.info("handleReenterRemoveAttendee: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
 
-            System.out.println("  → Calling meetingDao.removeAttendees...");
+            LOGGER.debug("  → Calling meetingDao.removeAttendees...");
             // Remove attendees from the event
             EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.removeAttendees(eventId, attendeeEmail));
 
-            System.out.println("  → Attendees removed successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Attendees removed successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterRemoveAttendee success");
-            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER REMOVE ATTENDEE SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER REMOVE ATTENDEE EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterRemoveAttendee: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_REMOVE_ATTENDEE_VALIDATION + cause.getMessage(),
@@ -1227,8 +1326,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER REMOVE ATTENDEE EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER REMOVE ATTENDEE EXCEPTION END");
             return response;
         }
     }
@@ -1248,34 +1347,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterUpdateEvent(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER UPDATE EVENT START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterUpdateEvent");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER UPDATE EVENT START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterUpdateEvent");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER UPDATE EVENT DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER UPDATE EVENT DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_UPDATE_EVENT);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_UPDATE_EVENT);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_UPDATE_EVENT, map);
-        System.out.println("=== CONFIRM REENTER UPDATE EVENT ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER UPDATE EVENT ACCEPT END");
         return response;
     }
 
@@ -1292,13 +1391,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterUpdateEvent(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER UPDATE EVENT START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterUpdateEvent");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER UPDATE EVENT START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterUpdateEvent");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterUpdateEvent start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             // Extract all parameters from the map
             String eventId = (String) map.get(Constants.EVENT_ID);
             String title = (String) map.get(Constants.TITLE);
@@ -1327,35 +1426,35 @@ public class MeetingsAreaSubCatalogRequestHelper {
             Double numberedOccurrences = map.get(Constants.NUMBERED_OCCURRENCES) != null ? ((Number) map.get(Constants.NUMBERED_OCCURRENCES)).doubleValue() : null;
             Boolean isTeamsMeeting = (Boolean) map.get(Constants.IS_TEAMS_MEETING);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventId);
-            System.out.println("    → Title: " + title);
-            System.out.println("    → Location: " + location);
-            System.out.println("    → Date From: " + dateFrom);
-            System.out.println("    → Date To: " + dateTo);
-            System.out.println("    → Time Zone: " + timeZone);
-            System.out.println("    → Recurrence Interval: " + recurrenceInterval);
-            System.out.println("    → Days Of Week: " + daysOfWeek);
-            System.out.println("    → Numbered Occurrences: " + numberedOccurrences);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventId);
+            LOGGER.debug("    → Title: {}", title);
+            LOGGER.debug("    → Location: {}", location);
+            LOGGER.debug("    → Date From: {}", dateFrom);
+            LOGGER.debug("    → Date To: {}", dateTo);
+            LOGGER.debug("    → Time Zone: {}", timeZone);
+            LOGGER.debug("    → Recurrence Interval: {}", recurrenceInterval);
+            LOGGER.debug("    → Days Of Week: {}", daysOfWeek);
+            LOGGER.debug("    → Numbered Occurrences: {}", numberedOccurrences);
 
             LOGGER.info("handleReenterUpdateEvent: eventId={}, title={}, dateFrom={}, dateTo={}, timeZone={}", eventId, title, dateFrom, dateTo, timeZone);
 
-            System.out.println("  → Calling meetingDao.updateMeeting...");
+            LOGGER.debug("  → Calling meetingDao.updateMeeting...");
             // Update the event
             EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
 
-            System.out.println("  → Event updated successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Event updated successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterUpdateEvent success");
-            System.out.println("=== HANDLE REENTER UPDATE EVENT SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER UPDATE EVENT SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER UPDATE EVENT EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER UPDATE EVENT EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterUpdateEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_UPDATE_EVENT_VALIDATION + cause.getMessage(),
@@ -1364,8 +1463,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER UPDATE EVENT EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER UPDATE EVENT EXCEPTION END");
             return response;
         }
     }
@@ -1382,37 +1481,37 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterCancelEvent(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER CANCEL EVENT START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterCancelEvent");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER CANCEL EVENT START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterCancelEvent");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterCancelEvent start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String eventId = (String) map.get(Constants.EVENT_ID);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventId);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventId);
 
             LOGGER.info("handleReenterCancelEvent: eventId={}", eventId);
 
-            System.out.println("  → Calling meetingDao.cancelMeeting...");
+            LOGGER.debug("  → Calling meetingDao.cancelMeeting...");
             // Cancel the event
             Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
             EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
 
-            System.out.println("  → Event cancelled successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Event cancelled successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterCancelEvent success");
-            System.out.println("=== HANDLE REENTER CANCEL EVENT SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER CANCEL EVENT SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER CANCEL EVENT EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER CANCEL EVENT EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterCancelEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_CANCEL_EVENT_VALIDATION + cause.getMessage(),
@@ -1421,8 +1520,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER CANCEL EVENT EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER CANCEL EVENT EXCEPTION END");
             return response;
         }
     }
@@ -1442,34 +1541,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetNextUpcomingMeetings(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Number of meeting: Number }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterGetNextUpcomingMeetings");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET NEXT UPCOMING MEETINGS START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterGetNextUpcomingMeetings");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET NEXT UPCOMING MEETINGS DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS, map);
-        System.out.println("=== CONFIRM REENTER GET NEXT UPCOMING MEETINGS ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET NEXT UPCOMING MEETINGS ACCEPT END");
         return response;
     }
 
@@ -1486,37 +1585,37 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse handleReenterGetNextUpcomingMeetings(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Number of meeting: Number }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterGetNextUpcomingMeetings");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterGetNextUpcomingMeetings");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetNextUpcomingMeetings start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             Double numberOfMeeting = map.get(Constants.NUMBER_OF_MEETING) != null ? ((Number) map.get(Constants.NUMBER_OF_MEETING)).doubleValue() : null;
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Number of meeting: " + numberOfMeeting);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Number of meeting: {}", numberOfMeeting);
 
             LOGGER.info("handleReenterGetNextUpcomingMeetings: numberOfMeeting={}", numberOfMeeting);
 
-            System.out.println("  → Calling meetingDao.getMeetings...");
+            LOGGER.debug("  → Calling meetingDao.getMeetings...");
             // Get next upcoming meetings
             List<Meeting> meetings = meetingDao.getMeetings(numberOfMeeting.intValue());
             List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
 
-            System.out.println("  → Meetings retrieved successfully");
-            System.out.println("  → Number of meetings found: " + events.size());
+            LOGGER.debug("  → Meetings retrieved successfully");
+            LOGGER.info("  → Number of meetings found: {}", events.size());
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetNextUpcomingMeetings success");
-            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetNextUpcomingMeetings: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_NEXT_UPCOMING_MEETINGS_VALIDATION + cause.getMessage(),
@@ -1525,8 +1624,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION END");
             return response;
         }
     }
@@ -1543,37 +1642,37 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterGetEvent(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET EVENT START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterGetEvent");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET EVENT START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterGetEvent");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetEvent start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventID);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventID);
 
             LOGGER.info("handleReenterGetEvent: eventID={}", eventID);
 
-            System.out.println("  → Calling meetingDao.getMeetingById...");
+            LOGGER.debug("  → Calling meetingDao.getMeetingById...");
             // Get the event
             Meeting meeting = meetingDao.getMeetingById(eventID);
             EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
 
-            System.out.println("  → Event retrieved successfully");
-            System.out.println("  → Event Details: " + eventDetails);
+            LOGGER.debug("  → Event retrieved successfully");
+            LOGGER.debug("  → Event Details: {}", eventDetails);
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetEvent success");
-            System.out.println("=== HANDLE REENTER GET EVENT SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET EVENT SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET EVENT EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET EVENT EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_EVENT_VALIDATION + cause.getMessage(),
@@ -1582,8 +1681,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER GET EVENT EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER GET EVENT EXCEPTION END");
             return response;
         }
     }
@@ -1599,34 +1698,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterGetEventsForUser");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET EVENTS FOR USER START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterGetEventsForUser");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET EVENTS FOR USER DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER, map);
-        System.out.println("=== CONFIRM REENTER GET EVENTS FOR USER ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET EVENTS FOR USER ACCEPT END");
         return response;
     }
 
@@ -1640,41 +1739,41 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse handleReenterGetEventsForUser(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Email, From: Number, To: Number }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET EVENTS FOR USER START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterGetEventsForUser");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET EVENTS FOR USER START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterGetEventsForUser");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetEventsForUser start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String userEmail = (String) map.get(Constants.USER_EMAIL);
             Long from = map.get(Constants.FROM) != null ? ((Number) map.get(Constants.FROM)).longValue() : null;
             Long to = map.get(Constants.TO) != null ? ((Number) map.get(Constants.TO)).longValue() : null;
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → User Email: " + userEmail);
-            System.out.println("    → From: " + from);
-            System.out.println("    → To: " + to);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → User Email: {}", userEmail);
+            LOGGER.debug("    → From: {}", from);
+            LOGGER.debug("    → To: {}", to);
 
             LOGGER.info("handleReenterGetEventsForUser: userEmail={}, from={}, to={}", userEmail, from, to);
 
-            System.out.println("  → Calling meetingDao.getEventsForUser...");
+            LOGGER.debug("  → Calling meetingDao.getEventsForUser...");
             // Get events for user
             List<Meeting> meetings = meetingDao.getEventsForUser(userEmail, from, to);
             List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
 
-            System.out.println("  → Events retrieved successfully");
-            System.out.println("  → Number of events found: " + events.size());
+            LOGGER.debug("  → Events retrieved successfully");
+            LOGGER.info("  → Number of events found: {}", events.size());
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetEventsForUser success");
-            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET EVENTS FOR USER SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET EVENTS FOR USER EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetEventsForUser: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_EVENTS_FOR_USER_VALIDATION + cause.getMessage(),
@@ -1683,8 +1782,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER GET EVENTS FOR USER EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER GET EVENTS FOR USER EXCEPTION END");
             return response;
         }
     }
@@ -1700,34 +1799,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachmentsForUser(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterGetAttachmentsForUser");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS FOR USER START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterGetAttachmentsForUser");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS FOR USER DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER, map);
-        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS FOR USER ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS FOR USER ACCEPT END");
         return response;
     }
 
@@ -1741,39 +1840,39 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
     public ExtensionResponse handleReenterGetAttachmentsForUser(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Text, Event ID: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterGetAttachmentsForUser");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS FOR USER START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterGetAttachmentsForUser");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetAttachmentsForUser start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String userEmail = (String) map.get(Constants.USER_EMAIL);
             String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → User Email: " + userEmail);
-            System.out.println("    → Event ID: " + eventID);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → User Email: {}", userEmail);
+            LOGGER.debug("    → Event ID: {}", eventID);
 
             LOGGER.info("handleReenterGetAttachmentsForUser: userEmail={}, eventID={}", userEmail, eventID);
 
-            System.out.println("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
+            LOGGER.debug("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
             // Get attachments for user
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
             List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
 
-            System.out.println("  → Attachments retrieved successfully");
-            System.out.println("  → Number of attachments found: " + attachments.size());
+            LOGGER.debug("  → Attachments retrieved successfully");
+            LOGGER.info("  → Number of attachments found: {}", attachments.size());
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetAttachmentsForUser success");
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS FOR USER SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetAttachmentsForUser: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_ATTACHMENTS_FOR_USER_VALIDATION + cause.getMessage(),
@@ -1782,8 +1881,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION END");
             return response;
         }
     }
@@ -1799,34 +1898,34 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap",
             type = "{ re-enter: Boolean, stateId: Text, Event ID: Text }", required = true) Map<String, Object> map) {
-        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS START ===");
-        System.out.println("→ SubCatalogRequest: confirmReenterGetAttachments");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS START");
+        LOGGER.debug("→ SubCatalogRequest: confirmReenterGetAttachments");
+        LOGGER.debug("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
-        System.out.println("  → Extracted reenter: " + reenter);
-        System.out.println("  → Extracted stateId: " + stateId);
+        LOGGER.debug("  → Extracted reenter: {}", reenter);
+        LOGGER.debug("  → Extracted stateId: {}", stateId);
 
         Map<String, Object> state = internalStateManager.get(stateId);
-        System.out.println("  → Retrieved state: " + state);
+        LOGGER.debug("  → Retrieved state: {}", state);
 
         List<ValidationOrchestrator.ValidationResult> validationResults = getValidationResults(state);
-        System.out.println("  → Validation results count: " + (validationResults != null ? validationResults.size() : "null"));
+        LOGGER.debug("  → Validation results count: {}", (validationResults != null ? validationResults.size() : "null"));
 
         if (Boolean.FALSE.equals(reenter)) {
-            System.out.println("  → User declined re-entry, generating fetch deny response");
+            LOGGER.debug("  → User declined re-entry, generating fetch deny response");
             ExtensionResponse response = responseGenerator.generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                     validationResults, null, Map.of());
-            System.out.println("=== CONFIRM REENTER GET ATTACHMENTS DENY END ===");
+            LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS DENY END");
             return response;
         }
 
-        System.out.println("  → User accepted re-entry, generating fetch response");
-        System.out.println("  → Next handler: " + Constants.HANDLE_REENTER_GET_ATTACHMENTS);
+        LOGGER.debug("  → User accepted re-entry, generating fetch response");
+        LOGGER.debug("  → Next handler: {}", Constants.HANDLE_REENTER_GET_ATTACHMENTS);
         ExtensionResponse response = responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_GET_ATTACHMENTS, map);
-        System.out.println("=== CONFIRM REENTER GET ATTACHMENTS ACCEPT END ===");
+        LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS ACCEPT END");
         return response;
     }
 
@@ -1840,41 +1939,41 @@ public class MeetingsAreaSubCatalogRequestHelper {
     @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
     public ExtensionResponse handleReenterGetAttachments(
             @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
-        System.out.println("=== HANDLE REENTER GET ATTACHMENTS START ===");
-        System.out.println("→ SubCatalogRequest: handleReenterGetAttachments");
-        System.out.println("  → Input map: " + map);
+        LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS START");
+        LOGGER.debug("→ SubCatalogRequest: handleReenterGetAttachments");
+        LOGGER.debug("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetAttachments start: {}", map);
 
         try {
-            System.out.println("  → Starting parameter extraction...");
+            LOGGER.debug("  → Starting parameter extraction...");
             String eventID = (String) map.get(Constants.EVENT_ID_FIELD);
 
-            System.out.println("  → Extracted parameters:");
-            System.out.println("    → Event ID: " + eventID);
+            LOGGER.debug("  → Extracted parameters:");
+            LOGGER.debug("    → Event ID: {}", eventID);
 
             LOGGER.info("handleReenterGetAttachments: eventID={}", eventID);
 
-            System.out.println("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
+            LOGGER.debug("  → Calling meetingDao.getAttachmentsForAuthenticatedUser...");
             // Get attachments
             List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-            System.out.println("  → Attachments retrieved successfully");
-            System.out.println("  → Number of attachments found: " + fileAttachments.size());
+            LOGGER.debug("  → Attachments retrieved successfully");
+            LOGGER.info("  → Number of attachments found: {}", fileAttachments.size());
             List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
-            System.out.println("  → Attachments converted to Krista File objects");
-            System.out.println("  → Number of Krista File objects: " + attachments.size());
+            LOGGER.debug("  → Attachments converted to Krista File objects");
+            LOGGER.info("  → Number of Krista File objects: {}", attachments.size());
 
-            System.out.println("  → Attachments retrieved successfully");
-            System.out.println("  → Number of attachments found: " + attachments.size());
+            LOGGER.debug("  → Attachments retrieved successfully");
+            LOGGER.info("  → Number of attachments found: {}", attachments.size());
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Attachments", attachments)).build();
-            System.out.println("  → Success response created");
+            LOGGER.debug("  → Success response created");
             LOGGER.info("SubCatalogRequest handleReenterGetAttachments success");
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS SUCCESS END ===");
+            LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS SUCCESS END");
             return response;
         } catch (Exception cause) {
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS EXCEPTION ===");
-            System.out.println("  → Exception: " + cause.getClass().getSimpleName());
-            System.out.println("  → Message: " + cause.getMessage());
-            cause.printStackTrace();
+            LOGGER.error("→ HANDLE REENTER GET ATTACHMENTS EXCEPTION");
+            LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
+            LOGGER.error("  → Message: {}", cause.getMessage());
+            
             LOGGER.error("Error occurred in handleReenterGetAttachments: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_ATTACHMENTS_VALIDATION + cause.getMessage(),
@@ -1883,8 +1982,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("  → Error response created: " + error);
-            System.out.println("=== HANDLE REENTER GET ATTACHMENTS EXCEPTION END ===");
+            LOGGER.debug("  → Error response created: {}", error);
+            LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS EXCEPTION END");
             return response;
         }
     }

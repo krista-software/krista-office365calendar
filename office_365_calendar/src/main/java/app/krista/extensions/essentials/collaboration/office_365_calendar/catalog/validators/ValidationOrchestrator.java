@@ -2,6 +2,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.catal
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.lang.reflect.Method;
@@ -24,10 +26,13 @@ import java.util.Map;
 @Service
 public class ValidationOrchestrator {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ValidationOrchestrator.class);
     private final Map<Validator.ValidationResource, Validator> validators = new HashMap<>();
 
     @Inject
     public ValidationOrchestrator(MeetingDaoImpl meetingDao) {
+        LOGGER.info("→ ValidationOrchestrator: Initializing with {} validators", 12);
+
         validators.put(Validator.ValidationResource.EMAIL, new EmailValidator());
         validators.put(Validator.ValidationResource.EVENT_ID, new EventIdValidator(meetingDao));
         validators.put(Validator.ValidationResource.DATE_RANGE, new DateValidator());
@@ -40,6 +45,8 @@ public class ValidationOrchestrator {
         validators.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, new NumberedOccurrencesValidator());
         validators.put(Validator.ValidationResource.ATTACHMENTS, new AttachmentsValidator());
         validators.put(Validator.ValidationResource.MEETING_DURATION, new MeetingDurationValidator());
+
+        LOGGER.info("→ ValidationOrchestrator: Successfully initialized with {} validators", validators.size());
     }
 
     public record ValidationResult(String confirmStepMessage, String fetchFieldName, String fetchStepMessage,
@@ -75,10 +82,10 @@ public class ValidationOrchestrator {
      * the list is empty if all resources are valid
      */
     public List<ValidationResult> validate(Map<Validator.ValidationResource, String> resources, Class<?> sourceClass, String methodName) {
-        System.out.println("=== ValidationOrchestrator.validate() with Dynamic Attribute Extraction ===");
-        System.out.println("Source Class: " + (sourceClass != null ? sourceClass.getSimpleName() : "null"));
-        System.out.println("Method Name: " + (methodName != null ? methodName : "null"));
-        System.out.println("Resources to validate: " + resources.keySet());
+        LOGGER.info("→ validate: Starting validation with dynamic attribute extraction");
+        LOGGER.debug("→ validate: Source Class: {}", (sourceClass != null ? sourceClass.getSimpleName() : "null"));
+        LOGGER.debug("→ validate: Method Name: {}", (methodName != null ? methodName : "null"));
+        LOGGER.debug("→ validate: Resources to validate: {}", resources.keySet());
 
         List<ValidationResult> results = new ArrayList<>();
 
@@ -87,47 +94,47 @@ public class ValidationOrchestrator {
         Map<String, Validator.ValidationResource> fieldNameToResourceMapping = new HashMap<>();
 
         if (sourceClass != null && methodName != null) {
-            System.out.println("Attempting to extract method and field mappings...");
+            LOGGER.debug("→ validate: Attempting to extract method and field mappings...");
             sourceMethod = FieldAttributeExtractor.getMethodByName(sourceClass, methodName);
             if (sourceMethod != null) {
-                System.out.println("✓ Found method: " + sourceMethod.getName());
+                LOGGER.debug("→ validate: ✓ Found method: {}", sourceMethod.getName());
                 fieldNameToResourceMapping = FieldAttributeExtractor.createFieldNameToResourceMapping(sourceMethod);
-                System.out.println("✓ Created field name to resource mapping: " + fieldNameToResourceMapping);
+                LOGGER.debug("→ validate: ✓ Created field name to resource mapping: {}", fieldNameToResourceMapping);
             } else {
-                System.out.println("✗ Method not found, falling back to hardcoded attributes");
+                LOGGER.warn("→ validate: ✗ Method not found, falling back to hardcoded attributes");
             }
         } else {
-            System.out.println("No source class/method provided, using hardcoded attributes");
+            LOGGER.debug("→ validate: No source class/method provided, using hardcoded attributes");
         }
 
-        System.out.println("Starting validation of " + resources.size() + " resources...");
+        LOGGER.info("→ validate: Starting validation of {} resources...", resources.size());
         for (Map.Entry<Validator.ValidationResource, String> entry : resources.entrySet()) {
-            System.out.println("Validating resource: " + entry.getKey() + " = " + entry.getValue());
+            LOGGER.debug("→ validate: Validating resource: {} = {}", entry.getKey(), entry.getValue());
 
             Validator validator = validators.get(entry.getKey());
             if (validator != null && !validator.validate(entry.getValue(), resources)) {
-                System.out.println("✗ Validation failed for: " + entry.getKey());
+                LOGGER.warn("→ validate: ✗ Validation failed for: {}", entry.getKey());
 
                 Map<String, Object> fieldAttributes = getFieldAttributesForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
-                System.out.println("Extracted field attributes: " + fieldAttributes);
+                LOGGER.debug("→ validate: Extracted field attributes: {}", fieldAttributes);
 
                 String fieldType = getFieldTypeForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
-                System.out.println("Extracted field type: " + fieldType);
+                LOGGER.debug("→ validate: Extracted field type: {}", fieldType);
 
                 String fieldName = getFieldNameForResource(entry.getKey(), sourceMethod, fieldNameToResourceMapping);
-                System.out.println("Extracted field name: " + fieldName);
+                LOGGER.debug("→ validate: Extracted field name: {}", fieldName);
 
                 results.add(new ValidationResult(validator.getConfirmationStepMessage(entry.getValue(), resources),
                         fieldName, validator.getFetchStepMessage(),
                         validator.getErrMessage(entry.getValue()), fieldType,
                         fieldAttributes));
             } else {
-                System.out.println("✓ Validation passed for: " + entry.getKey());
+                LOGGER.debug("→ validate: ✓ Validation passed for: {}", entry.getKey());
             }
         }
 
-        System.out.println("Validation complete. Failed validations: " + results.size());
-        System.out.println("=== End ValidationOrchestrator.validate() ===");
+        LOGGER.info("→ validate: Validation complete. Failed validations: {}", results.size());
+        LOGGER.debug("→ validate: Completed validation process");
         return results;
     }
 
@@ -148,36 +155,36 @@ public class ValidationOrchestrator {
                                           Method sourceMethod,
                                           Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
 
-        System.out.println("  → Getting field type for resource: " + resource);
+        LOGGER.debug("→ getFieldTypeForResource: Getting field type for resource: {}", resource);
 
         // Try to extract field type dynamically if method information is available
         if (sourceMethod != null && fieldNameToResourceMapping != null) {
-            System.out.println("  → Attempting dynamic field type extraction...");
+            LOGGER.debug("→ getFieldTypeForResource: Attempting dynamic field type extraction...");
 
             // Find the field name that corresponds to this validation resource
             String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
-            System.out.println("  → Found field name for resource " + resource + ": " + fieldName);
+            LOGGER.debug("→ getFieldTypeForResource: Found field name for resource {}: {}", resource, fieldName);
 
             if (fieldName != null) {
                 String extractedFieldType = FieldAttributeExtractor.extractFieldType(sourceMethod, fieldName);
-                System.out.println("  → Extracted field type for field '" + fieldName + "': " + extractedFieldType);
+                LOGGER.debug("→ getFieldTypeForResource: Extracted field type for field '{}': {}", fieldName, extractedFieldType);
 
                 if (extractedFieldType != null) {
-                    System.out.println("  → Using dynamically extracted field type: " + extractedFieldType);
+                    LOGGER.debug("→ getFieldTypeForResource: Using dynamically extracted field type: {}", extractedFieldType);
                     return extractedFieldType;
                 } else {
-                    System.out.println("  → No field type found, falling back to hardcoded");
+                    LOGGER.debug("→ getFieldTypeForResource: No field type found, falling back to hardcoded");
                 }
             } else {
-                System.out.println("  → No field name found for resource, falling back to hardcoded");
+                LOGGER.debug("→ getFieldTypeForResource: No field name found for resource, falling back to hardcoded");
             }
         } else {
-            System.out.println("  → No method information available, using hardcoded field types");
+            LOGGER.debug("→ getFieldTypeForResource: No method information available, using hardcoded field types");
         }
 
         // Fallback to hardcoded field types for backward compatibility
         String fallbackFieldType = getFieldTypeForResourceFallback(resource);
-        System.out.println("  → Using fallback field type: " + fallbackFieldType);
+        LOGGER.debug("→ getFieldTypeForResource: Using fallback field type: {}", fallbackFieldType);
         return fallbackFieldType;
     }
 
@@ -220,30 +227,30 @@ public class ValidationOrchestrator {
                                           Method sourceMethod,
                                           Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
 
-        System.out.println("  → Getting field name for resource: " + resource);
+        LOGGER.debug("→ getFieldNameForResource: Getting field name for resource: {}", resource);
 
         // Try to extract field name dynamically if method information is available
         if (sourceMethod != null && fieldNameToResourceMapping != null) {
-            System.out.println("  → Attempting dynamic field name extraction...");
+            LOGGER.debug("→ getFieldNameForResource: Attempting dynamic field name extraction...");
 
             // Find the field name that corresponds to this validation resource
             String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
-            System.out.println("  → Found field name for resource " + resource + ": " + fieldName);
+            LOGGER.debug("→ getFieldNameForResource: Found field name for resource {}: {}", resource, fieldName);
 
             if (fieldName != null) {
-                System.out.println("  → Using dynamically extracted field name: " + fieldName);
+                LOGGER.debug("→ getFieldNameForResource: Using dynamically extracted field name: {}", fieldName);
                 return fieldName;
             } else {
-                System.out.println("  → No field name found for resource, falling back to validator field name");
+                LOGGER.debug("→ getFieldNameForResource: No field name found for resource, falling back to validator field name");
             }
         } else {
-            System.out.println("  → No method information available, using validator field name");
+            LOGGER.debug("→ getFieldNameForResource: No method information available, using validator field name");
         }
 
         // Fallback to validator field name for backward compatibility
         Validator validator = validators.get(resource);
         String fallbackFieldName = validator != null ? validator.getFetchFieldName() : "Unknown Field";
-        System.out.println("  → Using fallback field name: " + fallbackFieldName);
+        LOGGER.debug("→ getFieldNameForResource: Using fallback field name: {}", fallbackFieldName);
         return fallbackFieldName;
     }
 
@@ -280,36 +287,36 @@ public class ValidationOrchestrator {
                                                               Method sourceMethod,
                                                               Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
 
-        System.out.println("  → Getting field attributes for resource: " + resource);
+        LOGGER.debug("→ getFieldAttributesForResource: Getting field attributes for resource: {}", resource);
 
         // Try to extract attributes dynamically if method information is available
         if (sourceMethod != null && fieldNameToResourceMapping != null) {
-            System.out.println("  → Attempting dynamic attribute extraction...");
+            LOGGER.debug("→ getFieldAttributesForResource: Attempting dynamic attribute extraction...");
 
             // Find the field name that corresponds to this validation resource
             String fieldName = findFieldNameForResource(resource, fieldNameToResourceMapping);
-            System.out.println("  → Found field name for resource " + resource + ": " + fieldName);
+            LOGGER.debug("→ getFieldAttributesForResource: Found field name for resource {}: {}", resource, fieldName);
 
             if (fieldName != null) {
                 Map<String, Object> extractedAttributes = FieldAttributeExtractor.extractFieldAttributes(sourceMethod, fieldName);
-                System.out.println("  → Extracted attributes for field '" + fieldName + "': " + extractedAttributes);
+                LOGGER.debug("→ getFieldAttributesForResource: Extracted attributes for field '{}': {}", fieldName, extractedAttributes);
 
                 if (!extractedAttributes.isEmpty()) {
-                    System.out.println("  → Using dynamically extracted attributes");
+                    LOGGER.debug("→ getFieldAttributesForResource: Using dynamically extracted attributes");
                     return extractedAttributes;
                 } else {
-                    System.out.println("  → No attributes found, falling back to hardcoded");
+                    LOGGER.debug("→ getFieldAttributesForResource: No attributes found, falling back to hardcoded");
                 }
             } else {
-                System.out.println("  → No field name found for resource, falling back to hardcoded");
+                LOGGER.debug("→ getFieldAttributesForResource: No field name found for resource, falling back to hardcoded");
             }
         } else {
-            System.out.println("  → No method information available, using hardcoded attributes");
+            LOGGER.debug("→ getFieldAttributesForResource: No method information available, using hardcoded attributes");
         }
 
         // Fallback to hardcoded attributes for backward compatibility
         Map<String, Object> fallbackAttributes = getFieldAttributesForResourceFallback(resource);
-        System.out.println("  → Using fallback attributes: " + fallbackAttributes);
+        LOGGER.debug("→ getFieldAttributesForResource: Using fallback attributes: {}", fallbackAttributes);
         return fallbackAttributes;
     }
 
@@ -322,11 +329,16 @@ public class ValidationOrchestrator {
      */
     private String findFieldNameForResource(Validator.ValidationResource resource,
                                            Map<String, Validator.ValidationResource> fieldNameToResourceMapping) {
+        LOGGER.debug("→ findFieldNameForResource: Searching for field name for resource: {}", resource);
+
         for (Map.Entry<String, Validator.ValidationResource> entry : fieldNameToResourceMapping.entrySet()) {
             if (resource.equals(entry.getValue())) {
+                LOGGER.debug("→ findFieldNameForResource: Found matching field name: {}", entry.getKey());
                 return entry.getKey();
             }
         }
+
+        LOGGER.debug("→ findFieldNameForResource: No field name found for resource: {}", resource);
         return null;
     }
 

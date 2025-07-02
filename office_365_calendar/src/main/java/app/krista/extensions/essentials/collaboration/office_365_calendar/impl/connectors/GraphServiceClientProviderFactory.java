@@ -6,6 +6,8 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.s
 import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -22,6 +24,8 @@ import java.io.IOException;
  */
 @Service
 public final class GraphServiceClientProviderFactory {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GraphServiceClientProviderFactory.class);
 
     private final RefreshTokenStore refreshTokenStore;
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
@@ -42,6 +46,9 @@ public final class GraphServiceClientProviderFactory {
     public GraphServiceClientProviderFactory(RefreshTokenStore refreshTokenStore, Office365CalendarAttributeStore office365CalendarAttributeStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributeStore, requestContext, authorizationContext,
                 new GraphServiceClientProvider(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null));
+
+        LOGGER.info("→ GraphServiceClientProviderFactory: Successfully initialized with default client provider for tenant: {}",
+                office365CalendarAttributes.getTenantId());
     }
 
     /**
@@ -54,11 +61,24 @@ public final class GraphServiceClientProviderFactory {
      * @param defaultClientProvider the default client provider instance
      */
     public GraphServiceClientProviderFactory(RefreshTokenStore refreshTokenStore, Office365CalendarAttributeStore office365CalendarAttributeStore, RequestContext requestContext, AuthorizationContext authorizationContext, GraphServiceClientProvider defaultClientProvider) {
+        LOGGER.info("→ GraphServiceClientProviderFactory: Initializing with custom default client provider");
+
         this.refreshTokenStore = refreshTokenStore;
+        LOGGER.debug("→ RefreshTokenStore set");
+
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
+        LOGGER.debug("→ Office365CalendarAttributeStore set");
+
         this.requestContext = requestContext;
+        LOGGER.debug("→ RequestContext set with invokeAsUser: {}", requestContext.invokeAsUser());
+
         this.authorizationContext = authorizationContext;
+        LOGGER.debug("→ AuthorizationContext set");
+
         this.defaultClientProvider = defaultClientProvider;
+        LOGGER.debug("→ Default GraphServiceClientProvider set");
+
+        LOGGER.info("→ GraphServiceClientProviderFactory: Initialization completed successfully");
     }
 
     /**
@@ -70,8 +90,17 @@ public final class GraphServiceClientProviderFactory {
      * @throws IOException if an error occurs while saving attributes
      */
     public GraphServiceClientProvider create(Office365CalendarAttributes office365CalendarAttributes) throws IOException {
+        LOGGER.info("→ create: Creating GraphServiceClientProvider with custom attributes for tenant: {}",
+                office365CalendarAttributes.getTenantId());
+        LOGGER.debug("→ Client ID: {}, Email: {}", office365CalendarAttributes.getClientId(), office365CalendarAttributes.getEmail());
+
         String authContextId = office365CalendarAttributeStore.save(office365CalendarAttributes);
-        return new GraphServiceClientProvider(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, authContextId);
+        LOGGER.debug("→ Saved attributes to store with authContextId: {}", authContextId);
+
+        GraphServiceClientProvider provider = new GraphServiceClientProvider(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, authContextId);
+        LOGGER.info("→ create: Successfully created GraphServiceClientProvider with authContextId: {}", authContextId);
+
+        return provider;
     }
 
     /**
@@ -80,6 +109,9 @@ public final class GraphServiceClientProviderFactory {
      * @return the default client provider
      */
     public GraphServiceClientProvider create() {
+        LOGGER.info("→ create: Returning default GraphServiceClientProvider");
+        LOGGER.debug("→ Default provider tenant: {}", defaultClientProvider.getOffice365CalendarAttributes().getTenantId());
+
         return defaultClientProvider;
     }
 }

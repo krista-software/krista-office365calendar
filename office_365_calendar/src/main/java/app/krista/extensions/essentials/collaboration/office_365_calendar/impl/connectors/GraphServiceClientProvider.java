@@ -55,6 +55,7 @@ public final class GraphServiceClientProvider {
     @Inject
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null);
+        LOGGER.info("→ GraphServiceClientProvider: Initialized successfully with default auth context");
     }
 
     /**
@@ -67,11 +68,24 @@ public final class GraphServiceClientProvider {
      * @param authContextId               optional authentication context ID
      */
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
+        LOGGER.info("→ GraphServiceClientProvider: Initializing with authContextId: {}", authContextId);
+
         this.refreshTokenStore = refreshTokenStore;
+        LOGGER.debug("→ RefreshTokenStore set");
+
         this.office365CalendarAttributes = office365CalendarAttributes;
+        LOGGER.debug("→ Office365CalendarAttributes set with tenant: {}", office365CalendarAttributes.getTenantId());
+
         this.requestContext = requestContext;
+        LOGGER.debug("→ RequestContext set with invokeAsUser: {}", requestContext.invokeAsUser());
+
         this.authorizationContext = authorizationContext;
+        LOGGER.debug("→ AuthorizationContext set");
+
         this.authContextId = authContextId;
+        LOGGER.debug("→ AuthContextId set: {}", authContextId);
+
+        LOGGER.info("→ GraphServiceClientProvider: Initialization completed successfully");
     }
 
     /**
@@ -80,6 +94,8 @@ public final class GraphServiceClientProvider {
      * @return the Office365CalendarAttributes instance
      */
     public Office365CalendarAttributes getOffice365CalendarAttributes() {
+        LOGGER.debug("→ getOffice365CalendarAttributes: Returning calendar attributes for tenant: {}",
+                office365CalendarAttributes.getTenantId());
         return office365CalendarAttributes;
     }
 
@@ -89,7 +105,13 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient() {
-        return getGraphServiceClient(!requestContext.invokeAsUser());
+        boolean useEmail = !requestContext.invokeAsUser();
+        LOGGER.info("→ getGraphServiceClient: Creating client for context - invokeAsUser: {}, useEmail: {}",
+                requestContext.invokeAsUser(), useEmail);
+
+        GraphServiceClient<Request> client = getGraphServiceClient(useEmail);
+        LOGGER.info("→ getGraphServiceClient: Successfully created GraphServiceClient");
+        return client;
     }
 
     /**
@@ -98,7 +120,11 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance for system operations
      */
     public GraphServiceClient<Request> getGraphServiceClientForSystem() {
-        return getGraphServiceClientWithClientCredentials();
+        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials");
+
+        GraphServiceClient<Request> client = getGraphServiceClientWithClientCredentials();
+        LOGGER.info("→ getGraphServiceClientForSystem: Successfully created system GraphServiceClient");
+        return client;
     }
 
     /**
@@ -107,33 +133,48 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance for admin operations
      */
     public GraphServiceClient<Request> getGraphServiceClientForAdmin() {
-        return getGraphServiceClient(true);
+        LOGGER.info("→ getGraphServiceClientForAdmin: Creating admin-level GraphServiceClient");
+
+        GraphServiceClient<Request> client = getGraphServiceClient(true);
+        LOGGER.info("→ getGraphServiceClientForAdmin: Successfully created admin GraphServiceClient");
+        return client;
     }
 
 
     private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
+        LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Creating client with client credentials");
+
         try {
             IClientCredential clientCredential = ClientCredentialFactory
                     .createFromSecret(office365CalendarAttributes.getClientSecret());
+            LOGGER.debug("→ Created client credential from secret");
+
             String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+            LOGGER.debug("→ Built authority URL: {}", authority);
 
             ConfidentialClientApplication cca = ConfidentialClientApplication.builder(
                             office365CalendarAttributes.getClientId(),
                             clientCredential)
                     .authority(authority)
                     .build();
+            LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
 
             ClientCredentialParameters parameters = ClientCredentialParameters.builder(
                             Collections.singleton(GraphServiceClientProvider.CLIENT_CREDENTIAL_SCOPES))
                     .build();
+            LOGGER.debug("→ Created client credential parameters with scopes: {}", CLIENT_CREDENTIAL_SCOPES);
 
             IAuthenticationResult result = cca.acquireToken(parameters).get();
+            LOGGER.debug("→ Acquired access token successfully");
 
-            return GraphServiceClient.builder()
+            GraphServiceClient<Request> client = GraphServiceClient.builder()
                     .authenticationProvider(new GraphServiceClientAuthenticationProvider(result.accessToken()))
                     .buildClient();
+            LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Successfully created GraphServiceClient");
+
+            return client;
         } catch (Exception cause) {
-            LOGGER.error("Error creating GraphServiceClient with client credentials", cause);
+            LOGGER.error("→ getGraphServiceClientWithClientCredentials: Error creating GraphServiceClient with client credentials - {}", cause.getMessage(), cause);
             throw new RuntimeException("Error creating GraphServiceClient with client credentials", cause);
         }
     }
@@ -144,14 +185,24 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     private GraphServiceClient<Request> getGraphServiceClient(boolean useEmail) {
+        LOGGER.debug("→ getGraphServiceClient(useEmail={}): Creating GraphServiceClient", useEmail);
+
         try {
             String userId = getUserId(useEmail);
+            LOGGER.debug("→ Retrieved userId: {}", userId);
+
             String refreshToken = refreshTokenStore.get(userId);
             if (refreshToken == null) {
+                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
                 throw createMustAuthorizationException(userId, false);
             }
-            return getGraphServiceClient(userId, refreshToken);
+            LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
+
+            GraphServiceClient<Request> client = getGraphServiceClient(userId, refreshToken);
+            LOGGER.debug("→ getGraphServiceClient(useEmail={}): Successfully created GraphServiceClient for userId: {}", useEmail, userId);
+            return client;
         } catch (RuntimeException cause) {
+            LOGGER.error("→ getGraphServiceClient(useEmail={}): Runtime exception occurred - {}", useEmail, cause.getMessage(), cause);
             throw cause;
         }
     }
@@ -164,21 +215,40 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
-        try {
+        LOGGER.info("→ getGraphServiceClient: Creating GraphServiceClient for userId: {}", userId);
 
+        try {
             String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
             Set<String> scopeSet = Arrays.stream(scopes).collect(Collectors.toSet());
+            LOGGER.debug("→ Created scope set with {} scopes: {}", scopeSet.size(), scopeSet);
+
             RefreshTokenParameters refreshTokenStoreParameters = RefreshTokenParameters.builder(scopeSet, refreshToken).build();
+            LOGGER.debug("→ Created refresh token parameters");
+
             IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
+            LOGGER.debug("→ Created client credential from secret");
+
             String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+            LOGGER.debug("→ Built authority URL: {}", authority);
+
             ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
+            LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
+
             IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
+            LOGGER.debug("→ Acquired authentication result successfully");
+
             final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
             updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
-            return GraphServiceClient.builder().authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken())).buildClient();
+            LOGGER.debug("→ Updated refresh token for userId: {}", userId);
+
+            GraphServiceClient<Request> client = GraphServiceClient.builder().authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken())).buildClient();
+            LOGGER.info("→ getGraphServiceClient: Successfully created GraphServiceClient for userId: {}", userId);
+            return client;
         } catch (IOException | ExecutionException cause) {
+            LOGGER.error("→ getGraphServiceClient: IOException/ExecutionException for userId: {} - {}", userId, cause.getMessage(), cause);
             throw createMustAuthorizationException(userId, true);
         } catch (InterruptedException interruptedException) {
+            LOGGER.error("→ getGraphServiceClient: InterruptedException for userId: {} - {}", userId, interruptedException.getMessage(), interruptedException);
             Thread.currentThread().interrupt();
             throw createMustAuthorizationException(userId, true);
         }
@@ -191,12 +261,20 @@ public final class GraphServiceClientProvider {
      * @param jsonTokenCache the token cache as a JsonObject
      */
     public void updateRefreshToken(String userId, JsonObject jsonTokenCache) {
+        LOGGER.debug("→ updateRefreshToken: Updating refresh token for userId: {}", userId);
+
         JsonObject refreshToken = jsonTokenCache.get("RefreshToken").getAsJsonObject();
+        LOGGER.debug("→ Retrieved RefreshToken object from cache");
+
         String firstKey = refreshToken.keySet().iterator().next();
+        LOGGER.debug("→ Retrieved first key from refresh token: {}", firstKey);
+
         JsonObject tokenData = refreshToken.getAsJsonObject(firstKey);
         String secret = tokenData.get("secret").getAsString();
+        LOGGER.debug("→ Extracted secret from token data");
+
         refreshTokenStore.put(userId, secret);
-        LOGGER.info("Updated Refresh Token.");
+        LOGGER.info("→ updateRefreshToken: Successfully updated refresh token for userId: {}", userId);
     }
 
     /**
@@ -207,15 +285,24 @@ public final class GraphServiceClientProvider {
      * @return a MustAuthorizeException with details
      */
     private MustAuthorizeException createMustAuthorizationException(String userId, boolean reAuthentication) {
+        LOGGER.warn("→ createMustAuthorizationException: Creating authorization exception for userId: {}, reAuthentication: {}", userId, reAuthentication);
         LOGGER.debug(reAuthentication ? "Got error for Authentication. So sending for re authentication" : "Got error for Authentication. So sending for authentication");
+
         List<NamedValuedField> details = new ArrayList<>();
         NamedValuedField userIdField = new NamedValuedField("userId", "Text", userId, new HashMap<>(), new HashMap<>());
         details.add(userIdField);
+        LOGGER.debug("→ Added userId field to exception details");
+
         if (authContextId != null) {
             NamedValuedField contextIdField = new NamedValuedField("authContextId", "Text", authContextId, new HashMap<>(), new HashMap<>());
             details.add(contextIdField);
+            LOGGER.debug("→ Added authContextId field to exception details: {}", authContextId);
         }
-        return new MustAuthorizeException(reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : Constants.AUTHORIZATION_PROMPT, details);
+
+        String message = reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : Constants.AUTHORIZATION_PROMPT;
+        LOGGER.debug("→ createMustAuthorizationException: Created exception with message: {}", message);
+
+        return new MustAuthorizeException(message, details);
     }
 
     /**
@@ -226,10 +313,19 @@ public final class GraphServiceClientProvider {
      * @throws IllegalStateException if the user ID cannot be determined
      */
     public String getUserId(boolean calledFromValidateAttributes) {
-        String userId = calledFromValidateAttributes || !requestContext.invokeAsUser() ? office365CalendarAttributes.getEmail() : authorizationContext.getAuthorizedAccount().getAccountId();
+        LOGGER.debug("→ getUserId: Getting userId with calledFromValidateAttributes: {}, invokeAsUser: {}",
+                calledFromValidateAttributes, requestContext.invokeAsUser());
+
+        String userId = calledFromValidateAttributes || !requestContext.invokeAsUser() ?
+                office365CalendarAttributes.getEmail() :
+                authorizationContext.getAuthorizedAccount().getAccountId();
+
         if (userId == null) {
+            LOGGER.error("→ getUserId: Failed to get account - userId is null");
             throw new IllegalStateException(FAILED_TO_GET_ACCOUNT);
         }
+
+        LOGGER.debug("→ getUserId: Successfully retrieved userId: {}", userId);
         return userId;
     }
 
@@ -246,13 +342,28 @@ public final class GraphServiceClientProvider {
      *                               with the underlying state.
      */
     public UserRequestBuilder getUserRequestBuilder(Boolean useEmail, String accountID) {
+        LOGGER.debug("→ getUserRequestBuilder: Creating UserRequestBuilder with useEmail: {}, accountID: {}", useEmail, accountID);
+
         try {
             if (useEmail != null) {
-                return useEmail ? getGraphServiceClientForUser(useEmail, accountID).users(office365CalendarAttributes.getEmail())
-                        : getGraphServiceClientForUser(useEmail, null).me();
+                if (useEmail) {
+                    LOGGER.debug("→ Using email mode - creating users() request for: {}", office365CalendarAttributes.getEmail());
+                    return getGraphServiceClientForUser(useEmail, accountID).users(office365CalendarAttributes.getEmail());
+                } else {
+                    LOGGER.debug("→ Using non-email mode - creating me() request");
+                    return getGraphServiceClientForUser(useEmail, null).me();
+                }
             }
-            return requestContext.invokeAsUser() ? getGraphServiceClientForUser(null, null).me() : getGraphServiceClientForUser(null, null).users(office365CalendarAttributes.getEmail());
+
+            if (requestContext.invokeAsUser()) {
+                LOGGER.debug("→ InvokeAsUser mode - creating me() request");
+                return getGraphServiceClientForUser(null, null).me();
+            } else {
+                LOGGER.debug("→ System mode - creating users() request for: {}", office365CalendarAttributes.getEmail());
+                return getGraphServiceClientForUser(null, null).users(office365CalendarAttributes.getEmail());
+            }
         } catch (IOException cause) {
+            LOGGER.error("→ getUserRequestBuilder: IOException occurred - {}", cause.getMessage(), cause);
             throw new IllegalStateException(cause);
         }
     }
@@ -268,10 +379,16 @@ public final class GraphServiceClientProvider {
      * @throws IOException If an error occurs while obtaining or configuring the GraphServiceClient.
      */
     public GraphServiceClient<Request> getGraphServiceClientForUser(Boolean useEmail, String accountID) throws IOException {
+        LOGGER.debug("→ getGraphServiceClientForUser: Creating client with useEmail: {}, accountID: {}", useEmail, accountID);
+
         if (useEmail != null) {
-            return getGraphServiceClientForUsers(useEmail, useEmail ? null : accountID);
+            String effectiveAccountID = useEmail ? null : accountID;
+            LOGGER.debug("→ Using explicit useEmail flag: {}, effectiveAccountID: {}", useEmail, effectiveAccountID);
+            return getGraphServiceClientForUsers(useEmail, effectiveAccountID);
         } else {
-            return getGraphServiceClientForUsers(!requestContext.invokeAsUser(), null);
+            boolean useEmailFlag = !requestContext.invokeAsUser();
+            LOGGER.debug("→ Using context-based useEmail flag: {}", useEmailFlag);
+            return getGraphServiceClientForUsers(useEmailFlag, null);
         }
     }
 
@@ -284,14 +401,24 @@ public final class GraphServiceClientProvider {
      * @throws IOException If an error occurs while obtaining or configuring the GraphServiceClient.
      */
     private GraphServiceClient<Request> getGraphServiceClientForUsers(boolean useEmail, String accountID) {
+        LOGGER.debug("→ getGraphServiceClientForUsers: Creating client with useEmail: {}, accountID: {}", useEmail, accountID);
+
         try {
             String userId = getUserId(useEmail);
+            LOGGER.debug("→ Retrieved userId: {}", userId);
+
             String refreshToken = refreshTokenStore.get(userId);
             if (refreshToken == null) {
+                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
                 throw createMustAuthorizationException(userId, false);
             }
-            return getGraphServiceClient(userId, refreshToken);
+            LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
+
+            GraphServiceClient<Request> client = getGraphServiceClient(userId, refreshToken);
+            LOGGER.debug("→ getGraphServiceClientForUsers: Successfully created GraphServiceClient for userId: {}", userId);
+            return client;
         } catch (RuntimeException cause) {
+            LOGGER.error("→ getGraphServiceClientForUsers: Runtime exception occurred - {}", cause.getMessage(), cause);
             throw cause;
         }
     }
@@ -305,15 +432,24 @@ public final class GraphServiceClientProvider {
      * @throws IllegalStateException If the user ID cannot be determined.
      */
     private String getUserId(boolean calledFromValidateAttributes, String accountID) {
+        LOGGER.debug("→ getUserId(overloaded): Getting userId with calledFromValidateAttributes: {}, accountID: {}",
+                calledFromValidateAttributes, accountID);
+
         String userId;
         if (calledFromValidateAttributes) {
             userId = office365CalendarAttributes.getEmail();
+            LOGGER.debug("→ Using email from attributes: {}", userId);
         } else {
             userId = (accountID != null) ? accountID : authorizationContext.getAuthorizedAccount().getAccountId();
+            LOGGER.debug("→ Using accountID or authorized account: {}", userId);
         }
+
         if (userId == null) {
+            LOGGER.error("→ getUserId(overloaded): Failed to get account - userId is null");
             throw new IllegalStateException(Constants.FAILED_TO_GET_ACCOUNT);
         }
+
+        LOGGER.debug("→ getUserId(overloaded): Successfully retrieved userId: {}", userId);
         return userId;
     }
 
@@ -333,10 +469,15 @@ public final class GraphServiceClientProvider {
          * @param accessToken the OAuth access token to use for authentication
          */
         public GraphServiceClientAuthenticationProvider(String accessToken) {
+            LOGGER.debug("→ GraphServiceClientAuthenticationProvider: Initializing with access token");
+
             if (accessToken == null || accessToken.isEmpty() || accessToken.isBlank()) {
+                LOGGER.error("→ GraphServiceClientAuthenticationProvider: Empty access token provided: {}", accessToken);
                 throw new IllegalArgumentException("Empty access token provided " + accessToken);
             }
+
             this.accessToken = accessToken;
+            LOGGER.debug("→ GraphServiceClientAuthenticationProvider: Successfully initialized with valid access token");
         }
 
         /**
@@ -348,6 +489,7 @@ public final class GraphServiceClientProvider {
         @NotNull
         @Override
         public CompletableFuture<String> getAuthorizationTokenAsync(@NotNull URL requestUrl) {
+            LOGGER.debug("→ getAuthorizationTokenAsync: Providing access token for request URL: {}", requestUrl);
             return CompletableFuture.completedFuture(accessToken);
         }
     }

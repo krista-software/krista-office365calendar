@@ -1,5 +1,8 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.strategy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 
 import java.lang.annotation.Annotation;

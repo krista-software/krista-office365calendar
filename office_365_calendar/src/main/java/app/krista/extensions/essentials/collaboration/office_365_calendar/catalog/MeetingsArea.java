@@ -15,7 +15,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.M
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
-import app.krista.model.base.File;
+import app.krista.model.base.*;
 import com.microsoft.graph.models.FileAttachment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,11 +52,24 @@ public final class MeetingsArea {
 
     @Inject
     public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager, ExtensionResponseGenerator responseGenerator) {
+        LOGGER.info("→ MeetingsArea: Initializing with injected dependencies");
+
         this.meetingDao = meetingDao;
+        LOGGER.debug("→ MeetingDaoImpl set");
+
         this.catalogTypes = catalogTypes;
+        LOGGER.debug("→ CatalogTypes set");
+
         this.validationOrchestrator = validationOrchestrator;
+        LOGGER.debug("→ ValidationOrchestrator set");
+
         this.errorHandlingStateManager = errorHandlingStateManager;
+        LOGGER.debug("→ ErrorHandlingStateManager set");
+
         this.responseGenerator = responseGenerator;
+        LOGGER.debug("→ ExtensionResponseGenerator set");
+
+        LOGGER.info("→ MeetingsArea: Initialization completed successfully");
     }
 
     /**
@@ -74,46 +87,64 @@ public final class MeetingsArea {
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        try {
-            LOGGER.info("cancelEvent: eventId={}", eventId);
+        LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}", eventId);
 
+        try {
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+            LOGGER.debug("→ Created validation parameters map");
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
                 validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+                LOGGER.debug("→ Added EVENT_ID to validation parameters");
+            } else {
+                LOGGER.warn("→ Event ID is null or empty");
             }
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "cancelEvent");
+            LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the cancel event operation
+                LOGGER.debug("→ Validation passed, proceeding with event cancellation");
                 Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+                LOGGER.debug("→ Event cancelled successfully via DAO");
+
                 EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+                LOGGER.debug("→ Converted cancelled meeting to EventDetails");
+
+                LOGGER.info("→ cancelEvent: Successfully cancelled event: {}", eventId);
                 return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
+                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
                 String stateId = UUID.randomUUID().toString();
+                LOGGER.debug("→ Generated state ID: {}", stateId);
+
                 errorHandlingStateManager.put(stateId, Map.of(
                         Constants.VALIDATION_RESULTS, validationResults));
+                LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
+                LOGGER.debug("→ Generated confirmation response for validation errors");
+                return response;
             }
         } catch (Exception cause) {
-            LOGGER.error("Error occurred in cancelEvent: {}", cause.getMessage());
+            LOGGER.error("→ cancelEvent: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in cancel event: " + cause.getMessage(),
                     System.currentTimeMillis(),
                     ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
                     ""
             );
+            LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
@@ -133,46 +164,64 @@ public final class MeetingsArea {
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse getNextUpcomingMeetings(
             @Field(name = "Number of meeting", type = "Number") Double numberOfMeeting) {
-        try {
-            LOGGER.info("getNextUpcomingMeetings: numberOfMeeting={}", numberOfMeeting);
+        LOGGER.info("→ getNextUpcomingMeetings: Starting retrieval for numberOfMeeting: {}", numberOfMeeting);
 
+        try {
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+            LOGGER.debug("→ Created validation parameters map");
 
             // Validate Number of meetings (required)
             if (numberOfMeeting != null) {
                 validationParams.put(Validator.ValidationResource.NUMBER_OF_MEETINGS, String.valueOf(numberOfMeeting));
+                LOGGER.debug("→ Added NUMBER_OF_MEETINGS to validation parameters: {}", numberOfMeeting);
+            } else {
+                LOGGER.warn("→ Number of meetings is null");
             }
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getNextUpcomingMeetings");
+            LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get next upcoming meetings operation
+                LOGGER.debug("→ Validation passed, retrieving {} upcoming meetings", numberOfMeeting.intValue());
                 List<Meeting> meetings = meetingDao.getMeetings(numberOfMeeting.intValue());
+                LOGGER.debug("→ Retrieved {} meetings from DAO", meetings.size());
+
                 List<EventDetails> events = meetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+                LOGGER.debug("→ Converted {} meetings to EventDetails", events.size());
+
+                LOGGER.info("→ getNextUpcomingMeetings: Successfully retrieved {} upcoming meetings", events.size());
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
+                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
                 String stateId = UUID.randomUUID().toString();
+                LOGGER.debug("→ Generated state ID: {}", stateId);
+
                 errorHandlingStateManager.put(stateId, Map.of(
                         Constants.VALIDATION_RESULTS, validationResults));
+                LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.NUMBER_OF_MEETING, numberOfMeeting != null ? numberOfMeeting : 0.0));
+                LOGGER.debug("→ Generated confirmation response for validation errors");
+                return response;
             }
         } catch (Exception cause) {
-            LOGGER.error("Error occurred in getNextUpcomingMeetings: {}", cause.getMessage());
+            LOGGER.error("→ getNextUpcomingMeetings: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in get next upcoming meetings: " + cause.getMessage(),
                     System.currentTimeMillis(),
                     ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
                     ""
             );
+            LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
@@ -192,39 +241,54 @@ public final class MeetingsArea {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse declineInvitation(
             @Field(name = "Event Id", type = "Text") String eventId) {
-        try {
-            LOGGER.info("declineInvitation: eventId={}", eventId);
+        LOGGER.info("→ declineInvitation: Starting invitation decline for eventId: {}", eventId);
 
+        try {
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
                             Validator.ValidationResource.EVENT_ID, eventId),
                             MeetingsArea.class, "declineInvitation");
+            LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the decline invitation operation
-                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.declineMeetingInvitation(eventId));
+                LOGGER.debug("→ Validation passed, declining invitation for event: {}", eventId);
+                Meeting declinedMeeting = meetingDao.declineMeetingInvitation(eventId);
+                LOGGER.debug("→ Invitation declined successfully via DAO");
+
+                EventDetails eventDetails = CatalogTypes.fromEvent(declinedMeeting);
+                LOGGER.debug("→ Converted declined meeting to EventDetails");
+
+                LOGGER.info("→ declineInvitation: Successfully declined invitation for event: {}", eventId);
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
+                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
                 String stateId = UUID.randomUUID().toString();
+                LOGGER.debug("→ Generated state ID: {}", stateId);
+
                 errorHandlingStateManager.put(stateId, Map.of(
                         Constants.VALIDATION_RESULTS, validationResults));
+                LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_DECLINE_INVITATION,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
+                LOGGER.debug("→ Generated confirmation response for validation errors");
+                return response;
             }
         } catch (Exception cause) {
-            LOGGER.error("Error occurred in declineInvitation: {}", cause.getMessage());
+            LOGGER.error("→ declineInvitation: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in decline invitation: " + cause.getMessage(),
                     System.currentTimeMillis(),
                     ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
                     ""
             );
+            LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
@@ -372,74 +436,103 @@ public final class MeetingsArea {
             @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) List<File> attachments,
             @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L")}, options = {}) String details,
             @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isTeamsMeeting) {
-        try {
-            LOGGER.info("scheduleMeeting: title={}, location={}, dateFrom={}, dateTo={}, timeZone={}, recurrenceInterval={}, daysOfWeek={}, numberedOccurrences={}",
-                    title, location, dateFrom, dateTo, timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences);
+        LOGGER.info("→ scheduleMeeting: Starting meeting scheduling - title: '{}', location: '{}', dateFrom: {}, dateTo: {}",
+                title, location, dateFrom, dateTo);
+        LOGGER.debug("→ Additional parameters - timeZone: {}, recurrenceInterval: {}, daysOfWeek: {}, numberedOccurrences: {}, isTeamsMeeting: {}",
+                timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences, isTeamsMeeting);
 
+        try {
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+            LOGGER.debug("→ Created validation parameters map");
 
             // Validate date range
             if (dateFrom != null && dateTo != null) {
                 validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
                 validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
+                LOGGER.debug("→ Added date range to validation parameters: {} to {}", dateFrom, dateTo);
+            } else {
+                LOGGER.warn("→ Date range is incomplete - dateFrom: {}, dateTo: {}", dateFrom, dateTo);
             }
 
             // Validate time zone
             if (timeZone != null && !timeZone.trim().isEmpty()) {
                 validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
+                LOGGER.debug("→ Added TIME_ZONE to validation parameters: {}", timeZone);
             }
 
             // Validate recurrence interval
             if (recurrenceInterval != null) {
                 validationParams.put(Validator.ValidationResource.RECURRENCE_INTERVAL, String.valueOf(recurrenceInterval));
+                LOGGER.debug("→ Added RECURRENCE_INTERVAL to validation parameters: {}", recurrenceInterval);
             }
 
             // Validate days of week
             if (daysOfWeek != null && !daysOfWeek.isEmpty()) {
                 validationParams.put(Validator.ValidationResource.DAYS_OF_WEEK, Constants.GSON.toJson(daysOfWeek));
+                LOGGER.debug("→ Added DAYS_OF_WEEK to validation parameters: {}", daysOfWeek);
             }
 
             // Validate numbered occurrences
             if (numberedOccurrences != null) {
                 validationParams.put(Validator.ValidationResource.NUMBERED_OCCURRENCES, String.valueOf(numberedOccurrences));
+                LOGGER.debug("→ Added NUMBERED_OCCURRENCES to validation parameters: {}", numberedOccurrences);
             }
 
             // Validate attachments (only PDF files allowed)
             if (attachments != null && !attachments.isEmpty()) {
                 validationParams.put(Validator.ValidationResource.ATTACHMENTS, Constants.GSON.toJson(attachments));
+                LOGGER.debug("→ Added ATTACHMENTS to validation parameters: {} files", attachments.size());
             }
 
             // Validate input parameters using dynamic field attribute extraction
+            LOGGER.debug("→ Starting validation with {} parameters", validationParams.size());
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "scheduleMeeting");
-
-            System.out.println("Final Validation Results:");
-            Print.prettyPrint(validationResults);
+            LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the schedule meeting operation
-                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+                LOGGER.debug("→ Validation passed, creating meeting via DAO");
+                LOGGER.debug("→ Converting {} attachments to Attachment objects", attachments != null ? attachments.size() : 0);
+
+                Meeting createdMeeting = meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting);
+                LOGGER.debug("→ Meeting created successfully via DAO");
+
+                EventDetails eventDetails = CatalogTypes.fromEvent(createdMeeting);
+                LOGGER.debug("→ Converted created meeting to EventDetails");
+
+                LOGGER.info("→ scheduleMeeting: Successfully scheduled meeting: '{}'", title);
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
+                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
                 String stateId = UUID.randomUUID().toString();
+                LOGGER.debug("→ Generated state ID: {}", stateId);
+
                 errorHandlingStateManager.put(stateId, Map.of(
                         Constants.VALIDATION_RESULTS, validationResults));
+                LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                return responseGenerator.generateConfirmationResponse(
+                Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
+                LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
+
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_SCHEDULE_MEETING,
-                        createScheduleMeetingConfirmationParams(stateId, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting));
+                        confirmationParams);
+                LOGGER.debug("→ Generated confirmation response for validation errors");
+                return response;
             }
         } catch (Exception cause) {
-            LOGGER.error("Error occurred in scheduleMeeting: {}", cause.getMessage());
+            LOGGER.error("→ scheduleMeeting: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in schedule meeting: " + cause.getMessage(),
                     System.currentTimeMillis(),
                     ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
                     ""
             );
+            LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
@@ -448,16 +541,25 @@ public final class MeetingsArea {
      * Helper method to create confirmation parameters for schedule meeting error handling.
      */
     private Map<String, Object> createScheduleMeetingConfirmationParams(String stateId, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<File> attachments, String details, Boolean isTeamsMeeting) {
+        LOGGER.debug("→ createScheduleMeetingConfirmationParams: Creating confirmation parameters for stateId: {}", stateId);
+
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.STATE_ID, stateId);
         params.put(Constants.TITLE, title != null ? title : "");
         params.put(Constants.LOCATION, location != null ? location : "");
         params.put(Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L);
         params.put(Constants.DATE_TO, dateTo != null ? dateTo : 0L);
+        LOGGER.debug("→ Added basic parameters: title='{}', location='{}', dateFrom={}, dateTo={}", title, location, dateFrom, dateTo);
+
         params.put(Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of());
         params.put(Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of());
+        LOGGER.debug("→ Added attendee parameters: {} required, {} optional",
+                requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0,
+                optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0);
+
         params.put(Constants.IS_ALL_DAY, isAllDay != null ? isAllDay : false);
         params.put(Constants.TIME_ZONE, timeZone != null ? timeZone : "");
+        LOGGER.debug("→ Added time parameters: isAllDay={}, timeZone='{}'", isAllDay, timeZone);
         params.put(Constants.REMINDER, reminder != null ? reminder : "");
         params.put(Constants.RECURRENCE, recurrence != null ? recurrence : "");
         params.put(Constants.RECURRENCE_INTERVAL, recurrenceInterval != null ? recurrenceInterval : 0.0);
@@ -473,7 +575,7 @@ public final class MeetingsArea {
         params.put(Constants.ATTACHMENTS_FIELD, attachments != null ? attachments : List.of());
         params.put(Constants.DETAILS, details != null ? details : "");
         params.put(Constants.IS_TEAMS_MEETING, isTeamsMeeting != null ? isTeamsMeeting : false);
-        Print.prettyPrint(params);
+        LOGGER.debug("Schedule meeting confirmation parameters: {}", params);
         return params;
     }
 
@@ -490,7 +592,17 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public List<EventDetails> getAllUnacceptedEvents() {
-        return meetingDao.getUnAcceptedMeetings().stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+        LOGGER.info("getAllUnacceptedEvents: Retrieving all unaccepted events");
+        try {
+            List<Meeting> unacceptedMeetings = meetingDao.getUnAcceptedMeetings();
+            LOGGER.info("getAllUnacceptedEvents: Found {} unaccepted meetings", unacceptedMeetings.size());
+            List<EventDetails> eventDetails = unacceptedMeetings.stream().map(CatalogTypes::fromEvent).collect(Collectors.toList());
+            LOGGER.info("getAllUnacceptedEvents: Successfully converted to {} event details", eventDetails.size());
+            return eventDetails;
+        } catch (Exception cause) {
+            LOGGER.error("Error occurred in getAllUnacceptedEvents: {}", cause.getMessage(), cause);
+            throw cause;
+        }
     }
 
     /**
@@ -855,81 +967,66 @@ public final class MeetingsArea {
             @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}) String timeZone,
             @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration) {
         try {
-            System.out.println("=== GET FREE SLOTS START ===");
-            System.out.println("Input parameters:");
-            System.out.println("  dateFrom: " + dateFrom);
-            System.out.println("  dateTo: " + dateTo);
-            System.out.println("  isOrganizerOptional: " + isOrganizerOptional);
-            System.out.println("  requiredAttendee: " + requiredAttendee);
-            System.out.println("  optionalAttendee: " + optionalAttendee);
-            System.out.println("  timeZone: " + timeZone);
-            System.out.println("  meetingDuration: " + meetingDuration);
-            LOGGER.info("getFreeSlots: dateFrom={}, dateTo={}, isOrganizerOptional={}, requiredAttendee={}, optionalAttendee={}, timeZone={}, meetingDuration={}",
+            LOGGER.info("→ GET FREE SLOTS START");
+            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, isOrganizerOptional={}, requiredAttendee={}, optionalAttendee={}, timeZone={}, meetingDuration={}",
                 dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
 
             // Prepare validation parameters
-            System.out.println("Preparing validation parameters...");
+            LOGGER.debug("→ Preparing validation parameters...");
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
             // Validate date range
             if (dateFrom != null && dateTo != null) {
-                System.out.println("Adding date validation parameters:");
-                System.out.println("  FROM_DATE: " + String.valueOf(dateFrom));
-                System.out.println("  TO_DATE: " + String.valueOf(dateTo));
+                LOGGER.debug("→ Adding date validation parameters: FROM_DATE={}, TO_DATE={}", dateFrom, dateTo);
                 validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
                 validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
             } else {
-                System.out.println("Skipping date validation - dateFrom or dateTo is null");
+                LOGGER.debug("→ Skipping date validation - dateFrom or dateTo is null");
             }
             // Validate time zone
             if (timeZone != null && !timeZone.trim().isEmpty()) {
-                System.out.println("Adding time zone validation parameter:");
-                System.out.println("  TIME_ZONE: " + timeZone);
+                LOGGER.debug("→ Adding time zone validation parameter: TIME_ZONE={}", timeZone);
                 validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
             } else {
-                System.out.println("Skipping time zone validation - timeZone is null or empty");
+                LOGGER.debug("→ Skipping time zone validation - timeZone is null or empty");
             }
 
             // Validate meeting duration
             if (meetingDuration != null && !meetingDuration.trim().isEmpty()) {
-                System.out.println("Adding meeting duration validation parameter:");
-                System.out.println("  MEETING_DURATION: " + meetingDuration);
+                LOGGER.debug("→ Adding meeting duration validation parameter: MEETING_DURATION={}", meetingDuration);
                 validationParams.put(Validator.ValidationResource.MEETING_DURATION, meetingDuration);
             } else {
-                System.out.println("Skipping meeting duration validation - meetingDuration is null or empty");
+                LOGGER.debug("→ Skipping meeting duration validation - meetingDuration is null or empty");
             }
 
-            System.out.println("Final validation parameters: " + validationParams);
+            LOGGER.debug("→ Final validation parameters: {}", validationParams);
 
             // Validate input parameters using dynamic field attribute extraction
-            System.out.println("Calling validation orchestrator with dynamic attribute extraction...");
+            LOGGER.debug("→ Calling validation orchestrator with dynamic attribute extraction...");
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getFreeSlots");
 
-            System.out.println("Validation results count: " + validationResults.size());
+            LOGGER.debug("→ Validation results count: {}", validationResults.size());
             if (!validationResults.isEmpty()) {
-                System.out.println("Validation results:");
-                for (ValidationOrchestrator.ValidationResult result : validationResults) {
-                    System.out.println("  - " + result);
-                }
+                LOGGER.debug("→ Validation results: {}", validationResults);
             }
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get free slots operation
-                System.out.println("Validation passed, calling meetingDao.getFreeSlot...");
+                LOGGER.debug("→ Validation passed, calling meetingDao.getFreeSlot...");
                 List<Map<String, Object>> freeSlots = meetingDao.getFreeSlot(dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
-                System.out.println("Retrieved free slots count: " + (freeSlots != null ? freeSlots.size() : "null"));
+                LOGGER.info("→ Retrieved free slots count: {}", (freeSlots != null ? freeSlots.size() : "null"));
                 ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Free Slots", freeSlots)).build();
-                System.out.println("=== GET FREE SLOTS SUCCESS END ===");
+                LOGGER.info("→ GET FREE SLOTS SUCCESS END");
                 return response;
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
-                System.out.println("Validation failed, preparing confirmation response...");
+                LOGGER.debug("→ Validation failed, preparing confirmation response...");
                 String stateId = UUID.randomUUID().toString();
-                System.out.println("Generated stateId: " + stateId);
+                LOGGER.debug("→ Generated stateId: {}", stateId);
 
                 Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
-                System.out.println("Storing state data: " + stateData);
+                LOGGER.debug("→ Storing state data: {}", stateData);
                 errorHandlingStateManager.put(stateId, stateData);
 
                 Map<String, Object> confirmationParams = Map.of(
@@ -941,20 +1038,16 @@ public final class MeetingsArea {
                         Constants.OPTIONAL_ATTENDEE, optionalAttendee != null ? optionalAttendee : List.of(),
                         Constants.TIME_ZONE, timeZone != null ? timeZone : "",
                         Constants.MEETING_DURATION, meetingDuration != null ? meetingDuration : "");
-                System.out.println("Confirmation parameters: " + confirmationParams);
+                LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_FREE_SLOTS, confirmationParams);
-                System.out.println("=== GET FREE SLOTS VALIDATION FAILED END ===");
+                LOGGER.info("→ GET FREE SLOTS VALIDATION FAILED END");
                 return response;
             }
         } catch (Exception cause) {
-            System.out.println("=== GET FREE SLOTS EXCEPTION ===");
-            System.out.println("Exception: " + cause.getClass().getSimpleName());
-            System.out.println("Message: " + cause.getMessage());
-            cause.printStackTrace();
-            LOGGER.error("Error occurred in getFreeSlots: {}", cause.getMessage());
+            LOGGER.error("→ GET FREE SLOTS EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in get free slots: " + cause.getMessage(),
                     System.currentTimeMillis(),
@@ -962,7 +1055,7 @@ public final class MeetingsArea {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("=== GET FREE SLOTS EXCEPTION END ===");
+            LOGGER.error("→ GET FREE SLOTS EXCEPTION END");
             return response;
         }
     }
@@ -989,73 +1082,60 @@ public final class MeetingsArea {
             @Field.Desc(name = "Attendees", type = "[ Email ]") List<String> attendees,
             @Field(name = "Time Zone", type = "Text", required = false) String timeZone) {
         try {
-            System.out.println("=== GET SCHEDULES START ===");
-            System.out.println("Input parameters:");
-            System.out.println("  dateFrom: " + dateFrom);
-            System.out.println("  dateTo: " + dateTo);
-            System.out.println("  attendees: " + attendees);
-            System.out.println("  timeZone: " + timeZone);
-            LOGGER.info("getSchedules: dateFrom={}, dateTo={}, attendees={}, timeZone={}", dateFrom, dateTo, attendees, timeZone);
+            LOGGER.info("→ GET SCHEDULES START");
+            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, attendees={}, timeZone={}", dateFrom, dateTo, attendees, timeZone);
 
             // Prepare validation parameters
-            System.out.println("Preparing validation parameters...");
+            LOGGER.debug("→ Preparing validation parameters...");
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
             // Validate date range
             if (dateFrom != null && dateTo != null) {
-                System.out.println("Adding date validation parameters:");
-                System.out.println("  FROM_DATE: " + String.valueOf(dateFrom));
-                System.out.println("  TO_DATE: " + String.valueOf(dateTo));
+                LOGGER.debug("→ Adding date validation parameters: FROM_DATE={}, TO_DATE={}", dateFrom, dateTo);
                 validationParams.put(Validator.ValidationResource.FROM_DATE, String.valueOf(dateFrom));
                 validationParams.put(Validator.ValidationResource.TO_DATE, String.valueOf(dateTo));
             } else {
-                System.out.println("Skipping date validation - dateFrom or dateTo is null");
+                LOGGER.debug("→ Skipping date validation - dateFrom or dateTo is null");
             }
 
             // Validate time zone
             if (timeZone != null && !timeZone.trim().isEmpty()) {
-                System.out.println("Adding time zone validation parameter:");
-                System.out.println("  TIME_ZONE: " + timeZone);
+                LOGGER.debug("→ Adding time zone validation parameter: TIME_ZONE={}", timeZone);
                 validationParams.put(Validator.ValidationResource.TIME_ZONE, timeZone);
             } else {
-                System.out.println("Skipping time zone validation - timeZone is null or empty");
+                LOGGER.debug("→ Skipping time zone validation - timeZone is null or empty");
             }
 
-            System.out.println("Final validation parameters: " + validationParams);
+            LOGGER.debug("→ Final validation parameters: {}", validationParams);
 
             // Validate input parameters using dynamic field attribute extraction
-            System.out.println("Calling validation orchestrator with dynamic attribute extraction...");
+            LOGGER.debug("→ Calling validation orchestrator with dynamic attribute extraction...");
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getSchedules");
 
+            LOGGER.debug("→ Final Validation Results: {}", validationResults);
 
-            System.out.println("Final Validation Results:");
-            Print.prettyPrint(validationResults);
-
-            System.out.println("Validation results count: " + validationResults.size());
+            LOGGER.debug("→ Validation results count: {}", validationResults.size());
             if (!validationResults.isEmpty()) {
-                System.out.println("Validation results:");
-                for (ValidationOrchestrator.ValidationResult result : validationResults) {
-                    System.out.println("  - " + result);
-                }
+                LOGGER.debug("→ Validation results: {}", validationResults);
             }
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get schedules operation
-                System.out.println("Validation passed, calling meetingDao.getSchedules...");
+                LOGGER.debug("→ Validation passed, calling meetingDao.getSchedules...");
                 List<Map<String, Object>> schedules = meetingDao.getSchedules(dateFrom, dateTo, attendees, timeZone);
-                System.out.println("Retrieved schedules count: " + (schedules != null ? schedules.size() : "null"));
+                LOGGER.info("→ Retrieved schedules count: {}", (schedules != null ? schedules.size() : "null"));
                 ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Meetings", schedules)).build();
-                System.out.println("=== GET SCHEDULES SUCCESS END ===");
+                LOGGER.info("→ GET SCHEDULES SUCCESS END");
                 return response;
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
-                System.out.println("Validation failed, preparing confirmation response...");
+                LOGGER.debug("→ Validation failed, preparing confirmation response...");
                 String stateId = UUID.randomUUID().toString();
-                System.out.println("Generated stateId: " + stateId);
+                LOGGER.debug("→ Generated stateId: {}", stateId);
 
                 Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
-                System.out.println("Storing state data: " + stateData);
+                LOGGER.debug("→ Storing state data: {}", stateData);
                 errorHandlingStateManager.put(stateId, stateData);
 
                 Map<String, Object> confirmationParams = Map.of(
@@ -1064,20 +1144,16 @@ public final class MeetingsArea {
                         Constants.TO_DATE, dateTo != null ? dateTo : 0L,
                         Constants.ATTENDEES, attendees != null ? attendees : List.of(),
                         Constants.TIME_ZONE, timeZone != null ? timeZone : "");
-                System.out.println("Confirmation parameters: " + confirmationParams);
+                LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_SCHEDULES, confirmationParams);
-                System.out.println("=== GET SCHEDULES VALIDATION FAILED END ===");
+                LOGGER.info("→ GET SCHEDULES VALIDATION FAILED END");
                 return response;
             }
         } catch (Exception cause) {
-            System.out.println("=== GET SCHEDULES EXCEPTION ===");
-            System.out.println("Exception: " + cause.getClass().getSimpleName());
-            System.out.println("Message: " + cause.getMessage());
-            cause.printStackTrace();
-            LOGGER.error("Error occurred in getSchedules: {}", cause.getMessage());
+            LOGGER.error("→ GET SCHEDULES EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     "Error occurred in get schedules: " + cause.getMessage(),
                     System.currentTimeMillis(),
@@ -1085,7 +1161,7 @@ public final class MeetingsArea {
                     ""
             );
             ExtensionResponse response = new ExtensionResponseBuilder().failure(error).build();
-            System.out.println("=== GET SCHEDULES EXCEPTION END ===");
+            LOGGER.error("→ GET SCHEDULES EXCEPTION END");
             return response;
         }
     }
@@ -1120,8 +1196,7 @@ public final class MeetingsArea {
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEvent");
 
-            System.out.println("First Validation Result");
-            Print.prettyPrint(validationResults);
+            LOGGER.debug("First Validation Result: {}", validationResults);
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get event operation
@@ -1338,11 +1413,11 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get attachments operation
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-                System.out.println("  → Attachments retrieved successfully");
-                System.out.println("  → Number of attachments found: " + fileAttachments.size());
+                LOGGER.info("  → Attachments retrieved successfully");
+                LOGGER.info("  → Number of attachments found: {}", fileAttachments.size());
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
-                System.out.println("  → Attachments converted to Krista File objects");
-                System.out.println("  → Number of Krista File objects: " + attachments.size());
+                LOGGER.info("  → Attachments converted to Krista File objects");
+                LOGGER.info("  → Number of Krista File objects: {}", attachments.size());
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
