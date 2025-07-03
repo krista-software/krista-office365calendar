@@ -167,6 +167,15 @@ public final class Constants {
     public static final String CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS = "confirmReenterGetNextUpcomingMeetings";
     public static final String NUMBER_OF_MEETING = "Number of meeting";
 
+    // Retry Configuration Constants
+    public static final int DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+    public static final long DEFAULT_INITIAL_DELAY_MS = 1000L; // 1 second
+    public static final double DEFAULT_BACKOFF_MULTIPLIER = 2.0;
+    public static final long DEFAULT_MAX_DELAY_MS = 30000L; // 30 seconds
+    public static final String RETRY_ATTEMPT_MESSAGE = "Retry attempt {} of {} for operation: {}";
+    public static final String RETRY_EXHAUSTED_MESSAGE = "All retry attempts exhausted for operation: {}";
+    public static final String RETRY_SUCCESS_MESSAGE = "Operation succeeded on retry attempt {} of {}: {}";
+
     private Constants() {
     }
 }

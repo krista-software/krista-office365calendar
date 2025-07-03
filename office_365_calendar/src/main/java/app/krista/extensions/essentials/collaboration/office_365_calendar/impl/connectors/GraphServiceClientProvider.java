@@ -4,6 +4,8 @@ import app.krista.extension.authorization.MustAuthorizeException;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.RefreshTokenStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.ExponentialBackoffRetryExecutor;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.RetryConfiguration;
 import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import app.krista.model.field.NamedValuedField;
@@ -128,6 +130,20 @@ public final class GraphServiceClientProvider {
     }
 
     /**
+     * Returns a GraphServiceClient for system-level (application) authentication with custom retry configuration.
+     *
+     * @param retryConfig the retry configuration to use
+     * @return a configured GraphServiceClient instance for system operations
+     */
+    public GraphServiceClient<Request> getGraphServiceClientForSystem(RetryConfiguration retryConfig) {
+        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
+
+        GraphServiceClient<Request> client = getGraphServiceClientWithClientCredentials(retryConfig);
+        LOGGER.info("→ getGraphServiceClientForSystem: Successfully created system GraphServiceClient with custom retry config");
+        return client;
+    }
+
+    /**
      * Returns a GraphServiceClient for admin-level authentication.
      *
      * @return a configured GraphServiceClient instance for admin operations
@@ -142,37 +158,47 @@ public final class GraphServiceClientProvider {
 
 
     private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
-        LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Creating client with client credentials");
+        return getGraphServiceClientWithClientCredentials(RetryConfiguration.defaultConfiguration());
+    }
+
+    private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials(RetryConfiguration retryConfig) {
+        LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Creating client with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
 
         try {
-            IClientCredential clientCredential = ClientCredentialFactory
-                    .createFromSecret(office365CalendarAttributes.getClientSecret());
-            LOGGER.debug("→ Created client credential from secret");
+            return ExponentialBackoffRetryExecutor.executeWithRetry(() -> {
+                LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Executing client credentials token acquisition with retry");
 
-            String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
-            LOGGER.debug("→ Built authority URL: {}", authority);
+                IClientCredential clientCredential = ClientCredentialFactory
+                        .createFromSecret(office365CalendarAttributes.getClientSecret());
+                LOGGER.debug("→ Created client credential from secret");
 
-            ConfidentialClientApplication cca = ConfidentialClientApplication.builder(
-                            office365CalendarAttributes.getClientId(),
-                            clientCredential)
-                    .authority(authority)
-                    .build();
-            LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
+                String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+                LOGGER.debug("→ Built authority URL: {}", authority);
 
-            ClientCredentialParameters parameters = ClientCredentialParameters.builder(
-                            Collections.singleton(GraphServiceClientProvider.CLIENT_CREDENTIAL_SCOPES))
-                    .build();
-            LOGGER.debug("→ Created client credential parameters with scopes: {}", CLIENT_CREDENTIAL_SCOPES);
+                ConfidentialClientApplication cca = ConfidentialClientApplication.builder(
+                                office365CalendarAttributes.getClientId(),
+                                clientCredential)
+                        .authority(authority)
+                        .build();
+                LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
 
-            IAuthenticationResult result = cca.acquireToken(parameters).get();
-            LOGGER.debug("→ Acquired access token successfully");
+                ClientCredentialParameters parameters = ClientCredentialParameters.builder(
+                                Collections.singleton(GraphServiceClientProvider.CLIENT_CREDENTIAL_SCOPES))
+                        .build();
+                LOGGER.debug("→ Created client credential parameters with scopes: {}", CLIENT_CREDENTIAL_SCOPES);
 
-            GraphServiceClient<Request> client = GraphServiceClient.builder()
-                    .authenticationProvider(new GraphServiceClientAuthenticationProvider(result.accessToken()))
-                    .buildClient();
-            LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Successfully created GraphServiceClient");
+                // This is the critical network operation that may fail and needs retry
+                IAuthenticationResult result = cca.acquireToken(parameters).get();
+                LOGGER.debug("→ Acquired access token successfully");
 
-            return client;
+                GraphServiceClient<Request> client = GraphServiceClient.builder()
+                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(result.accessToken()))
+                        .buildClient();
+                LOGGER.debug("→ Created GraphServiceClient with client credentials successfully");
+
+                return client;
+            }, "GraphServiceClient creation with client credentials", retryConfig);
+
         } catch (Exception cause) {
             LOGGER.error("→ getGraphServiceClientWithClientCredentials: Error creating GraphServiceClient with client credentials - {}", cause.getMessage(), cause);
             throw new RuntimeException("Error creating GraphServiceClient with client credentials", cause);
@@ -209,47 +235,74 @@ public final class GraphServiceClientProvider {
 
     /**
      * Returns a GraphServiceClient for the specified user, using the provided refresh token.
+     * Uses exponential backoff retry mechanism for transient network failures.
      *
      * @param userId       the user ID
      * @param refreshToken the refresh token for the user
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
-        LOGGER.info("→ getGraphServiceClient: Creating GraphServiceClient for userId: {}", userId);
+        return getGraphServiceClient(userId, refreshToken, RetryConfiguration.defaultConfiguration());
+    }
+
+    /**
+     * Returns a GraphServiceClient for the specified user, using the provided refresh token and custom retry configuration.
+     * Uses exponential backoff retry mechanism for transient network failures.
+     *
+     * @param userId       the user ID
+     * @param refreshToken the refresh token for the user
+     * @param retryConfig  the retry configuration to use
+     * @return a configured GraphServiceClient instance
+     */
+    public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken, RetryConfiguration retryConfig) {
+        LOGGER.info("→ getGraphServiceClient: Creating GraphServiceClient for userId: {} with retry config: maxRetries={}", userId, retryConfig.maxRetryAttempts());
 
         try {
-            String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
-            Set<String> scopeSet = Arrays.stream(scopes).collect(Collectors.toSet());
-            LOGGER.debug("→ Created scope set with {} scopes: {}", scopeSet.size(), scopeSet);
+            return ExponentialBackoffRetryExecutor.executeWithRetry(() -> {
+                LOGGER.debug("→ getGraphServiceClient: Executing token acquisition with retry for userId: {}", userId);
 
-            RefreshTokenParameters refreshTokenStoreParameters = RefreshTokenParameters.builder(scopeSet, refreshToken).build();
-            LOGGER.debug("→ Created refresh token parameters");
+                String[] scopes = REQUIRED_SCOPE.split(SCOPE_SEPARATOR);
+                Set<String> scopeSet = Arrays.stream(scopes).collect(Collectors.toSet());
+                LOGGER.debug("→ Created scope set with {} scopes: {}", scopeSet.size(), scopeSet);
 
-            IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
-            LOGGER.debug("→ Created client credential from secret");
+                RefreshTokenParameters refreshTokenStoreParameters = RefreshTokenParameters.builder(scopeSet, refreshToken).build();
+                LOGGER.debug("→ Created refresh token parameters");
 
-            String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
-            LOGGER.debug("→ Built authority URL: {}", authority);
+                IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
+                LOGGER.debug("→ Created client credential from secret");
 
-            ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
-            LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
+                String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+                LOGGER.debug("→ Built authority URL: {}", authority);
 
-            IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
-            LOGGER.debug("→ Acquired authentication result successfully");
+                ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(
+                        office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
+                LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
 
-            final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
-            updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
-            LOGGER.debug("→ Updated refresh token for userId: {}", userId);
+                // This is the critical network operation that may fail and needs retry
+                IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
+                LOGGER.debug("→ Acquired authentication result successfully");
 
-            GraphServiceClient<Request> client = GraphServiceClient.builder().authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken())).buildClient();
-            LOGGER.info("→ getGraphServiceClient: Successfully created GraphServiceClient for userId: {}", userId);
-            return client;
+                final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
+                updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
+                LOGGER.debug("→ Updated refresh token for userId: {}", userId);
+
+                GraphServiceClient<Request> client = GraphServiceClient.builder()
+                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken()))
+                        .buildClient();
+                LOGGER.debug("→ Created GraphServiceClient successfully");
+
+                return client;
+            }, "GraphServiceClient creation for user: " + userId, retryConfig);
+
         } catch (IOException | ExecutionException cause) {
             LOGGER.error("→ getGraphServiceClient: IOException/ExecutionException for userId: {} - {}", userId, cause.getMessage(), cause);
             throw createMustAuthorizationException(userId, true);
         } catch (InterruptedException interruptedException) {
             LOGGER.error("→ getGraphServiceClient: InterruptedException for userId: {} - {}", userId, interruptedException.getMessage(), interruptedException);
             Thread.currentThread().interrupt();
+            throw createMustAuthorizationException(userId, true);
+        } catch (Exception cause) {
+            LOGGER.error("→ getGraphServiceClient: Unexpected exception for userId: {} - {}", userId, cause.getMessage(), cause);
             throw createMustAuthorizationException(userId, true);
         }
     }
