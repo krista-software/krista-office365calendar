@@ -86,7 +86,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
-            @Field(name = "Event Id", type = "Text") String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId) {
         LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}", eventId);
 
         try {
@@ -163,7 +163,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse getNextUpcomingMeetings(
-            @Field(name = "Number of meeting", type = "Number") Double numberOfMeeting) {
+            @Field(name = "Number of meeting", type = "Number", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many upcoming meetings to retrieve (e.g., 5 for next 5 meetings)'")}) Double numberOfMeeting) {
         LOGGER.info("→ getNextUpcomingMeetings: Starting retrieval for numberOfMeeting: {}", numberOfMeeting);
 
         try {
@@ -240,7 +240,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse declineInvitation(
-            @Field(name = "Event Id", type = "Text") String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to decline'")}) String eventId) {
         LOGGER.info("→ declineInvitation: Starting invitation decline for eventId: {}", eventId);
 
         try {
@@ -307,7 +307,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse tentativeInvitation(
-            @Field(name = "Event Id", type = "Text") String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to mark as tentative'")}) String eventId) {
         try {
             LOGGER.info("tentativeInvitation: eventId={}", eventId);
 
@@ -360,7 +360,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field(name = "IsForwarded", type = "Switch", required = false)
     public ExtensionResponse forwardEvent(
-            @Field(name = "Event Id", type = "Text") String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to forward to additional attendees'")}) String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
         try {
             LOGGER.info("forwardEvent: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
@@ -413,29 +413,29 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse scheduleMeeting(
-            @Field.Text(name = "Title", required = false, attributes = {}, options = {}) String title,
-            @Field.Text(name = "Location", required = false, attributes = {}, options = {}) String location,
-            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {}, options = {})  Long dateFrom,
-            @Field.Date(name = "Date to", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {}, options = {})  Long dateTo,
+            @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {}) String title,
+            @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {}) String location,
+            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {})  Long dateFrom,
+            @Field.Date(name = "Date to", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {})  Long dateTo,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
-            @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isAllDay,
-            @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String timeZone,
-            @Field.PickOne(name = "Reminder", values = {"None", "Don't remind me", "At event start", "At time of event", "5 minutes before", "15 minutes before", "30 minutes before", "1 hour before", "2 hours before", "4 hours before", "12 hours before", "1 day before", "1 week before"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String reminder,
-            @Field.PickOne(name = "Recurrence", values = {"Never", "Does Not Repeat", "Daily", "Weekly", "Monthly", "Yearly"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String recurrence,
-            @Field(name = "Recurrence Interval", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double recurrenceInterval,
+            @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this if the meeting lasts the entire day'")}, options = {}) Boolean isAllDay,
+            @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the time zone for the meeting (e.g., EST, PST, UTC)'")}, options = {}) String timeZone,
+            @Field.PickOne(name = "Reminder", values = {"None", "Don't remind me", "At event start", "At time of event", "5 minutes before", "15 minutes before", "30 minutes before", "1 hour before", "2 hours before", "4 hours before", "12 hours before", "1 day before", "1 week before"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose when you want to be reminded about this meeting'")}, options = {}) String reminder,
+            @Field.PickOne(name = "Recurrence", values = {"Never", "Does Not Repeat", "Daily", "Weekly", "Monthly", "Yearly"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select how often this meeting should repeat'")}, options = {}) String recurrence,
+            @Field(name = "Recurrence Interval", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the interval for recurrence (e.g., 2 for every 2 weeks)'")}, options = {}) Double recurrenceInterval,
             @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false) List<String> daysOfWeek,
-            @Field.PickOne(name = "Recurrence Type", values = {"Absolute recurrence", "Relative recurrence"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String recurrenceType,
-            @Field(name = "Day Of Month", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double dayOfMonth,
-            @Field.PickOne(name = "Repeat Index", values = {"First", "Second", "Third", "Fourth", "Last"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatIndex,
-            @Field.PickOne(name = "Repeat Day", values = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatDay,
-            @Field.PickOne(name = "Repeat Month", values = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String repeatMonth,
-            @Field.PickOne(name = "End Recurrence", values = {"End date", "Numbered occurrences", "No end"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String endRecurrence,
-            @Field.Date(name = "End Date", required = false, includeTimeOfDay = true, allowPast = false, allowToday = false, allowFuture = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long endDate,
-            @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Double numberedOccurrences,
-            @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) List<File> attachments,
-            @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L")}, options = {}) String details,
-            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Boolean isTeamsMeeting) {
+            @Field.PickOne(name = "Recurrence Type", values = {"Absolute recurrence", "Relative recurrence"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose between absolute (specific date) or relative (e.g., first Monday) recurrence'")}, options = {}) String recurrenceType,
+            @Field(name = "Day Of Month", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the day of the month for monthly recurrence (1-31)'")}, options = {}) Double dayOfMonth,
+            @Field.PickOne(name = "Repeat Index", values = {"First", "Second", "Third", "Fourth", "Last"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select which occurrence in the month (e.g., first Monday, last Friday)'")}, options = {}) String repeatIndex,
+            @Field.PickOne(name = "Repeat Day", values = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose the day of the week for weekly recurrence'")}, options = {}) String repeatDay,
+            @Field.PickOne(name = "Repeat Month", values = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the month for yearly recurrence'")}, options = {}) String repeatMonth,
+            @Field.PickOne(name = "End Recurrence", values = {"End date", "Numbered occurrences", "No end"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose how the recurring meeting should end'")}, options = {}) String endRecurrence,
+            @Field.Date(name = "End Date", required = false, includeTimeOfDay = true, allowPast = false, allowToday = false, allowFuture = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the date when the recurring meeting should stop'")}, options = {}) Long endDate,
+            @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many times the meeting should occur'")}, options = {}) Double numberedOccurrences,
+            @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Upload files to attach to the meeting invitation'")}, options = {}) List<File> attachments,
+            @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Add detailed description or agenda for the meeting'")}, options = {}) String details,
+            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this to create a Microsoft Teams meeting with video conferencing'")}, options = {}) Boolean isTeamsMeeting) {
         LOGGER.info("→ scheduleMeeting: Starting meeting scheduling - title: '{}', location: '{}', dateFrom: {}, dateTo: {}",
                 title, location, dateFrom, dateTo);
         LOGGER.debug("→ Additional parameters - timeZone: {}, recurrenceInterval: {}, daysOfWeek: {}, numberedOccurrences: {}, isTeamsMeeting: {}",
@@ -621,7 +621,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse addAttendees(
-            @Field(name = "Event Id", type = "Text") String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to add attendees to'")}) String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail) {
         try {
@@ -830,7 +830,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse acceptInvitation(
-            @Field(name = "Event Id", type = "Text") String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to accept'")}) String eventId) {
         try {
             LOGGER.info("acceptInvitation: eventId={}", eventId);
 
@@ -883,7 +883,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse removeAttendee(
-            @Field(name = "Event Id", type = "Text") String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to remove attendees from'")}) String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
         try {
             LOGGER.info("removeAttendee: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
