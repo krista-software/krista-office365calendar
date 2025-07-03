@@ -81,7 +81,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_44d8fe1f-3f2d-438d-bb9f-bb486b9a9e56",
             name = "Cancel Event",
-            description = "Cancel event for given event id",
+            description = "Cancels an existing calendar event by providing the event ID. This will remove the event from all attendees' calendars and send cancellation notifications.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
@@ -158,7 +158,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_771024d0-02e5-4163-869e-8f8860a10b62",
             name = "Get Next Upcoming Meetings",
-            description = "Get list of next upcoming meetings",
+            description = "Retrieves a specified number of upcoming meetings from your calendar, ordered chronologically by start time. Useful for getting a quick overview of your next scheduled events.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
@@ -235,7 +235,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_9de59f5f-b77d-42e3-84da-63f587f65358",
             name = "Decline Invitation",
-            description = "Decline invitation",
+            description = "Declines a meeting invitation for a specific event. This will update your response status to 'Declined' and notify the meeting organizer of your decision.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -302,7 +302,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_5bf7458f-953f-40c4-b75c-17b1f76a08b1",
             name = "Tentative Invitation",
-            description = "Tentative invitation",
+            description = "Marks your response to a meeting invitation as 'Tentative', indicating you might attend but are not certain. This notifies the organizer of your provisional acceptance.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -355,7 +355,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_f2007cf4-d127-4a30-af0c-794b28f41de8",
             name = "Forward Event",
-            description = "Forward Event",
+            description = "Forwards an existing calendar event to additional attendees. The specified recipients will receive meeting invitations with all the original event details.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field(name = "IsForwarded", type = "Switch", required = false)
@@ -408,7 +408,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_f9cf27ee-ffe7-4b65-8e0a-ce0afa25f5dc",
             name = "Schedule Meeting",
-            description = "Schedule meeting with given details",
+            description = "Creates a new calendar meeting with comprehensive details including title, location, date/time, attendees, recurrence patterns, reminders, and file attachments. Supports both regular and Teams meetings.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -587,7 +587,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_e0f748a2-17df-4e29-84e0-a1d0d06934d9",
             name = "Get All Unaccepted Events",
-            description = "Get list of all unaccepted events",
+            description = "Retrieves all meeting invitations that you have not yet responded to (neither accepted, declined, nor marked as tentative). Helps you manage pending meeting requests.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
@@ -616,7 +616,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_2e73b843-ace4-4b80-bfab-4f466706e5c5",
             name = "Add Attendees",
-            description = "Add attendees for the given event",
+            description = "Adds new attendees to an existing calendar event. You can specify both required and optional attendees who will receive meeting invitations for the event.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -687,7 +687,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_ff16001f-6709-44a8-9f00-5de09287e70e",
             name = "Update Event",
-            description = "Update Event",
+            description = "Modifies an existing calendar event with new details such as title, location, date/time, attendees, recurrence settings, and other meeting properties. All attendees will be notified of the changes.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -825,7 +825,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_d564897b-ad17-4289-af2c-bd79425c5341",
             name = "Accept Invitation",
-            description = "Accept invitation for the given event id",
+            description = "Accepts a meeting invitation for a specific event. This will update your response status to 'Accepted' and add the event to your calendar, notifying the organizer of your acceptance.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -878,7 +878,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_653a694e-2327-41d5-8a8c-48b30b07dc89",
             name = "Remove Attendee",
-            description = "Remove attendee from a given event id",
+            description = "Removes specified attendees from an existing calendar event. The removed attendees will be notified that they are no longer invited to the meeting.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
@@ -954,7 +954,7 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_7bbeb961-4ba2-4c89-8589-87a5226c33a4",
             name = "Get Free Slots",
-            description = "Get list of meeting suggestions",
+            description = "Analyzes calendars of specified attendees to find available time slots for scheduling a meeting. Returns suggested meeting times based on everyone's availability within the given date range.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
