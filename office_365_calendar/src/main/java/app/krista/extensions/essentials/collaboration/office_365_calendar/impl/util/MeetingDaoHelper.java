@@ -505,7 +505,7 @@ public final class MeetingDaoHelper {
         sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
         dateTimeTimeZone.dateTime = sfd.format(timeStamp);
-        dateTimeTimeZone.timeZone = (timeZone != null) ? timeZone : clientTimeZone;
+        dateTimeTimeZone.timeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
         return dateTimeTimeZone;
     }
 

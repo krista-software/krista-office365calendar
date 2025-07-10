@@ -55,11 +55,24 @@ public final class AuthenticationResource {
 
     @Inject
     public AuthenticationResource(Office365CalendarAttributeStore office365CalendarAttributeStore, RefreshTokenStore refreshTokenStore, GraphServiceClientProviderFactory providerFactory, AuthorizationContext context, AuthorizationListener authorizationListener) {
+        LOGGER.info("→ AuthenticationResource: Initializing with injected dependencies");
+
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
+        LOGGER.debug("→ Office365CalendarAttributeStore set");
+
         this.refreshTokenStore = refreshTokenStore;
+        LOGGER.debug("→ RefreshTokenStore set");
+
         this.providerFactory = providerFactory;
+        LOGGER.debug("→ GraphServiceClientProviderFactory set");
+
         this.context = context;
+        LOGGER.debug("→ AuthorizationContext set with authenticated: {}", context.isAuthenticated());
+
         this.authorizationListener = authorizationListener;
+        LOGGER.debug("→ AuthorizationListener set");
+
+        LOGGER.info("→ AuthenticationResource: Initialization completed successfully");
     }
 
     /**
@@ -76,42 +89,70 @@ public final class AuthenticationResource {
     @GET
     @Path("/callback")
     public String getCallBack(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
+        LOGGER.info("→ getCallBack: Processing OAuth callback with state: {}", state);
+
         Objects.requireNonNull(code);
+        LOGGER.debug("→ Authorization code received and validated");
+
         String[] parts = state.split("#");
+        LOGGER.debug("→ Split state into {} parts", parts.length);
+
         if (parts[0].isBlank() || parts.length > 2) {
+            LOGGER.error("→ getCallBack: Invalid state parameters - parts[0].isBlank(): {}, parts.length: {}", parts[0].isBlank(), parts.length);
             throw new BadRequestException(Constants.INVALID_STATE_PARAMETERS);
         }
+
         String key = parts[0];
         String authContextId = parts.length == 2 ? parts[1] : null;
+        LOGGER.debug("→ Extracted key: {}, authContextId: {}", key, authContextId);
         try {
             GraphServiceClientProvider clientProvider;
             if (authContextId == null) {
+                LOGGER.debug("→ Using default client provider (no authContextId)");
                 clientProvider = providerFactory.create();
             } else {
+                LOGGER.debug("→ Loading attributes for authContextId: {}", authContextId);
                 Office365CalendarAttributes effectiveOffice365CalendarAttributes = office365CalendarAttributeStore.load(authContextId);
                 clientProvider = providerFactory.create(effectiveOffice365CalendarAttributes);
+                LOGGER.debug("→ Created client provider with custom attributes");
             }
+
             OAuth2AccessToken accessToken = clientProvider.getOffice365CalendarAttributes().getOAuth20Service().getAccessToken(code);
+            LOGGER.debug("→ Successfully obtained OAuth2 access token");
+
             refreshTokenStore.put(key, accessToken.getRefreshToken());
+            LOGGER.debug("→ Stored refresh token for key: {}", key);
+
             if (!key.startsWith(Constants.WS_CONTACT) && !hasUserAccess(clientProvider)) {
+                LOGGER.warn("→ User access validation failed for key: {}", key);
                 refreshTokenStore.remove(key);
+                LOGGER.debug("→ Removed refresh token due to access validation failure");
                 return "Unauthorised user. User email '" + key + "'configured in the setup does not match with authenticated user.";
             }
             if (context.isAuthenticated()) {
+                LOGGER.debug("→ Context is authenticated, notifying authorization listener");
                 authorizationListener.authorized();
+                LOGGER.info("→ getCallBack: User authenticated successfully (context authenticated)");
                 return "user authenticated successfully. Please close the dialog.";
             }
+            LOGGER.info("→ getCallBack: User authenticated successfully (context not authenticated)");
             return "User authenticated successfully. Save the changes.";
         } catch (OAuthException cause) {
-            throw new IllegalStateException(getErrorDescription(cause), cause.getCause());
+            String errorDescription = getErrorDescription(cause);
+            LOGGER.error("→ getCallBack: OAuth exception occurred - {}", errorDescription, cause);
+            throw new IllegalStateException(errorDescription, cause.getCause());
         } catch (IOException | ExecutionException exception) {
+            LOGGER.error("→ getCallBack: IOException/ExecutionException occurred - {}", exception.getMessage(), exception);
             throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, exception.getCause());
         } catch (InterruptedException exception) {
+            LOGGER.error("→ getCallBack: InterruptedException occurred - {}", exception.getMessage(), exception);
             Thread.currentThread().interrupt();
             throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, exception.getCause());
         } finally {
             if (authContextId != null) {
+                LOGGER.debug("→ Cleaning up authContextId: {}", authContextId);
                 office365CalendarAttributeStore.remove(authContextId);
+                LOGGER.debug("→ Removed authContextId from attribute store");
             }
         }
     }
@@ -123,13 +164,30 @@ public final class AuthenticationResource {
      * @return A string describing the error in a user-friendly manner.
      */
     private String getErrorDescription(OAuthException cause) {
+        LOGGER.debug("→ getErrorDescription: Processing OAuth exception message");
+
         String errorDescription = "Error occurred during authorization. ";
         if (cause.getMessage() != null && !cause.getMessage().isBlank()) {
-            var exceptionMap = Constants.GSON.fromJson(cause.getMessage(), Map.class);
-            if (exceptionMap.containsKey(ERROR_DESCRIPTION)) {
-                errorDescription = errorDescription + exceptionMap.get(ERROR_DESCRIPTION);
+            LOGGER.debug("→ Exception message available: {}", cause.getMessage());
+            try {
+                var exceptionMap = Constants.GSON.fromJson(cause.getMessage(), Map.class);
+                LOGGER.debug("→ Parsed exception message as JSON map");
+
+                if (exceptionMap.containsKey(ERROR_DESCRIPTION)) {
+                    String detailedError = (String) exceptionMap.get(ERROR_DESCRIPTION);
+                    errorDescription = errorDescription + detailedError;
+                    LOGGER.debug("→ Added detailed error description: {}", detailedError);
+                } else {
+                    LOGGER.debug("→ No error_description found in exception map");
+                }
+            } catch (Exception e) {
+                LOGGER.warn("→ Failed to parse exception message as JSON: {}", e.getMessage());
             }
+        } else {
+            LOGGER.debug("→ No exception message available");
         }
+
+        LOGGER.debug("→ getErrorDescription: Returning error description: {}", errorDescription);
         return errorDescription;
     }
 
@@ -140,10 +198,14 @@ public final class AuthenticationResource {
      * @return {@code true} if the user has access; {@code false} otherwise.
      */
     private boolean hasUserAccess(GraphServiceClientProvider graphServiceClientForAdmin) {
+        LOGGER.debug("→ hasUserAccess: Checking user access permissions");
+
         try {
             graphServiceClientForAdmin.getUserRequestBuilder(null, null).calendars().buildRequest().get();
+            LOGGER.debug("→ hasUserAccess: Successfully accessed calendars - user has access");
             return true;
         } catch (GraphServiceException ignore) {
+            LOGGER.debug("→ hasUserAccess: GraphServiceException occurred - user does not have access: {}", ignore.getMessage());
             LOGGER.debug(Constants.IGNORED_EXCEPTION);
             return false;
         }

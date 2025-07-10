@@ -5,6 +5,8 @@ import app.krista.extension.executor.Invoker;
 import app.krista.extension.impl.anno.*;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.ExponentialBackoffRetryExecutor;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.RetryConfiguration;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Validators;
 
 import javax.inject.Inject;
@@ -62,18 +64,30 @@ public final class Office365CalendarExtension {
     }
 
     /**
+     * Validates and tests connection to Office 365 Calendar using the provided attributes.
+     * Uses exponential backoff retry mechanism for transient network failures.
+     *
      * @param office365CalendarAttributes This function creates connection with GraphServiceClient to validate the given credentials.
      */
     private void validateAndTestConnection(Office365CalendarAttributes office365CalendarAttributes) {
         try {
             Validators.validateTimeZone(office365CalendarAttributes.getTimeZone());
             if (office365CalendarAttributes.getEmail() != null && !office365CalendarAttributes.getEmail().isBlank()) {
-                clientProviderFactory.create(office365CalendarAttributes)
-                        .getGraphServiceClientForAdmin()
-                        .me().calendar().buildRequest().get();
+
+                // Use retry mechanism for connection validation with reduced retry attempts for faster feedback
+                RetryConfiguration validationRetryConfig = RetryConfiguration.withMaxRetries(2);
+
+                ExponentialBackoffRetryExecutor.executeWithRetry(() -> {
+                    clientProviderFactory.create(office365CalendarAttributes)
+                            .getGraphServiceClientForAdmin()
+                            .me().calendar().buildRequest().get();
+                    return null; // Void operation
+                }, "Office 365 Calendar connection validation", validationRetryConfig);
             }
         } catch (IOException cause) {
             throw new IllegalArgumentException("Exception occurred - " + cause.getMessage(), cause.getCause());
+        } catch (Exception cause) {
+            throw new IllegalArgumentException("Exception occurred during connection validation - " + cause.getMessage(), cause);
         }
     }
 
