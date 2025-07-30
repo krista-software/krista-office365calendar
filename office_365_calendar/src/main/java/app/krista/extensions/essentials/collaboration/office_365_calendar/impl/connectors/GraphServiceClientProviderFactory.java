@@ -104,6 +104,30 @@ public final class GraphServiceClientProviderFactory {
     }
 
     /**
+     * Creates a new {@link GraphServiceClientProvider} using the provided authContextId.
+     *
+     * @param authContextId the authentication context ID
+     * @return a GraphServiceClientProvider instance
+     */
+    public GraphServiceClientProvider create(String authContextId) {
+        LOGGER.info("→ create: Creating GraphServiceClientProvider with authContextId: {}", authContextId);
+
+        final Office365CalendarAttributes attributes = office365CalendarAttributeStore.load(authContextId);
+        return new GraphServiceClientProvider(refreshTokenStore, attributes, requestContext, authorizationContext, authContextId);
+    }
+
+    /**
+     * Creates and saves attributes, returning the authContextId.
+     *
+     * @param attributes the Office 365 calendar attributes to save
+     * @return the authentication context ID
+     */
+    public String createAttributes(Office365CalendarAttributes attributes) {
+        LOGGER.info("→ createAttributes: Saving attributes for email: {}", attributes.getEmail());
+        return office365CalendarAttributeStore.save(attributes);
+    }
+
+    /**
      * Returns the default {@link GraphServiceClientProvider} instance.
      *
      * @return the default client provider
