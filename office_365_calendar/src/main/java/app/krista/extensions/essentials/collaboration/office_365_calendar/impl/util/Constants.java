@@ -68,7 +68,7 @@ public final class Constants {
     public static final String UNSUPPORTED_AUTH = "Unsupported authentication type provided. Please select either Public or Private.";
     public static final String LOCAL_EXTN_URL = "https://extension.local.eng.krista.app";
     public static final String LOCAL_EXTN_REPLACE_URL = "http://localhost:8765";
-    public static final String DEFAULT_CALLBACK_PATH = "/extension/api/rest/v3/oauth/callback";
+    public static final String DEFAULT_CALLBACK_PATH = "/extension/api/rest/calendar/callback";
     public static final String EXTENSION_FORWARD_PATH = "/extension/api/rest/calendar/docs/";
     public static final String ORG_AUTHORITY = "https://login.microsoftonline.com/organizations/";
     public static final String AUTHORITY = "https://login.microsoftonline.com/";

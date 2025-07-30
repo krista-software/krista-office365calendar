@@ -161,12 +161,12 @@ public final class Office365CalendarAttributes {
 
     public synchronized OAuth20Service getOAuth20Service() {
         if (oAuth20Service == null) {
-            String authority = Constants.PUBLIC.equals(authType) ? ORG_AUTHORITY : AUTHORITY + tenantId + "/";
             oAuth20Service = new ServiceBuilder(clientId)
                     .apiSecret(clientSecret)
                     .defaultScope(Constants.REQUIRED_SCOPE)
                     .callback(getCallbackEndPoint())
-                    .build(MicrosoftAzureActiveDirectory20Api.custom(authority));
+                    .build(Constants.PUBLIC.equals(authType) ? MicrosoftAzureActiveDirectory20Api.instance()
+                            : MicrosoftAzureActiveDirectory20Api.custom(tenantId));
         }
         return oAuth20Service;
     }
