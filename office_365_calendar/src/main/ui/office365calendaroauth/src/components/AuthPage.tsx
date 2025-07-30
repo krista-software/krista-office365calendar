@@ -134,7 +134,7 @@ const AuthPage = () => {
     }
 
     return (
-        <>
+        <div className="auth-form">
             <div className="authOptions">
                 <div>
                     <input
@@ -173,7 +173,7 @@ const AuthPage = () => {
                      </span>
                 </button>
                 <button disabled={disableSaveButton() || loading}
-                        className={`save-button ${loading ? 'loading' : ''}`}
+                        className={`save-changes-button ${loading ? 'loading' : ''}`}
                         onClick={handleSaveClick}
                 >
                      <span className="button-content">
@@ -189,7 +189,7 @@ const AuthPage = () => {
                     onClose={setToastOff}
                 />
             )}
-        </>
+        </div>
     );
 };
 
