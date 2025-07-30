@@ -137,14 +137,15 @@ public final class MeetingsArea {
                         Constants.VALIDATION_RESULTS, validationResults));
                 LOGGER.debug("→ Stored validation results in error handling state manager");
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
+                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
                 LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
                 return response;
             }
         } catch (Exception cause) {
@@ -221,14 +222,16 @@ public final class MeetingsArea {
                         Constants.VALIDATION_RESULTS, validationResults));
                 LOGGER.debug("→ Stored validation results in error handling state manager");
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.getNextUpcomingMeetings", startTime,
+                        safeTagMap("requested_count", String.valueOf(numberOfMeeting), "validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.NUMBER_OF_MEETING, numberOfMeeting != null ? numberOfMeeting : 0.0));
                 LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordRetryPrompted("office365Calendar.getNextUpcomingMeetings", startTime,
-                        safeTagMap("requested_count", String.valueOf(numberOfMeeting), "validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.getNextUpcomingMeetings", startTime,
+                        safeTagMap("meeting_count", String.valueOf(numberOfMeeting), "requested_count", String.valueOf(numberOfMeeting)));
                 return response;
             }
         } catch (Exception cause) {
@@ -295,14 +298,15 @@ public final class MeetingsArea {
                         Constants.VALIDATION_RESULTS, validationResults));
                 LOGGER.debug("→ Stored validation results in error handling state manager");
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.declineInvitation", startTime,
+                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_DECLINE_INVITATION,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
                 LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordRetryPrompted("office365Calendar.declineInvitation", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.declineInvitation", startTime, safeTagMap("event_id", eventId));
                 return response;
             }
         } catch (Exception cause) {
@@ -358,11 +362,13 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.tentativeInvitation", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_TENTATIVE_INVITATION,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
+                telemetryHelper.recordSuccess("office365Calendar.tentativeInvitation", startTime, safeTagMap("event_id", eventId));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in tentativeInvitation: {}", cause.getMessage());
@@ -419,12 +425,15 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.forwardEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_FORWARD_EVENT,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : "",
                               Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+                telemetryHelper.recordSuccess("office365Calendar.forwardEvent", startTime,
+                        safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in forwardEvent: {}", cause.getMessage());
@@ -562,13 +571,16 @@ public final class MeetingsArea {
                 Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
                 LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.scheduleMeeting", startTime,
+                        safeTagMap("title", title, "validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_SCHEDULE_MEETING,
                         confirmationParams);
                 LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordRetryPrompted("office365Calendar.scheduleMeeting", startTime,
-                        safeTagMap("title", title, "validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.scheduleMeeting", startTime,
+                        safeTagMap("title", title, "is_teams_meeting", String.valueOf(isTeamsMeeting),
+                                  "has_recurrence", String.valueOf(recurrence != null && !recurrence.equals("Never") && !recurrence.equals("Does Not Repeat"))));
                 return response;
             }
         } catch (Exception cause) {
@@ -720,13 +732,17 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.addAttendees", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_ADD_ATTENDEES,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : "",
                               Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of(),
                               Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of()));
+                telemetryHelper.recordSuccess("office365Calendar.addAttendees", startTime,
+                        safeTagMap("event_id", eventId, "required_count", String.valueOf(requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0),
+                                  "optional_count", String.valueOf(optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0)));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in addAttendees: {}", cause.getMessage());
@@ -836,10 +852,12 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.updateEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_UPDATE_EVENT,
                         createUpdateEventConfirmationParams(stateId, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+                telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime, safeTagMap("event_id", eventId));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in updateEvent: {}", cause.getMessage());
@@ -926,11 +944,13 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.acceptInvitation", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_ACCEPT_INVITATION,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
+                telemetryHelper.recordSuccess("office365Calendar.acceptInvitation", startTime, safeTagMap("event_id", eventId));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in acceptInvitation: {}", cause.getMessage());
@@ -1003,12 +1023,15 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.removeAttendee", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_REMOVE_ATTENDEE,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID, eventId != null ? eventId : "",
                               Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+                telemetryHelper.recordSuccess("office365Calendar.removeAttendee", startTime,
+                        safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in removeAttendee: {}", cause.getMessage());
@@ -1131,12 +1154,15 @@ public final class MeetingsArea {
                         Constants.MEETING_DURATION, meetingDuration != null ? meetingDuration : "");
                 LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.getFreeSlots", startTime,
+                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_FREE_SLOTS, confirmationParams);
                 LOGGER.info("→ GET FREE SLOTS VALIDATION FAILED END");
-                telemetryHelper.recordRetryPrompted("office365Calendar.getFreeSlots", startTime,
-                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.getFreeSlots", startTime,
+                        safeTagMap("required_attendee_count", String.valueOf(requiredAttendee != null ? requiredAttendee.size() : 0),
+                                  "optional_attendee_count", String.valueOf(optionalAttendee != null ? optionalAttendee.size() : 0)));
                 return response;
             }
         } catch (Exception cause) {
@@ -1245,12 +1271,14 @@ public final class MeetingsArea {
                         Constants.TIME_ZONE, timeZone != null ? timeZone : "");
                 LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
+                telemetryHelper.recordRetryPrompted("office365Calendar.getSchedules", startTime,
+                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_SCHEDULES, confirmationParams);
                 LOGGER.info("→ GET SCHEDULES VALIDATION FAILED END");
-                telemetryHelper.recordRetryPrompted("office365Calendar.getSchedules", startTime,
-                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                telemetryHelper.recordSuccess("office365Calendar.getSchedules", startTime,
+                        safeTagMap("attendee_count", String.valueOf(attendees != null ? attendees.size() : 0)));
                 return response;
             }
         } catch (Exception cause) {
@@ -1317,11 +1345,13 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.getEvent", startTime,
                         safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_EVENT,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime, safeTagMap("event_id", eventID));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
@@ -1418,13 +1448,16 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.getEventsForUser", startTime,
                         safeTagMap("user_email", userEmail, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_EVENTS_FOR_USER,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.USER_EMAIL, userEmail != null ? userEmail : "",
                               Constants.FROM, from != null ? from : 0L,
                               Constants.TO, to != null ? to : 0L));
+                telemetryHelper.recordSuccess("office365Calendar.getEventsForUser", startTime,
+                        safeTagMap("user_email", userEmail));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getEventsForAGivenUser: {}", cause.getMessage());
@@ -1496,12 +1529,15 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.getAttachmentsForUser", startTime,
                         safeTagMap("user_email", userEmail, "event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.USER_EMAIL, userEmail != null ? userEmail : "",
                               Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                telemetryHelper.recordSuccess("office365Calendar.getAttachmentsForUser", startTime,
+                        safeTagMap("user_email", userEmail, "event_id", eventID));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachmentsForAGivenUser: {}", cause.getMessage());
@@ -1568,11 +1604,13 @@ public final class MeetingsArea {
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.getAttachments", startTime,
                         safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                return responseGenerator.generateConfirmationResponse(
+                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_GET_ATTACHMENTS,
                         Map.of(Constants.STATE_ID, stateId,
                               Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                telemetryHelper.recordSuccess("office365Calendar.getAttachments", startTime, safeTagMap("event_id", eventID));
+                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachments: {}", cause.getMessage());
