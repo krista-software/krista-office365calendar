@@ -6,32 +6,39 @@ import app.krista.extension.authorization.RequestAuthenticator;
 import app.krista.extension.request.ProtoRequest;
 import app.krista.extension.request.ProtoResponse;
 import app.krista.extension.request.protos.http.HttpRequest;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.OAuthService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.model.field.NamedField;
 import app.krista.model.field.NamedValuedField;
 import com.github.scribejava.core.oauth.OAuth20Service;
+import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import javax.ws.rs.core.MultivaluedMap;
 import java.io.IOException;
 import java.util.*;
 
-/**
- * Authenticator implementation for Office 365 Calendar integration.
- * <p>
- * Handles authentication and authorization flows for Office 365 calendar requests,
- * including extracting authenticated account IDs from callback requests and generating
- * authorization URLs for user consent.
- * </p>
- */
+import static com.github.scribejava.core.model.OAuthConstants.STATE;
+
+@Service
 public class Office365CalendarRequestAuthenticator implements RequestAuthenticator {
 
-    private final Office365CalendarAttributeStore office365CalendarAttributeStore;
-    private final Office365CalendarAttributes office365CalendarAttributes;
+    public static final String EXTENSION_OAUTH_VERIFICATION_PATH_V3 = "/calendar/v3/oauth/callback";
+    public static final String EXTENSION_OAUTH_VERIFICATION_PATH_V2 = "/calendar/callback";
+    private final AuthorizationContext authorizationContext;
+    private final Office365CalendarAttributeStore attributeStore;
+    private final String invokerId;
+    private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarRequestAuthenticator.class);
 
-    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore office365CalendarAttributeStore, Office365CalendarAttributes office365CalendarAttributes) {
-        this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        this.office365CalendarAttributes = office365CalendarAttributes;
+    @Inject
+    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId, AuthorizationContext authorizationContext) {
+        this.attributeStore = attributeStore;
+        this.invokerId = invokerId;
+        this.authorizationContext = authorizationContext;
     }
 
     @Override
@@ -44,38 +51,28 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         return Set.of();
     }
 
-    /**
-     * Extracts the authenticated account ID from the given ProtoRequest, if present.
-     * Used primarily for handling OAuth callback requests.
-     *
-     * @param protoRequest the incoming ProtoRequest
-     * @return the authenticated account ID, or null if not found
-     */
     @Override
     public String getAuthenticatedAccountId(ProtoRequest protoRequest) {
         try {
             HttpRequest httpRequest = (HttpRequest) protoRequest;
-            if (httpRequest.getUri().getPath().equals(Constants.CALLBACK_URI)) {
+            if (EXTENSION_OAUTH_VERIFICATION_PATH_V3.equals(httpRequest.getUri().getPath()) ||
+                    EXTENSION_OAUTH_VERIFICATION_PATH_V2.equals(httpRequest.getUri().getPath())) {
                 httpRequest.bufferBody();
                 MultivaluedMap<String, String> queryParameters = httpRequest.getQueryParameters();
-                if (queryParameters == null ||
-                        queryParameters.get(Constants.STATE) == null ||
-                        queryParameters.get(Constants.STATE).getFirst() == null) {
-                    return null;
-                }
-                String state = String.valueOf(queryParameters.get(Constants.STATE).getFirst());
-                String[] parts = state.split("&");
+                String state = String.valueOf(queryParameters.get(STATE).get(0));
+                String[] parts = state.split(Constants.HASH);
                 return parts[0];
             } else {
                 return null;
             }
         } catch (RuntimeException | IOException cause) {
+            LOGGER.error("Failed to get the Authenticated Account Id", cause);
             return null;
         }
     }
 
     @Override
-    public boolean setServiceAuthorization(String s) {
+    public boolean setServiceAuthorization(String key) {
         return false;
     }
 
@@ -99,31 +96,27 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         return null;
     }
 
-    /**
-     * Returns an AuthorizationResponse for must-authorize scenarios, generating an OAuth authorization URL.
-     *
-     * @param cause the MustAuthorizeException
-     * @return an AuthorizationResponse containing the authorization URL
-     */
     @Override
     public AuthorizationResponse getMustAuthorizeResponse(MustAuthorizeException cause) {
-        String userId = (String) cause.getDetails().getFirst().getValue();
-        Optional<NamedValuedField> authContextIdField = cause.getDetails().stream().filter(f -> Objects.equals(f.getName(), "authContextId")).findFirst();
-
-        Office365CalendarAttributes effectiveOffice365CalendarAttributes;
-        String state;
-        if (authContextIdField.isPresent()) {
-            String authContextId = (String) authContextIdField.get().getValue();
-            effectiveOffice365CalendarAttributes = office365CalendarAttributeStore.load(authContextId);
-            state = userId + "#" + authContextId;
+        String userId = (String) cause.getDetails().get(0).getValue();
+        Optional<NamedValuedField> authContext = cause.getDetails().stream()
+                .filter(namedValuedField -> Objects.equals(namedValuedField.getName(), Constants.AUTH_CONTEXT_ID))
+                .findFirst();
+        String state = userId;
+        Office365CalendarAttributes attributes;
+        if (authContext.isPresent()) {
+            String authContextId = (String) authContext.get().getValue();
+            attributes = attributeStore.load(authContextId);
+            state += Constants.HASH + authContextId;
         } else {
-            effectiveOffice365CalendarAttributes = office365CalendarAttributes;
-            state = userId;
+            attributes = attributeStore.load(invokerId);
         }
-        OAuth20Service oAuth20Service = effectiveOffice365CalendarAttributes.getOAuth20Service();
-        String url = oAuth20Service.getAuthorizationUrl(state);
-        String urlQueryParam = "&access_type=offline&approval_prompt=force&prompt=login";
-        return new AuthorizationResponse(url + urlQueryParam, List.of());
+        if (Constants.PUBLIC.equals(attributes.getAuthType())) {
+            state += Constants.HASH + attributes.getForwardPath();
+        }
+        OAuth20Service oAuth20Service = new OAuthService(attributes).getOAuth20Service();
+        String url = oAuth20Service.getAuthorizationUrl(state) + Constants.AUTH_URL_QUERY_PARAMS;
+        return new AuthorizationResponse(url, Collections.emptyList());
     }
 
 }
