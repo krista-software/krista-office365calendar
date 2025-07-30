@@ -1,9 +1,5 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar;
 
-import app.krista.extension.executor.Invoker;
-import app.krista.extension.request.RoutingInfo;
-import app.krista.extension.request.protos.http.HttpProtocol;
-import app.krista.extension.util.InvokerAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import com.github.scribejava.apis.MicrosoftAzureActiveDirectory20Api;
 import com.github.scribejava.core.builder.ServiceBuilder;
@@ -20,6 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.*;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Validators.addAttributeIfNotNull;
 
 /**
  * Main extension entry point for Office 365 Calendar integration with the Krista platform.
@@ -57,21 +54,6 @@ public final class Office365CalendarAttributes {
     private OAuth20Service oAuth20Service;
 
     @Inject
-    public Office365CalendarAttributes(Invoker invoker) {
-        this(invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
-                invoker.getAttributes());
-    }
-
-    public Office365CalendarAttributes(String routingUrl, Map<String, Object> attributes) {
-        this(InvokerAttributes.getStringOrNull(attributes, CLIENT_ID),
-             InvokerAttributes.getStringOrNull(attributes, CLIENT_SECRET),
-             InvokerAttributes.getStringOrNull(attributes, TENANT_ID),
-             InvokerAttributes.getStringOrNull(attributes, EMAIL),
-             InvokerAttributes.getStringOrNull(attributes, TIMEZONE),
-             InvokerAttributes.getStringOrNull(attributes, AUTH_TYPE),
-             routingUrl);
-    }
-
     public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
                                      String timeZone, String authType, String routingUrl) {
         loadPublicConfig();
@@ -86,17 +68,11 @@ public final class Office365CalendarAttributes {
 
 
 
-    public static Office365CalendarAttributes create(Invoker invoker, Map<String, Object> attributes) {
-        return new Office365CalendarAttributes(
-                invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
-                attributes);
-    }
-
     public static Office365CalendarAttributes create(JsonObject authPayload, String baseurl) {
         String authType = authPayload.get("authType").getAsString();
         if (Constants.PUBLIC.equals(authType)) {
             return new Office365CalendarAttributes(null, null, null, authPayload.get(EMAIL).getAsString(),
-                    null, authType, baseurl);
+                    "Asia/Kolkata", authType, baseurl);
         } else if (Constants.PRIVATE.equals(authType)) {
             return new Office365CalendarAttributes(authPayload.get(CLIENT_ID).getAsString(),
                     authPayload.get(CLIENT_SECRET).getAsString(),
@@ -152,13 +128,13 @@ public final class Office365CalendarAttributes {
         return authType;
     }
 
-    public String getCallbackUrl() {
+    public String getCallbackEndPoint() {
         if (Constants.PUBLIC.equals(authType)) {
             return routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
         } else if (Constants.PRIVATE.equals(authType)) {
             return routingUrl + "/rest/calendar/callback";
         } else {
-            return routingUrl + "/rest/calendar/callback";
+            return EMPTY_STRING;
         }
     }
 
@@ -166,7 +142,7 @@ public final class Office365CalendarAttributes {
         if (Constants.PUBLIC.equals(authType)) {
             return routingUrl + EXTENSION_FORWARD_PATH;
         } else {
-            return "";
+            return EMPTY_STRING;
         }
     }
 
@@ -181,11 +157,7 @@ public final class Office365CalendarAttributes {
         return attributesMap;
     }
 
-    private void addAttributeIfNotNull(Map<String, Object> map, String key, Object value) {
-        if (value != null) {
-            map.put(key, value);
-        }
-    }
+
 
     public synchronized OAuth20Service getOAuth20Service() {
         if (oAuth20Service == null) {
@@ -193,7 +165,7 @@ public final class Office365CalendarAttributes {
             oAuth20Service = new ServiceBuilder(clientId)
                     .apiSecret(clientSecret)
                     .defaultScope(Constants.REQUIRED_SCOPE)
-                    .callback(getCallbackUrl())
+                    .callback(getCallbackEndPoint())
                     .build(MicrosoftAzureActiveDirectory20Api.custom(authority));
         }
         return oAuth20Service;

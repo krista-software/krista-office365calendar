@@ -44,10 +44,7 @@ public final class Office365CalendarExtension {
 
     @InvokerRequest(InvokerRequest.Type.CUSTOM_TABS)
     public Map<String, String> customTabs() {
-        telemetryMetrics.incrementCounter("office365calendar.custom_tabs.opened", 1, Map.of(
-                "tab", "Documentation",
-                "action", "open"
-        ));
+        System.out.println("Custom tabs called-" + System.currentTimeMillis());
         return Map.of("Authentication", "rest/calendar/docs/", "Documentation", "static/docs");
     }
 

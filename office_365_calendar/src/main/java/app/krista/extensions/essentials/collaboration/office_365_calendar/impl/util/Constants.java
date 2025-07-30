@@ -196,6 +196,7 @@ public final class Constants {
     public static final String FAILED_TO_SAVE_ATTRIBUTES = "Failed to save attributes";
     public static final String UNAUTHORISED_USER = "Unauthorised user.";
     public static final String USER_AUTHENTICATED_SUCCESSFULLY_SAVE_THE_CHANGES = "User authenticated successfully. Save the changes.";
+    public static final String EMPTY_STRING = "";
 
     private Constants() {
     }
