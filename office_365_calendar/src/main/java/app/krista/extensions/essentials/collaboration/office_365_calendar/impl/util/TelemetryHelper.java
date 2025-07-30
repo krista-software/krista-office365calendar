@@ -74,16 +74,16 @@ public class TelemetryHelper {
     private Map<String, String> withStatus(String status, Map<String, String> baseTags, String... moreTags) {
         Map<String, String> tags = new java.util.HashMap<>(baseTags);
         tags.put("status", status);
-        for (int i = 0; i < moreTags.length - 1; i += 2) {
+        for (int i = 0; i + 1 < moreTags.length; i += 2) {
             String value = moreTags[i + 1];
-            tags.put(moreTags[i], value != null ? value : "null");
+            tags.put(moreTags[i], value != null ? value : "NA");
         }
         return tags;
     }
  
     public static Map<String, String> safeTagMap(String... keysAndValues) {
         Map<String, String> map = new HashMap<>();
-        for (int i = 0; i < keysAndValues.length - 1; i += 2) {
+        for (int i = 0; i + 1 < keysAndValues.length; i += 2) {
             map.put(keysAndValues[i], keysAndValues[i + 1] != null ? keysAndValues[i + 1] : "NA");
         }
         return map;
