@@ -130,6 +130,8 @@ public final class Office365CalendarAttributes {
 
     public String getCallbackEndPoint() {
         if (Constants.PUBLIC.equals(authType)) {
+            System.out.println("Public routing Url");
+            System.out.println(routingUrl);
             return routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
         } else if (Constants.PRIVATE.equals(authType)) {
             return routingUrl + "/rest/calendar/callback";

@@ -12,7 +12,10 @@ public final class RefreshTokenStore {
 
     @Inject
     public RefreshTokenStore(KeyValueStore keyValueStore) {
+        System.out.println("RefreshTokenStore constructor - START");
         this.keyValueStore = keyValueStore;
+        System.out.println("RefreshTokenStore constructor - keyValueStore set");
+        System.out.println("RefreshTokenStore constructor - END");
     }
 
     /**
@@ -22,7 +25,9 @@ public final class RefreshTokenStore {
      * @param refToken refresh token
      */
     public void put(String key, String refToken) {
+        System.out.println("put method - START with key: " + key);
         keyValueStore.put(key, refToken);
+        System.out.println("put method - END");
     }
 
     /**
@@ -32,13 +37,18 @@ public final class RefreshTokenStore {
      * @return stored refresh token for the given key
      */
     public String get(String key) {
-        return keyValueStore.get(key, String.class);
+        System.out.println("get method - START with key: " + key);
+        String result = keyValueStore.get(key, String.class);
+        System.out.println("get method - END with result: " + (result != null ? "not null" : "null"));
+        return result;
     }
 
     /**
      * @param key key to be removed
      */
     public void remove(String key) {
+        System.out.println("remove method - START with key: " + key);
         keyValueStore.remove(key);
+        System.out.println("remove method - END");
     }
 }
