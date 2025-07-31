@@ -57,62 +57,62 @@ const PrivateAuth = ({onAuthChange}: {
     }
 
     return (
-        <div>
-            <div className="form-group">
-                <label htmlFor="email">Email *</label>
-                <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                />
+        <form onSubmit={(e) => e.preventDefault()}>
+            <div>
+                <div className="auth-form">
+                    <div className="form-group">
+                        <label htmlFor="email">Email<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter your email address"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="clientId">Client ID<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="text"
+                            id="clientId"
+                            value={clientId}
+                            onChange={(e) => setClientId(e.target.value)}
+                            placeholder="Enter your Azure App Client ID"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="clientSecret">Client Secret<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="password"
+                            id="clientSecret"
+                            value={clientSecret}
+                            onChange={(e) => setClientSecret(e.target.value)}
+                            placeholder="Enter your Azure App Client Secret"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="tenantId">Tenant ID<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="text"
+                            id="tenantId"
+                            value={tenantId}
+                            onChange={(e) => setTenantId(e.target.value)}
+                            placeholder="Enter your Azure Tenant ID"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="timeZone">Time Zone</label>
+                        <input
+                            type="text"
+                            id="timeZone"
+                            value={timeZone}
+                            onChange={(e) => setTimeZone(e.target.value)}
+                            placeholder="Enter your time zone (optional)"
+                        />
+                    </div>
+                </div>
             </div>
-            <div className="form-group">
-                <label htmlFor="clientId">Client ID *</label>
-                <input
-                    type="text"
-                    id="clientId"
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    placeholder="Enter your Azure App Client ID"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="clientSecret">Client Secret *</label>
-                <input
-                    type="password"
-                    id="clientSecret"
-                    value={clientSecret}
-                    onChange={(e) => setClientSecret(e.target.value)}
-                    placeholder="Enter your Azure App Client Secret"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="tenantId">Tenant ID *</label>
-                <input
-                    type="text"
-                    id="tenantId"
-                    value={tenantId}
-                    onChange={(e) => setTenantId(e.target.value)}
-                    placeholder="Enter your Azure Tenant ID"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="timeZone">Time Zone</label>
-                <input
-                    type="text"
-                    id="timeZone"
-                    value={timeZone}
-                    onChange={(e) => setTimeZone(e.target.value)}
-                    placeholder="Enter your time zone (optional)"
-                />
-            </div>
-        </div>
+        </form>
     );
 };
 
