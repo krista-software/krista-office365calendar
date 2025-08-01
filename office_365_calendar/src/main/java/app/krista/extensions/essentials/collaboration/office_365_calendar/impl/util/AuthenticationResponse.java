@@ -1,13 +1,10 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util;
 
-import com.google.gson.annotations.SerializedName;
-
 /**
  * Response object for authentication operations.
  * Contains success status, error message, and optional authorization URL.
  */
 public class AuthenticationResponse {
-    @SerializedName("success")
     private final boolean success;
     private final String errorMessage;
     private final String url;

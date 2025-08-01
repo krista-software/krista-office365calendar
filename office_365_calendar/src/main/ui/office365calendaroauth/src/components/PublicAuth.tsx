@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {AuthPayload, AuthType} from "./AuthPage";
 import {getCredentials} from "../api";
 
@@ -7,17 +7,8 @@ const PublicAuth = ({onAuthChange}: { onAuthChange: (authPayload: AuthPayload) =
     const [timeZone, setTimeZone] = useState("");
     const [savedCred, setSavedCred] = useState<boolean>(false);
 
-    const areFieldsValid = useCallback(() => {
-        return !!email;
-    }, [email]);
-
-    const isCredSaved = useCallback((): boolean => {
-        return savedCred;
-    }, [savedCred]);
-
     useEffect(() => {
         getAllCred().catch(error => console.log(error));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -28,7 +19,15 @@ const PublicAuth = ({onAuthChange}: { onAuthChange: (authPayload: AuthPayload) =
             isAllRequiredFieldsHaveValue: areFieldsValid(),
             isCredentialsSaved: isCredSaved()
         });
-    }, [email, timeZone, onAuthChange, areFieldsValid, isCredSaved]);
+    }, [email, timeZone]);
+
+    const areFieldsValid = () => {
+        return !!email;
+    };
+
+    const isCredSaved = (): boolean => {
+        return savedCred;
+    }
 
     const getAllCred = async () => {
         try {
@@ -46,29 +45,34 @@ const PublicAuth = ({onAuthChange}: { onAuthChange: (authPayload: AuthPayload) =
     }
 
     return (
-        <div>
-            <div className="form-group">
-                <label htmlFor="email">Email *</label>
-                <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                />
+        <form>
+            <div>
+                <div
+                    className="auth-form">
+                    <div className="form-group">
+                        <label htmlFor="email">Email<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter Work or School Email Id"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="timeZone">Time Zone</label>
+                        <input
+                            type="text"
+                            id="timeZone"
+                            value={timeZone}
+                            onChange={(e) => setTimeZone(e.target.value)}
+                            placeholder="Enter your time zone (optional)"
+                        />
+                    </div>
+                </div>
             </div>
-            <div className="form-group">
-                <label htmlFor="timeZone">Time Zone</label>
-                <input
-                    type="text"
-                    id="timeZone"
-                    value={timeZone}
-                    onChange={(e) => setTimeZone(e.target.value)}
-                    placeholder="Enter your time zone (optional)"
-                />
-            </div>
-        </div>
+        </form>
     );
 };
 

@@ -1,24 +1,34 @@
-import React, { useEffect } from 'react';
+import React, {useEffect, useState} from "react";
 
 interface ToastProps {
     message: string;
-    type: 'success' | 'error' | 'info';
-    onClose: () => void;
+    type: string;
+    duration?: number;
+    onClose?: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            onClose();
-        }, 3000);
+const Toast: React.FC<ToastProps> = ({message, type, duration, onClose}) => {
+    const [showToast, setShowToast] = useState<boolean>(false);
 
-        return () => clearTimeout(timer);
-    }, [onClose]);
+    useEffect(() => {
+        setShowToast(true);
+        const timeoutId = setTimeout(() => {
+            setShowToast(false);
+            onClose && onClose();
+        }, duration);
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    }, [duration, onClose]);
 
     return (
-        <div className={`toast ${type}`}>
-            {message}
-        </div>
+        <>
+            {showToast && (
+                <div className={`toast ${type}`}>
+                    <div className="toast-message">{message}</div>
+                </div>
+            )}
+        </>
     );
 };
 

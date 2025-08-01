@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {AuthPayload, AuthType} from "./AuthPage";
 import {getCredentials} from "../api";
 
@@ -12,17 +12,8 @@ const PrivateAuth = ({onAuthChange}: {
     const [timeZone, setTimeZone] = useState("");
     const [savedCred, setSavedCred] = useState<boolean>(false);
 
-    const areFieldsValid = useCallback(() => {
-        return !!email && !!clientId && !!clientSecret && !!tenantId;
-    }, [email, clientId, clientSecret, tenantId]);
-
-    const isCredSaved = useCallback((): boolean => {
-        return savedCred;
-    }, [savedCred]);
-
     useEffect(() => {
         getAllCred().catch(error => console.log(error));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -36,7 +27,15 @@ const PrivateAuth = ({onAuthChange}: {
             isAllRequiredFieldsHaveValue: areFieldsValid(),
             isCredentialsSaved: isCredSaved()
         });
-    }, [email, clientId, clientSecret, tenantId, timeZone, onAuthChange, areFieldsValid, isCredSaved]);
+    }, [email, clientId, clientSecret, tenantId, timeZone, onAuthChange]);
+
+    const areFieldsValid = () => {
+        return !!email && !!clientId && !!clientSecret && !!tenantId;
+    };
+
+    const isCredSaved = (): boolean => {
+        return savedCred;
+    }
 
     const getAllCred = async () => {
         try {
@@ -57,62 +56,65 @@ const PrivateAuth = ({onAuthChange}: {
     }
 
     return (
-        <div>
-            <div className="form-group">
-                <label htmlFor="email">Email *</label>
-                <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                />
+        <form>
+            <div>
+                <div className="auth-form">
+                    <div className="form-group">
+                        <label htmlFor="email">Email<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter School or Work Email Id"
+                            autoComplete="username"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="client-id">Client ID<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="text"
+                            id="client-id"
+                            value={clientId}
+                            onChange={(e) => setClientId(e.target.value)}
+                            placeholder="Enter Client ID"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="client-secret">Client Secret<span
+                            className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="password"
+                            id="client-secret"
+                            value={clientSecret}
+                            onChange={(e) => setClientSecret(e.target.value)}
+                            placeholder="Enter Client Secret"
+                            autoComplete="current-password"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="tenant-id">Tenant ID<span className="mandatory-asterisk">*</span></label>
+                        <input
+                            type="text"
+                            id="tenant-id"
+                            value={tenantId}
+                            onChange={(e) => setTenantId(e.target.value)}
+                            placeholder="Enter Tenant ID"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="timeZone">Time Zone</label>
+                        <input
+                            type="text"
+                            id="timeZone"
+                            value={timeZone}
+                            onChange={(e) => setTimeZone(e.target.value)}
+                            placeholder="Enter your time zone (optional)"
+                        />
+                    </div>
+                </div>
             </div>
-            <div className="form-group">
-                <label htmlFor="clientId">Client ID *</label>
-                <input
-                    type="text"
-                    id="clientId"
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    placeholder="Enter your Azure App Client ID"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="clientSecret">Client Secret *</label>
-                <input
-                    type="password"
-                    id="clientSecret"
-                    value={clientSecret}
-                    onChange={(e) => setClientSecret(e.target.value)}
-                    placeholder="Enter your Azure App Client Secret"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="tenantId">Tenant ID *</label>
-                <input
-                    type="text"
-                    id="tenantId"
-                    value={tenantId}
-                    onChange={(e) => setTenantId(e.target.value)}
-                    placeholder="Enter your Azure Tenant ID"
-                    required
-                />
-            </div>
-            <div className="form-group">
-                <label htmlFor="timeZone">Time Zone</label>
-                <input
-                    type="text"
-                    id="timeZone"
-                    value={timeZone}
-                    onChange={(e) => setTimeZone(e.target.value)}
-                    placeholder="Enter your time zone (optional)"
-                />
-            </div>
-        </div>
+        </form>
     );
 };
 

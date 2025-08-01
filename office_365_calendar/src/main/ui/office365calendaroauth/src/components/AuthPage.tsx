@@ -4,6 +4,7 @@ import Toast from "./Toast";
 import PrivateAuth from "./PrivateAuth";
 import PublicAuth from "./PublicAuth";
 
+
 export interface AuthPayload {
     authType: AuthType;
     email: string;
@@ -25,13 +26,12 @@ const AuthPage = () => {
     const [showToast, setShowToast] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
     const [toastMessage, setToastMessage] = useState<string>("");
-    const [toastType, setToastType] = useState<"success" | "error" | "info">("error");
+    const [toastType, setToastType] = useState<string>("error");
     const [authPayload, setAuthPayload] = useState<AuthPayload | null>(null);
     const [isConnectionSuccess, setIsConnectionSuccess] = useState<boolean>(false);
 
     useEffect(() => {
         getAuth().catch(error => console.log(error));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const getAuth = async () => {
@@ -49,7 +49,7 @@ const AuthPage = () => {
         setSelectedOption(e.target.value as AuthType);
     };
 
-    const showNotification = (message: string, type: "success" | "error" | "info") => {
+    const showNotification = (message: string, type: string) => {
         setToastMessage(message);
         setToastType(type);
         setShowToast(true);
@@ -58,53 +58,105 @@ const AuthPage = () => {
         }, 3000);
     };
 
-    const handleAuthChange = useCallback((payload: AuthPayload) => {
-        setAuthPayload(payload);
-    }, []);
+    const handleResponseForSavedCred = (response: any) => {
+        let responseMessage = "Test connection failed, Failed to save attributes";
+        let responseType = "error";
 
-    const handleTestConnectionClick = async () => {
-        if (!authPayload) return;
-
-        setLoading(true);
-        try {
-            const response = await testConnection(authPayload);
-            if (response.success) {
-                showNotification("Connection successful!", "success");
-                setIsConnectionSuccess(true);
-            } else {
-                if (response.url) {
-                    // Open authorization URL in new window
-                    window.open(response.url, '_blank');
-                    showNotification(response.errorMessage || "Authorization required. Please complete authentication in the new window.", "info");
-                } else {
-                    showNotification(response.errorMessage || "Connection failed", "error");
-                }
-                setIsConnectionSuccess(false);
+        if (response.isSuccess) {
+            responseMessage = "Connection tested successfully. Changes saved!";
+            responseType = "success";
+            setToastType("success");
+            const saveButton = document.getElementById("save-button") as HTMLButtonElement;
+            if (saveButton) {
+                saveButton.click();
             }
-        } catch (error) {
-            showNotification("Connection test failed", "error");
             setIsConnectionSuccess(false);
-        } finally {
+        }
+        showNotification(responseMessage, responseType);
+    }
+
+    const handleResponse = (response: any) => {
+        let message = "Test connection failed";
+        let type = "error";
+
+        if (response.isSuccess) {
+            message = "Connection tested successfully. Please save the changes!";
+            type = "success";
+            setIsConnectionSuccess(true);
+            const saveButton = document.getElementById("save-button") as HTMLButtonElement;
+            if (saveButton) {
+                saveButton.click();
+            }
+        } else if (response.errorMessage) {
+            message = response.errorMessage;
+        }
+
+        if (response.url) {
+            handlePopup(response.url);
+        } else {
             setLoading(false);
+        }
+        console.log("waiting for pop window close..")
+        showNotification(message, type);
+    }
+
+    const handlePopup = (url: string) => {
+        const popup = window.open(url, "_blank", "width=600,height=400");
+        if (popup) {
+            const interval = setInterval(() => {
+                if (popup.closed) {
+                    console.log("Pop up window closed.")
+                    clearInterval(interval);
+                    if (authPayload) {
+                        setLoading(true);
+                        testConnection(authPayload).then(response => {
+                            if (response.isSuccess) {
+                                setIsConnectionSuccess(true);
+                                const saveButton = document.getElementById("save-button") as HTMLButtonElement;
+                                if (saveButton) {
+                                    saveButton.click();
+                                }
+                                showNotification("Connection tested successfully. Please save the changes.", "success");
+                            } else if (response.errorMessage) {
+                                setIsConnectionSuccess(false);
+                                showNotification("Test Connection failed. Please authenticate again.", "error");
+                            }
+                            setLoading(false);
+                        });
+                    }
+                }
+            }, 1000); // Check every second if the popup is closed
         }
     };
 
-    const handleSaveClick = async () => {
-        if (!authPayload) return;
-
-        setLoading(true);
-        try {
-            const response = await saveCredentials(authPayload);
-            if (response.success) {
-                showNotification("Credentials saved successfully!", "success");
-            } else {
-                showNotification(response.errorMessage || "Failed to save credentials", "error");
-            }
-        } catch (error) {
-            showNotification("Failed to save credentials", "error");
-        } finally {
-            setLoading(false);
+    const testApiConnection = (/* parameters */) => {
+        if (authPayload) {
+            testConnection(authPayload).then(response => {
+                handleResponse(response);
+                setLoading(false);
+            });
         }
+    };
+
+    const saveApiConnection = () => {
+        if (authPayload) {
+            saveCredentials(authPayload)
+                .then(response => handleResponseForSavedCred(response));
+        }
+    };
+
+    // Callback function to handle auth changes from the child component
+    const handleAuthChange = useCallback((authPayload: AuthPayload) => {
+        setAuthPayload(authPayload);
+    }, []);
+
+    const handleTestConnectionClick = () => {
+        setLoading(true);
+        testApiConnection();
+    };
+
+    const handleSaveChangesClick = () => {
+        saveApiConnection();
     };
 
     const renderComponent = () => {
@@ -122,6 +174,13 @@ const AuthPage = () => {
         setShowToast(false);
     }
 
+    // const isCredSaved = (): boolean => {
+    //     if (authPayload?.isCredentialsSaved != null) {
+    //         return authPayload?.isCredentialsSaved;
+    //     }
+    //     return false;
+    // }
+
     const disableSaveButton = (): boolean => {
         return !isConnectionSuccess;
     }
@@ -134,7 +193,7 @@ const AuthPage = () => {
     }
 
     return (
-        <div className="auth-form">
+        <>
             <div className="authOptions">
                 <div>
                     <input
@@ -172,24 +231,16 @@ const AuthPage = () => {
                          Test Connection
                      </span>
                 </button>
-                <button disabled={disableSaveButton() || loading}
-                        className={`save-changes-button ${loading ? 'loading' : ''}`}
-                        onClick={handleSaveClick}
+                <button disabled={disableSaveButton()} className="save-changes-button"
+                        onClick={handleSaveChangesClick} id="save-button"
                 >
-                     <span className="button-content">
-                         {loading && <div className="loading-spinner"></div>}
-                         Save Changes
-                     </span>
+                    <span>Save Changes</span>
                 </button>
             </div>
-            {showToast && (
-                <Toast
-                    message={toastMessage}
-                    type={toastType}
-                    onClose={setToastOff}
-                />
-            )}
-        </div>
+            {showToast ? <div>
+                <Toast message={toastMessage} type={toastType} duration={1500} onClose={setToastOff}></Toast>
+            </div> : null}
+        </>
     );
 };
 
