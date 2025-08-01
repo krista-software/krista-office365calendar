@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import org.jvnet.hk2.annotations.Service;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -52,6 +53,7 @@ public final class Office365CalendarAttributes {
     private String publicClientSecret;
     private OAuth20Service oAuth20Service;
 
+    @Inject
     public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
                                      String timeZone, String authType, String routingUrl) {
         loadPublicConfig();
@@ -130,10 +132,7 @@ public final class Office365CalendarAttributes {
         if (Constants.PUBLIC.equals(authType)) {
             System.out.println("Public routing Url");
             System.out.println(routingUrl);
-            String s = routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
-            System.out.println("Public routing Url after replace");
-            System.out.println(s);
-            return s;
+            return routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
         } else if (Constants.PRIVATE.equals(authType)) {
             return routingUrl + "/rest/calendar/callback";
         } else {

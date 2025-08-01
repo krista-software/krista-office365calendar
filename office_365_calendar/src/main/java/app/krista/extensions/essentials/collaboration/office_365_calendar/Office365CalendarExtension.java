@@ -11,7 +11,6 @@ import app.krista.extension.request.protos.http.HttpProtocol;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.ksdk.context.AuthorizationContext;
-import app.krista.ksdk.context.RequestContext;
 import app.krista.ksdk.telemetry.TelemetryMetrics;
 
 import javax.inject.Inject;
@@ -31,8 +30,8 @@ public final class Office365CalendarExtension {
     @Inject
     public Office365CalendarExtension(Invoker invoker, Office365CalendarAttributeStore attributeStore,
                                       GraphServiceClientProviderFactory providerFactory,
-                                      AuthorizationContext authorizationContext, RequestContext requestContext, TelemetryMetrics telemetryMetrics) {
-        this.requestAuthenticator = new Office365CalendarRequestAuthenticator(attributeStore, authorizationContext, requestContext);
+                                      AuthorizationContext authorizationContext, TelemetryMetrics telemetryMetrics) {
+        this.requestAuthenticator = new Office365CalendarRequestAuthenticator(attributeStore, invoker.getInvokerId(), authorizationContext);
         this.providerFactory = providerFactory;
         this.routingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
         this.telemetryMetrics = telemetryMetrics;
