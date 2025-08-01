@@ -19,7 +19,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
@@ -57,7 +56,7 @@ public final class GraphServiceClientProvider {
      * @param requestContext              the request context
      * @param authorizationContext        the authorization context
      */
-    @Inject
+
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null);
         System.out.println("GraphServiceClientProvider constructor (4 params) - END");
@@ -73,7 +72,8 @@ public final class GraphServiceClientProvider {
      * @param authorizationContext        the authorization context
      * @param authContextId               optional authentication context ID
      */
-    @Inject
+
+
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
         System.out.println("GraphServiceClientProvider constructor (5 params) - START with authContextId: " + authContextId);
         LOGGER.info("→ GraphServiceClientProvider: Initializing with authContextId: {}", authContextId);

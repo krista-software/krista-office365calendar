@@ -6,9 +6,6 @@ import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
-import org.jvnet.hk2.annotations.Service;
-
-import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -25,7 +22,6 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
  * It exposes invoker requests for authentication, documentation tabs, attribute validation, connection testing, and attribute updates.
  * </p>
  */
-@Service
 public final class Office365CalendarAttributes {
 
     public static final String CLIENT_ID = "clientId";
@@ -53,7 +49,6 @@ public final class Office365CalendarAttributes {
     private String publicClientSecret;
     private OAuth20Service oAuth20Service;
 
-    @Inject
     public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
                                      String timeZone, String authType, String routingUrl) {
         loadPublicConfig();
