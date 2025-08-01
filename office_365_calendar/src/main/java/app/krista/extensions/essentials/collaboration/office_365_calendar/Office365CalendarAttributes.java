@@ -73,7 +73,7 @@ public final class Office365CalendarAttributes {
                     authPayload.get(CLIENT_SECRET).getAsString(),
                     authPayload.get(TENANT_ID).getAsString(),
                     authPayload.get(EMAIL).getAsString(),
-                    authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : null,
+                    authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "",
                     authType, baseurl);
         } else {
             throw new IllegalArgumentException(UNSUPPORTED_AUTH);
