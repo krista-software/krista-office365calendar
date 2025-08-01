@@ -62,7 +62,7 @@ const AuthPage = () => {
         let responseMessage = "Test connection failed, Failed to save attributes";
         let responseType = "error";
 
-        if (response.isSuccess) {
+        if (response.success) {
             responseMessage = "Connection tested successfully. Changes saved!";
             responseType = "success";
             setToastType("success");
@@ -79,7 +79,7 @@ const AuthPage = () => {
         let message = "Test connection failed";
         let type = "error";
 
-        if (response.isSuccess) {
+        if (response.success) {
             message = "Connection tested successfully. Please save the changes!";
             type = "success";
             setIsConnectionSuccess(true);
@@ -110,7 +110,7 @@ const AuthPage = () => {
                     if (authPayload) {
                         setLoading(true);
                         testConnection(authPayload).then(response => {
-                            if (response.isSuccess) {
+                            if (response.success) {
                                 setIsConnectionSuccess(true);
                                 const saveButton = document.getElementById("save-button") as HTMLButtonElement;
                                 if (saveButton) {
