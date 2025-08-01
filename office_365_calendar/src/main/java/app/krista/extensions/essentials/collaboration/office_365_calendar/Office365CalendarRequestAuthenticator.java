@@ -10,6 +10,8 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.c
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.ksdk.context.AuthorizationContext;
+
+import app.krista.ksdk.context.RequestContext;
 import app.krista.model.field.NamedField;
 import app.krista.model.field.NamedValuedField;
 import com.github.scribejava.core.oauth.OAuth20Service;
@@ -31,18 +33,18 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
     public static final String EXTENSION_OAUTH_VERIFICATION_PATH_V2 = "/calendar/callback";
     private final AuthorizationContext authorizationContext;
     private final Office365CalendarAttributeStore attributeStore;
-    private final String invokerId;
+    private final RequestContext requestContext;
     private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarRequestAuthenticator.class);
 
     @Inject
-    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId, AuthorizationContext authorizationContext) {
+    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, AuthorizationContext authorizationContext, RequestContext requestContext) {
         System.out.println("Office365CalendarRequestAuthenticator constructor - START");
         this.attributeStore = attributeStore;
         System.out.println("Office365CalendarRequestAuthenticator constructor - attributeStore set");
-        this.invokerId = invokerId;
-        System.out.println("Office365CalendarRequestAuthenticator constructor - invokerId set: " + invokerId);
         this.authorizationContext = authorizationContext;
         System.out.println("Office365CalendarRequestAuthenticator constructor - authorizationContext set");
+        this.requestContext = requestContext;
+        System.out.println("Office365CalendarRequestAuthenticator constructor - requestContext set");
         System.out.println("Office365CalendarRequestAuthenticator constructor - END");
     }
 
@@ -146,7 +148,8 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
             attributes = attributeStore.load(authContextId);
             state += Constants.HASH + authContextId;
         } else {
-            System.out.println("getMustAuthorizeResponse method - authContext is not present, using invokerId");
+            System.out.println("getMustAuthorizeResponse method - authContext is not present, using invokerId from requestContext");
+            String invokerId = requestContext.getInvokerId();
             attributes = attributeStore.load(invokerId);
         }
         System.out.println("getMustAuthorizeResponse method - loaded attributes, state: " + state);
