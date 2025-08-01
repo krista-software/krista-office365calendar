@@ -67,7 +67,7 @@ public final class Office365CalendarAttributes {
         String authType = authPayload.get("authType").getAsString();
         if (Constants.PUBLIC.equals(authType)) {
             return new Office365CalendarAttributes(null, null, null, authPayload.get(EMAIL).getAsString(),
-                    "Asia/Kolkata", authType, baseurl);
+                    authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "", authType, baseurl);
         } else if (Constants.PRIVATE.equals(authType)) {
             return new Office365CalendarAttributes(authPayload.get(CLIENT_ID).getAsString(),
                     authPayload.get(CLIENT_SECRET).getAsString(),
