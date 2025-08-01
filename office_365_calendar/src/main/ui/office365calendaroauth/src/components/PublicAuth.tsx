@@ -46,32 +46,29 @@ const PublicAuth = ({onAuthChange}: { onAuthChange: (authPayload: AuthPayload) =
     }
 
     return (
-        <form onSubmit={(e) => e.preventDefault()}>
-            <div>
-                <div className="auth-form">
-                    <div className="form-group">
-                        <label htmlFor="email">Email<span className="mandatory-asterisk">*</span></label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your email address"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label htmlFor="timeZone">Time Zone</label>
-                        <input
-                            type="text"
-                            id="timeZone"
-                            value={timeZone}
-                            onChange={(e) => setTimeZone(e.target.value)}
-                            placeholder="Enter your time zone (optional)"
-                        />
-                    </div>
-                </div>
+        <div>
+            <div className="form-group">
+                <label htmlFor="email">Email *</label>
+                <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    required
+                />
             </div>
-        </form>
+            <div className="form-group">
+                <label htmlFor="timeZone">Time Zone</label>
+                <input
+                    type="text"
+                    id="timeZone"
+                    value={timeZone}
+                    onChange={(e) => setTimeZone(e.target.value)}
+                    placeholder="Enter your time zone (optional)"
+                />
+            </div>
+        </div>
     );
 };
 

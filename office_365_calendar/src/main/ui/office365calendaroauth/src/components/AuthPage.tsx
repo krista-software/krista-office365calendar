@@ -62,10 +62,7 @@ const AuthPage = () => {
         setAuthPayload(payload);
     }, []);
 
-    const handleTestConnectionClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+    const handleTestConnectionClick = async () => {
         if (!authPayload) return;
 
         setLoading(true);
@@ -92,10 +89,7 @@ const AuthPage = () => {
         }
     };
 
-    const handleSaveClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+    const handleSaveClick = async () => {
         if (!authPayload) return;
 
         setLoading(true);
@@ -140,7 +134,7 @@ const AuthPage = () => {
     }
 
     return (
-        <>
+        <div className="auth-form">
             <div className="authOptions">
                 <div>
                     <input
@@ -172,7 +166,6 @@ const AuthPage = () => {
                 <button disabled={checkMandatoryFields() || loading}
                         className={`test-connection-button ${loading ? 'loading' : ''}`}
                         onClick={handleTestConnectionClick}
-                        type="button"
                 >
                      <span className="button-content">
                          {loading && <div className="loading-spinner"></div>}
@@ -182,7 +175,6 @@ const AuthPage = () => {
                 <button disabled={disableSaveButton() || loading}
                         className={`save-changes-button ${loading ? 'loading' : ''}`}
                         onClick={handleSaveClick}
-                        type="button"
                 >
                      <span className="button-content">
                          {loading && <div className="loading-spinner"></div>}
@@ -197,7 +189,7 @@ const AuthPage = () => {
                     onClose={setToastOff}
                 />
             )}
-        </>
+        </div>
     );
 };
 
