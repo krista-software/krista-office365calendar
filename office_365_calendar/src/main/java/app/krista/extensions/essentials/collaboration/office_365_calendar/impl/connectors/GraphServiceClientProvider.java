@@ -27,6 +27,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.PRIVATE;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.PUBLIC;
+
 /**
  * Provides authenticated Microsoft Graph API clients for Office 365 calendar integration.
  * Typical usage involves obtaining a GraphServiceClient for the current user, for an admin, or for system-level operations,
@@ -253,8 +256,10 @@ public final class GraphServiceClientProvider {
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             System.out.println("getGraphServiceClient method (with useEmail) - retrieved userId: " + userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
-
+            String s = refreshTokenStore.get(refreshTokenStoreKey);
+            System.out.println("getGraphServiceClient method (with useEmail) - retrieved refresh token store key: " + s);
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
+            refreshTokenStore.getAllKeyValuePairsAsString();
             if (refreshToken == null) {
                 System.out.println("getGraphServiceClient method (with useEmail) - no refresh token found for userId: " + userId);
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
@@ -334,7 +339,17 @@ public final class GraphServiceClientProvider {
                 System.out.println("getGraphServiceClient method - created client credential from secret");
                 LOGGER.debug("→ Created client credential from secret");
 
-                String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+                String authority;
+                if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                    System.out.println("Using private authority");
+                    authority = Constants.AUTHORITY + office365CalendarAttributes.getTenantId();
+                } else if (PUBLIC.equals(office365CalendarAttributes.getAuthType())) {
+                    System.out.println("Using public authority");
+                    authority = Constants.ORG_AUTHORITY;
+                } else {
+                    System.out.println("No authentication type found");
+                    throw new IllegalArgumentException("No authentication type found.");
+                }
                 System.out.println("getGraphServiceClient method - built authority URL: " + authority);
                 LOGGER.debug("→ Built authority URL: {}", authority);
 
@@ -352,9 +367,9 @@ public final class GraphServiceClientProvider {
                 updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
                 System.out.println("getGraphServiceClient method - updated refresh token for userId: " + userId);
                 LOGGER.debug("→ Updated refresh token for userId: {}", userId);
-
+                String accessToken = authenticationResult.accessToken();
                 GraphServiceClient<Request> client = GraphServiceClient.builder()
-                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken()))
+                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(accessToken))
                         .buildClient();
                 System.out.println("getGraphServiceClient method - created GraphServiceClient successfully");
                 LOGGER.debug("→ Created GraphServiceClient successfully");
@@ -553,14 +568,16 @@ public final class GraphServiceClientProvider {
         try {
             System.out.println("getGraphServiceClientForUsers method - entering try block");
             String userId = getUserId(useEmail);
+            String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             System.out.println("getGraphServiceClientForUsers method - retrieved userId: " + userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
-
-            String refreshToken = refreshTokenStore.get(userId);
+            LOGGER.info("getGraphServiceClientForUsers method - calling refreshTokenStore.getAllKeyValuePairsAsString()");
+            refreshTokenStore.getAllKeyValuePairsAsString();
+            String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
                 System.out.println("getGraphServiceClientForUsers method - no refresh token found for userId: " + userId);
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
-                throw createMustAuthorizationException(userId, false);
+                throw createMustAuthorizationException(refreshTokenStoreKey, false);
             }
             System.out.println("getGraphServiceClientForUsers method - retrieved refresh token for userId: " + userId);
             LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
