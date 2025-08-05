@@ -37,41 +37,71 @@ public final class Office365CalendarAttributeStore {
     }
 
 
-    // This load function need to be changed
+    /**
+     * Loads Office 365 Calendar attributes from the store using the provided key.
+     * <p>
+     * This method retrieves the serialized attributes from the key-value store,
+     * deserializes them, and constructs an {@link Office365CalendarAttributes} object based
+     * on the authentication type (public or private).
+     *
+     * @param authContextId The key used to retrieve the attributes from the store
+     * @return The deserialized Office365CalendarAttributes object, or null if not found or empty
+     */
+    @SuppressWarnings("unchecked")
     public Office365CalendarAttributes load(String authContextId) {
         System.out.println("load method - START with authContextId: " + authContextId);
-        var attributes = Constants.GSON.fromJson(String.valueOf(store.get(authContextId)), Map.class);
-        System.out.println("load method - loaded attributes from store");
-        String baseUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
-        System.out.println("load method - baseUrl: " + baseUrl);
-        String authType = (String) attributes.get(Office365CalendarAttributes.AUTH_TYPE);
-        System.out.println("load method - authType: " + authType);
 
-        if (attributes != null) {
-            System.out.println("load method - attributes is not null");
-            if (Constants.PUBLIC.equals(authType)) {
-                System.out.println("load method - authType is PUBLIC, creating attributes without tenant ID");
-                Office365CalendarAttributes result = new Office365CalendarAttributes((String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
-                        (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
-                        null, (String) attributes.get(Office365CalendarAttributes.EMAIL),
-                        (String) attributes.get(Office365CalendarAttributes.TIMEZONE), authType,
-                        baseUrl);
-                System.out.println("load method - END returning PUBLIC attributes");
-                return result;
-            } else {
-                System.out.println("load method - authType is not PUBLIC, creating attributes with tenant ID");
-                Office365CalendarAttributes result = new Office365CalendarAttributes((String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
-                        (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
-                        (String) attributes.get(Office365CalendarAttributes.TENANT_ID),
-                        (String) attributes.get(Office365CalendarAttributes.EMAIL),
-                        (String) attributes.get(Office365CalendarAttributes.TIMEZONE), authType,
-                        baseUrl);
-                System.out.println("load method - END returning PRIVATE attributes");
-                return result;
+        String loadedAttributes = null;
+        if (store.get(authContextId) != null) {
+            loadedAttributes = (String) store.get(authContextId);
+        }
+        System.out.println("load method - loaded attributes from store: " + (loadedAttributes != null ? "not null" : "null"));
+
+        if (loadedAttributes == null || loadedAttributes.isBlank()) {
+            System.out.println("load method - END returning null (no attributes found or empty)");
+            return null;
+        } else {
+            try {
+                Map<String, Object> attributes = Constants.GSON.fromJson(loadedAttributes, Map.class);
+                System.out.println("load method - successfully parsed JSON attributes");
+
+                String baseUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
+                System.out.println("load method - baseUrl: " + baseUrl);
+
+                String authType = (String) attributes.get(Office365CalendarAttributes.AUTH_TYPE);
+                System.out.println("load method - authType: " + authType);
+
+                if (Constants.PUBLIC.equals(authType)) {
+                    System.out.println("load method - authType is PUBLIC, creating attributes without tenant ID");
+                    Office365CalendarAttributes result = new Office365CalendarAttributes(
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
+                            null,
+                            (String) attributes.get(Office365CalendarAttributes.EMAIL),
+                            (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
+                            authType,
+                            baseUrl);
+                    System.out.println("load method - END returning PUBLIC attributes");
+                    return result;
+                } else {
+                    System.out.println("load method - authType is not PUBLIC, creating attributes with tenant ID");
+                    Office365CalendarAttributes result = new Office365CalendarAttributes(
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
+                            (String) attributes.get(Office365CalendarAttributes.TENANT_ID),
+                            (String) attributes.get(Office365CalendarAttributes.EMAIL),
+                            (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
+                            authType,
+                            baseUrl);
+                    System.out.println("load method - END returning PRIVATE attributes");
+                    return result;
+                }
+            } catch (Exception e) {
+                System.out.println("load method - ERROR parsing JSON attributes: " + e.getMessage());
+                e.printStackTrace();
+                return null;
             }
         }
-        System.out.println("load method - END returning null");
-        return null;
     }
 
     public String save(Office365CalendarAttributes office365CalendarAttributes) {
