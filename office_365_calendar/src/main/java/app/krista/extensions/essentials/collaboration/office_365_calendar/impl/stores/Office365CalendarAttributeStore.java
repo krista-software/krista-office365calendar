@@ -7,6 +7,8 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.Office
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.extensions.util.KeyValueStore;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -23,17 +25,18 @@ import java.util.UUID;
 @Service
 public final class Office365CalendarAttributeStore {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarAttributeStore.class);
     private final Invoker invoker;
     private final KeyValueStore store;
 
     @Inject
     public Office365CalendarAttributeStore(Invoker invoker, KeyValueStore store) {
-        System.out.println("Office365CalendarAttributeStore constructor - START");
+        LOGGER.debug("→ Office365CalendarAttributeStore: Initializing with injected dependencies");
         this.invoker = invoker;
-        System.out.println("Office365CalendarAttributeStore constructor - invoker set");
+        LOGGER.debug("→ Invoker dependency set");
         this.store = store;
-        System.out.println("Office365CalendarAttributeStore constructor - store set");
-        System.out.println("Office365CalendarAttributeStore constructor - END");
+        LOGGER.debug("→ KeyValueStore dependency set");
+        LOGGER.debug("→ Office365CalendarAttributeStore: Initialization complete");
     }
 
 
@@ -49,30 +52,30 @@ public final class Office365CalendarAttributeStore {
      */
     @SuppressWarnings("unchecked")
     public Office365CalendarAttributes load(String authContextId) {
-        System.out.println("load method - START with authContextId: " + authContextId);
+        LOGGER.debug("→ load: Loading attributes for authContextId: {}", authContextId);
 
         String loadedAttributes = null;
         if (store.get(authContextId) != null) {
             loadedAttributes = (String) store.get(authContextId);
         }
-        System.out.println("load method - loaded attributes from store: " + (loadedAttributes != null ? "not null" : "null"));
+        LOGGER.debug("→ load: Attributes retrieved from store: {}", loadedAttributes != null ? "found" : "not found");
 
         if (loadedAttributes == null || loadedAttributes.isBlank()) {
-            System.out.println("load method - END returning null (no attributes found or empty)");
+            LOGGER.debug("→ load: No attributes found or empty, returning null");
             return null;
         } else {
             try {
                 Map<String, Object> attributes = Constants.GSON.fromJson(loadedAttributes, Map.class);
-                System.out.println("load method - successfully parsed JSON attributes");
+                LOGGER.debug("→ load: Successfully parsed JSON attributes");
 
                 String baseUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
-                System.out.println("load method - baseUrl: " + baseUrl);
+                LOGGER.debug("→ load: Base URL resolved: {}", baseUrl);
 
                 String authType = (String) attributes.get(Office365CalendarAttributes.AUTH_TYPE);
-                System.out.println("load method - authType: " + authType);
+                LOGGER.debug("→ load: Authentication type: {}", authType);
 
                 if (Constants.PUBLIC.equals(authType)) {
-                    System.out.println("load method - authType is PUBLIC, creating attributes without tenant ID");
+                    LOGGER.debug("→ load: Creating PUBLIC authentication attributes");
                     Office365CalendarAttributes result = new Office365CalendarAttributes(
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
@@ -81,10 +84,10 @@ public final class Office365CalendarAttributeStore {
                             (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
                             authType,
                             baseUrl);
-                    System.out.println("load method - END returning PUBLIC attributes");
+                    LOGGER.debug("→ load: Returning PUBLIC attributes");
                     return result;
                 } else {
-                    System.out.println("load method - authType is not PUBLIC, creating attributes with tenant ID");
+                    LOGGER.debug("→ load: Creating PRIVATE authentication attributes with tenant ID");
                     Office365CalendarAttributes result = new Office365CalendarAttributes(
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
@@ -93,21 +96,20 @@ public final class Office365CalendarAttributeStore {
                             (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
                             authType,
                             baseUrl);
-                    System.out.println("load method - END returning PRIVATE attributes");
+                    LOGGER.debug("→ load: Returning PRIVATE attributes");
                     return result;
                 }
             } catch (Exception e) {
-                System.out.println("load method - ERROR parsing JSON attributes: " + e.getMessage());
-                e.printStackTrace();
+                LOGGER.error("→ load: Error parsing JSON attributes: {}", e.getMessage(), e);
                 return null;
             }
         }
     }
 
     public String save(Office365CalendarAttributes office365CalendarAttributes) {
-        System.out.println("save method (single param) - START");
+        LOGGER.debug("→ save: Saving attributes with generated authContextId");
         String authContextId = UUID.randomUUID().toString();
-        System.out.println("save method (single param) - generated authContextId: " + authContextId);
+        LOGGER.debug("→ save: Generated authContextId: {}", authContextId);
         Map<String, Object> attributeMap = Map.of(
                 Office365CalendarAttributes.CLIENT_ID, office365CalendarAttributes.getClientId(),
                 Office365CalendarAttributes.CLIENT_SECRET, office365CalendarAttributes.getClientSecret(),
@@ -115,16 +117,16 @@ public final class Office365CalendarAttributeStore {
                 Office365CalendarAttributes.EMAIL, office365CalendarAttributes.getEmail(),
                 Office365CalendarAttributes.TIMEZONE, office365CalendarAttributes.getTimeZone() != null ? office365CalendarAttributes.getTimeZone() : "",
                 Office365CalendarAttributes.AUTH_TYPE, office365CalendarAttributes.getAuthType());
-        System.out.println("save method (single param) - created attribute map");
+        LOGGER.debug("→ save: Created attribute map for storage");
         store.put(authContextId, Constants.GSON.toJson(attributeMap));
-        System.out.println("save method (single param) - END returning authContextId: " + authContextId);
+        LOGGER.info("→ save: Attributes saved successfully with authContextId: {}", authContextId);
         return authContextId;
     }
 
     public boolean save(Office365CalendarAttributes office365CalendarAttributes, String invokerId) {
-        System.out.println("save method (with invokerId) - START with invokerId: " + invokerId);
+        LOGGER.debug("→ save: Saving attributes with invokerId: {}", invokerId);
         try {
-            System.out.println("save method (with invokerId) - entering try block");
+            LOGGER.debug("→ save: Creating attribute map for storage");
             Map<String, Object> attributeMap = Map.of(
                     Office365CalendarAttributes.CLIENT_ID, office365CalendarAttributes.getClientId(),
                     Office365CalendarAttributes.CLIENT_SECRET, office365CalendarAttributes.getClientSecret(),
@@ -132,20 +134,19 @@ public final class Office365CalendarAttributeStore {
                     Office365CalendarAttributes.EMAIL, office365CalendarAttributes.getEmail(),
                     Office365CalendarAttributes.TIMEZONE, office365CalendarAttributes.getTimeZone() != null ? office365CalendarAttributes.getTimeZone() : "",
                     Office365CalendarAttributes.AUTH_TYPE, office365CalendarAttributes.getAuthType());
-            System.out.println("save method (with invokerId) - created attribute map");
+            LOGGER.debug("→ save: Storing attributes in KeyValueStore");
             store.put(invokerId, Constants.GSON.toJson(attributeMap));
-            System.out.println("save method (with invokerId) - END returning true");
+            LOGGER.info("→ save: Attributes saved successfully for invokerId: {}", invokerId);
             return true;
         } catch (Exception e) {
-            System.out.println("save method (with invokerId) - exception occurred: " + e.getMessage());
-            System.out.println("save method (with invokerId) - END returning false");
+            LOGGER.error("→ save: Failed to save attributes for invokerId: {}, error: {}", invokerId, e.getMessage(), e);
             return false;
         }
     }
 
     public void remove(String authContextId) {
-        System.out.println("remove method - START with authContextId: " + authContextId);
+        LOGGER.debug("→ remove: Removing attributes for authContextId: {}", authContextId);
         store.remove(authContextId);
-        System.out.println("remove method - END");
+        LOGGER.debug("→ remove: Attributes removed successfully");
     }
 }

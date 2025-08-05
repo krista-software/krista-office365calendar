@@ -35,98 +35,97 @@ public class TestConnectionServiceImpl {
     public TestConnectionServiceImpl(GraphServiceClientProviderFactory providerFactory,
                                    Office365CalendarAttributeStore office365CalendarAttributeStore,
                                    Invoker invoker) {
-        System.out.println("TestConnectionServiceImpl constructor - START");
+        LOGGER.debug("→ TestConnectionServiceImpl: Initializing with injected dependencies");
         this.providerFactory = providerFactory;
-        System.out.println("TestConnectionServiceImpl constructor - providerFactory set");
+        LOGGER.debug("→ GraphServiceClientProviderFactory dependency set");
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        System.out.println("TestConnectionServiceImpl constructor - office365CalendarAttributeStore set");
+        LOGGER.debug("→ Office365CalendarAttributeStore dependency set");
         this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
-        System.out.println("TestConnectionServiceImpl constructor - END with baseRoutingUrl: " + baseRoutingUrl);
+        LOGGER.debug("→ TestConnectionServiceImpl: Initialization complete with baseRoutingUrl: {}", baseRoutingUrl);
     }
 
     public String testConnection(Office365CalendarAttributes office365CalendarAttributes) {
-        System.out.println("testConnection method - START");
+        LOGGER.debug("→ testConnection: Starting connection test");
         LOGGER.info("Testing connection with Microsoft Graph API");
         String authContextId = providerFactory.createAttributes(office365CalendarAttributes);
-        System.out.println("testConnection method - created authContextId: " + authContextId);
+        LOGGER.debug("→ testConnection: Created authContextId: {}", authContextId);
         String authUrl = null;
 
         try {
-            System.out.println("testConnection method - entering try block");
+            LOGGER.debug("→ testConnection: Attempting to verify API access");
             LOGGER.info("Verifying API access for email: {}", office365CalendarAttributes.getEmail());
-            System.out.println("testConnection method - verifying API access for email: " + office365CalendarAttributes.getEmail());
             providerFactory.create(authContextId).getGraphServiceClientForAdmin().me().calendars().buildRequest().get();
 
-            System.out.println("testConnection method - test connection successful");
+            LOGGER.debug("→ testConnection: API access verification successful");
             LOGGER.info("Test connection successful");
             return createTestConnectionResponse(true, null, null);
         } catch (GraphServiceException cause) {
-            System.out.println("testConnection method - GraphServiceException: " + cause.getMessage());
+            LOGGER.debug("→ testConnection: GraphServiceException occurred: {}", cause.getMessage());
             LOGGER.error("Graph API connection failed: {}", cause.getMessage());
             return createTestConnectionResponse(false, "An error occurred during test connection.", null);
         } catch (MustAuthorizeException cause) {
-            System.out.println("testConnection method - MustAuthorizeException: authorization required");
+            LOGGER.debug("→ testConnection: MustAuthorizeException - authorization required");
             LOGGER.info("Authorization required, generating auth URL");
             String state = createStateParameter(cause, office365CalendarAttributes);
-            System.out.println("testConnection method - created state parameter: " + state);
+            LOGGER.debug("→ testConnection: Created state parameter: {}", state);
             OAuth20Service oAuth20Service = new OAuthService(office365CalendarAttributes).getOAuth20Service();
             authUrl = oAuth20Service.getAuthorizationUrl(state) + AUTH_URL_QUERY_PARAMS;
-            System.out.println("testConnection method - generated authUrl: " + authUrl);
+            LOGGER.debug("→ testConnection: Generated authorization URL");
             return createTestConnectionResponse(false, AUTHORIZATION_PROMPT, authUrl);
         } finally {
-            System.out.println("testConnection method - entering finally block");
+            LOGGER.debug("→ testConnection: Cleanup phase");
             if (authUrl == null) {
-                System.out.println("testConnection method - authUrl is null, removing authContextId");
+                LOGGER.debug("→ testConnection: No auth URL generated, removing temporary authContextId");
                 office365CalendarAttributeStore.remove(authContextId);
             }
-            System.out.println("testConnection method - END");
+            LOGGER.debug("→ testConnection: Test connection completed");
         }
     }
 
     private String createTestConnectionResponse(boolean isSuccess, String errorMessage, String url) {
-        System.out.println("createTestConnectionResponse method - START with isSuccess: " + isSuccess + ", errorMessage: " + errorMessage + ", url: " + url);
+        LOGGER.debug("→ createTestConnectionResponse: Creating response - success: {}, hasUrl: {}", isSuccess, url != null);
         String result;
         if (isSuccess) {
-            System.out.println("createTestConnectionResponse method - success case");
+            LOGGER.debug("→ createTestConnectionResponse: Creating success response");
             result = GSON.toJson(new AuthenticationResponse(true, null, null));
         } else if (url != null) {
-            System.out.println("createTestConnectionResponse method - error case with URL");
+            LOGGER.debug("→ createTestConnectionResponse: Creating error response with authorization URL");
             result = GSON.toJson(new AuthenticationResponse(false, errorMessage, url));
         } else {
-            System.out.println("createTestConnectionResponse method - error case without URL");
+            LOGGER.debug("→ createTestConnectionResponse: Creating error response without URL");
             result = GSON.toJson(new AuthenticationResponse(false,
                     Objects.requireNonNullElse(errorMessage, "Unknown Error"), null));
         }
-        System.out.println("createTestConnectionResponse method - END with result: " + result);
+        LOGGER.debug("→ createTestConnectionResponse: Response created successfully");
         return result;
     }
 
     private String createStateParameter(MustAuthorizeException cause, Office365CalendarAttributes office365CalendarAttributes) {
-        System.out.println("createStateParameter method (2 params) - START");
+        LOGGER.debug("→ createStateParameter: Creating state parameter from exception details");
         String userId = (String) cause.getDetails().getFirst().getValue();
-        System.out.println("createStateParameter method (2 params) - extracted userId: " + userId);
+        LOGGER.debug("→ createStateParameter: Extracted userId: {}", userId);
         String result = createStateParameter(cause, office365CalendarAttributes, userId);
-        System.out.println("createStateParameter method (2 params) - END with result: " + result);
+        LOGGER.debug("→ createStateParameter: State parameter created successfully");
         return result;
     }
 
     private String createStateParameter(MustAuthorizeException cause, Office365CalendarAttributes office365CalendarAttributes, String userId) {
-        System.out.println("createStateParameter method (3 params) - START with userId: " + userId);
+        LOGGER.debug("→ createStateParameter: Building state parameter for userId: {}", userId);
         Optional<NamedValuedField> authContextIdField = cause.getDetails().stream()
                 .filter(namedValuedField -> Objects.equals(namedValuedField.getName(), Constants.AUTH_CONTEXT_ID))
                 .findFirst();
-        System.out.println("createStateParameter method (3 params) - authContextIdField present: " + authContextIdField.isPresent());
+        LOGGER.debug("→ createStateParameter: AuthContextId field present: {}", authContextIdField.isPresent());
         String state = userId;
         if (authContextIdField.isPresent()) {
             String authContextId = (String) authContextIdField.get().getValue();
-            System.out.println("createStateParameter method (3 params) - authContextId: " + authContextId);
+            LOGGER.debug("→ createStateParameter: Adding authContextId: {}", authContextId);
             state += Constants.HASH + authContextId;
         }
         if (Constants.PUBLIC.equals(office365CalendarAttributes.getAuthType())) {
-            System.out.println("createStateParameter method (3 params) - authType is PUBLIC, adding forward path");
+            LOGGER.debug("→ createStateParameter: PUBLIC auth type, adding forward path");
             state += Constants.HASH + office365CalendarAttributes.getForwardPath();
         }
-        System.out.println("createStateParameter method (3 params) - END with state: " + state);
+        LOGGER.debug("→ createStateParameter: Final state parameter: {}", state);
         return state;
     }
 }

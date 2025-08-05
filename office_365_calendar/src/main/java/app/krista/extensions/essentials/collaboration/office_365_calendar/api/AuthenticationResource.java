@@ -70,11 +70,9 @@ public final class AuthenticationResource {
                                 AuthorizationListener authorizationListener,
                                 TestConnectionServiceImpl testConnectionService,
                                 Invoker invoker) {
-        System.out.println("AuthenticationResource constructor - START");
         LOGGER.info("→ AuthenticationResource: Initializing with injected dependencies");
 
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        System.out.println("AuthenticationResource constructor - Office365CalendarAttributeStore set");
         LOGGER.debug("→ Office365CalendarAttributeStore set");
 
         this.refreshTokenStore = refreshTokenStore;
@@ -136,11 +134,9 @@ public final class AuthenticationResource {
     }
 
     private String getAuthenticationResponseMessage(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
-        System.out.println("getAuthenticationResponseMessage method - START with code: " + code + ", state: " + state);
         LOGGER.info("→ getAuthenticationResponseMessage: Processing OAuth callback with code: [{}], state: [{}]", code, state);
 
         if (code == null) {
-            System.out.println("getAuthenticationResponseMessage method - code is null, returning authentication failed");
             LOGGER.debug("Missing authorization code in callback. Rejecting authentication.");
             return "Authentication Failed. Please re-authorize.";
         }
@@ -178,7 +174,6 @@ public final class AuthenticationResource {
             LOGGER.debug("Refresh token stored for key: {}", key);
 
             if (!key.startsWith(Constants.WS_CONTACT) && !hasUserAccess(clientProvider)) {
-                System.out.println("getAuthenticationResponseMessage method - user access check failed");
                 LOGGER.debug("User access check failed. Authenticated user does not match setup user.");
                 refreshTokenStore.remove(key);
                 return Constants.UNAUTHORISED_USER + " User email '" + key.split(UNDER_SCORE)[0] + "' configured in the setup does not match with authenticated user.";
@@ -205,7 +200,6 @@ public final class AuthenticationResource {
             throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, cause.getCause());
 
         } catch (InterruptedException cause) {
-            System.out.println("getAuthenticationResponseMessage method - InterruptedException occurred: " + cause.getMessage());
             LOGGER.error("InterruptedException occurred during authorization: {}", cause.getMessage(), cause);
             Thread.currentThread().interrupt();
             throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, cause.getCause());
@@ -213,10 +207,10 @@ public final class AuthenticationResource {
     }
 
     private String getAuthContextId(String state) {
-        System.out.println("getAuthContextId method - START with state: " + state);
+        LOGGER.debug("→ getAuthContextId: Extracting authContextId from state: {}", state);
         String[] parts = state.split(Constants.HASH);
         String result = parts.length > 1 ? parts[1] : null;
-        System.out.println("getAuthContextId method - END with result: " + result);
+        LOGGER.debug("→ getAuthContextId: Extracted authContextId: {}", result);
         return result;
     }
 
@@ -333,14 +327,13 @@ public final class AuthenticationResource {
             String result = isSaved
                     ? Constants.GSON.toJson(new AuthenticationResponse(true, null, null))
                     : Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
-            System.out.println("saveCredentials method - returning result: " + result);
+            LOGGER.debug("→ saveCredentials: Returning result for save operation: {}", isSaved ? "success" : "failure");
             return result;
         } catch (Exception cause) {
-            System.out.println("saveCredentials method - exception occurred: " + cause.getMessage());
             LOGGER.error("→ saveCredentials: Failed to save credentials", cause);
             return Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
         } finally {
-            System.out.println("saveCredentials method - entering finally block to remove authContextId");
+            LOGGER.debug("→ saveCredentials: Cleanup - removing temporary authContextId");
             office365CalendarAttributeStore.remove(authContextId);
             System.out.println("saveCredentials method - END");
         }

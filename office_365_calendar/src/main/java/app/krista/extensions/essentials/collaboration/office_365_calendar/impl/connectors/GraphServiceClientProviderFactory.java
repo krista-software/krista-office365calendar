@@ -7,12 +7,15 @@ import app.krista.ksdk.context.AuthorizationContext;
 import app.krista.ksdk.context.RequestContext;
 import org.jetbrains.annotations.NotNull;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 
 @Service
 public class GraphServiceClientProviderFactory {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(GraphServiceClientProviderFactory.class);
     private final RefreshTokenStore refreshTokenStore;
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
     private final RequestContext requestContext;
@@ -24,59 +27,59 @@ public class GraphServiceClientProviderFactory {
                                              Office365CalendarAttributeStore office365CalendarAttributeStore,
                                              RequestContext requestContext,
                                              AuthorizationContext authorizationContext) {
-        System.out.println("GraphServiceClientProviderFactory constructor - START");
+        LOGGER.debug("→ GraphServiceClientProviderFactory: Initializing with injected dependencies");
         this.refreshTokenStore = refreshTokenStore;
-        System.out.println("GraphServiceClientProviderFactory constructor - refreshTokenStore set");
+        LOGGER.debug("→ RefreshTokenStore dependency set");
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        System.out.println("GraphServiceClientProviderFactory constructor - office365CalendarAttributeStore set");
+        LOGGER.debug("→ Office365CalendarAttributeStore dependency set");
         this.requestContext = requestContext;
-        System.out.println("GraphServiceClientProviderFactory constructor - requestContext set");
+        LOGGER.debug("→ RequestContext dependency set");
         this.authorizationContext = authorizationContext;
-        System.out.println("GraphServiceClientProviderFactory constructor - authorizationContext set");
-        System.out.println("GraphServiceClientProviderFactory constructor - END");
+        LOGGER.debug("→ AuthorizationContext dependency set");
+        LOGGER.debug("→ GraphServiceClientProviderFactory: Initialization complete");
     }
 
     public String createAttributes(Office365CalendarAttributes attributes) {
-        System.out.println("createAttributes method - START");
+        LOGGER.debug("→ createAttributes: Saving Office365CalendarAttributes");
         String result = office365CalendarAttributeStore.save(attributes);
-        System.out.println("createAttributes method - END with result: " + result);
+        LOGGER.debug("→ createAttributes: Attributes saved with ID: {}", result);
         return result;
     }
 
     @NotNull
     private GraphServiceClientProvider getGraphServiceClientProvider(Office365CalendarAttributes attributes,
                                                                      String authContextId) {
-        System.out.println("getGraphServiceClientProvider method - START with authContextId: " + authContextId);
+        LOGGER.debug("→ getGraphServiceClientProvider: Creating provider with authContextId: {}", authContextId);
         GraphServiceClientProvider provider = new GraphServiceClientProvider(refreshTokenStore, attributes, requestContext, authorizationContext,
                 authContextId);
-        System.out.println("getGraphServiceClientProvider method - END");
+        LOGGER.debug("→ getGraphServiceClientProvider: Provider created successfully");
         return provider;
     }
 
     public GraphServiceClientProvider create(String authContextId) {
-        System.out.println("create method (with authContextId) - START with authContextId: " + authContextId);
+        LOGGER.debug("→ create: Creating provider with authContextId: {}", authContextId);
         final Office365CalendarAttributes attributes = office365CalendarAttributeStore.load(authContextId);
-        System.out.println("create method (with authContextId) - loaded attributes");
+        LOGGER.debug("→ create: Attributes loaded successfully");
         GraphServiceClientProvider result = getGraphServiceClientProvider(attributes, authContextId);
-        System.out.println("create method (with authContextId) - END");
+        LOGGER.debug("→ create: Provider created and returning");
         return result;
     }
 
     public GraphServiceClientProvider create() {
-        System.out.println("create method (no params) - START");
+        LOGGER.debug("→ create: Creating provider with default request context");
         GraphServiceClientProvider result = create(requestContext);
-        System.out.println("create method (no params) - END");
+        LOGGER.debug("→ create: Provider created and returning");
         return result;
     }
 
     public GraphServiceClientProvider create(RequestContext context) {
-        System.out.println("create method (with RequestContext) - START");
+        LOGGER.debug("→ create: Creating provider with RequestContext");
         String key = context.getInvokerId();
-        System.out.println("create method (with RequestContext) - invokerId: " + key);
+        LOGGER.debug("→ create: Using invokerId: {}", key);
         Office365CalendarAttributes attributes = office365CalendarAttributeStore.load(key);
-        System.out.println("create method (with RequestContext) - loaded attributes");
+        LOGGER.debug("→ create: Attributes loaded successfully");
         GraphServiceClientProvider result = getGraphServiceClientProvider(attributes, null);
-        System.out.println("create method (with RequestContext) - END");
+        LOGGER.debug("→ create: Provider created and returning");
         return result;
     }
 }

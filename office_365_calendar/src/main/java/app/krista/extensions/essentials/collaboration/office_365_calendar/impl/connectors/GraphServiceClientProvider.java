@@ -59,7 +59,6 @@ public final class GraphServiceClientProvider {
 
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null);
-        System.out.println("GraphServiceClientProvider constructor (4 params) - END");
         LOGGER.info("→ GraphServiceClientProvider: Initialized successfully with default auth context");
     }
 
@@ -75,30 +74,23 @@ public final class GraphServiceClientProvider {
 
 
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
-        System.out.println("GraphServiceClientProvider constructor (5 params) - START with authContextId: " + authContextId);
         LOGGER.info("→ GraphServiceClientProvider: Initializing with authContextId: {}", authContextId);
 
         this.refreshTokenStore = refreshTokenStore;
-        System.out.println("GraphServiceClientProvider constructor - refreshTokenStore set");
         LOGGER.debug("→ RefreshTokenStore set");
 
         this.office365CalendarAttributes = office365CalendarAttributes;
-        System.out.println("GraphServiceClientProvider constructor - office365CalendarAttributes set with tenant: " + office365CalendarAttributes.getTenantId());
         LOGGER.debug("→ Office365CalendarAttributes set with tenant: {}", office365CalendarAttributes.getTenantId());
 
         this.requestContext = requestContext;
-        System.out.println("GraphServiceClientProvider constructor - requestContext set with invokeAsUser: " + requestContext.invokeAsUser());
         LOGGER.debug("→ RequestContext set with invokeAsUser: {}", requestContext.invokeAsUser());
 
         this.authorizationContext = authorizationContext;
-        System.out.println("GraphServiceClientProvider constructor - authorizationContext set");
         LOGGER.debug("→ AuthorizationContext set");
 
         this.authContextId = authContextId;
-        System.out.println("GraphServiceClientProvider constructor - authContextId set: " + authContextId);
         LOGGER.debug("→ AuthContextId set: {}", authContextId);
 
-        System.out.println("GraphServiceClientProvider constructor (5 params) - END");
         LOGGER.info("→ GraphServiceClientProvider: Initialization completed successfully");
     }
 
@@ -121,9 +113,8 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient() {
-        System.out.println("getGraphServiceClient method (no params) - START");
+        LOGGER.debug("→ getGraphServiceClient: Starting client creation");
         boolean useEmail = !requestContext.invokeAsUser();
-        System.out.println("getGraphServiceClient method - invokeAsUser: " + requestContext.invokeAsUser() + ", useEmail: " + useEmail);
         LOGGER.info("→ getGraphServiceClient: Creating client for context - invokeAsUser: {}, useEmail: {}",
                 requestContext.invokeAsUser(), useEmail);
 
@@ -139,11 +130,9 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance for system operations
      */
     public GraphServiceClient<Request> getGraphServiceClientForSystem() {
-        System.out.println("getGraphServiceClientForSystem method (no params) - START");
         LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials");
 
         GraphServiceClient<Request> client = getGraphServiceClientWithClientCredentials();
-        System.out.println("getGraphServiceClientForSystem method (no params) - END");
         LOGGER.info("→ getGraphServiceClientForSystem: Successfully created system GraphServiceClient");
         return client;
     }
@@ -365,13 +354,11 @@ public final class GraphServiceClientProvider {
 
                 final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
                 updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
-                System.out.println("getGraphServiceClient method - updated refresh token for userId: " + userId);
                 LOGGER.debug("→ Updated refresh token for userId: {}", userId);
                 String accessToken = authenticationResult.accessToken();
                 GraphServiceClient<Request> client = GraphServiceClient.builder()
                         .authenticationProvider(new GraphServiceClientAuthenticationProvider(accessToken))
                         .buildClient();
-                System.out.println("getGraphServiceClient method - created GraphServiceClient successfully");
                 LOGGER.debug("→ Created GraphServiceClient successfully");
 
                 return client;

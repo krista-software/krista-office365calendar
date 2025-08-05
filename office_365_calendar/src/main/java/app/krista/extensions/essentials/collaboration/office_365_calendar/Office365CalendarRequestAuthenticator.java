@@ -36,133 +36,123 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
 
     @Inject
     public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId, AuthorizationContext authorizationContext) {
-        System.out.println("Office365CalendarRequestAuthenticator constructor - START");
+        LOGGER.debug("→ Office365CalendarRequestAuthenticator: Initializing with injected dependencies");
         this.attributeStore = attributeStore;
-        System.out.println("Office365CalendarRequestAuthenticator constructor - attributeStore set");
+        LOGGER.debug("→ AttributeStore dependency set");
         this.invokerId = invokerId;
-        System.out.println("Office365CalendarRequestAuthenticator constructor - invokerId set: " + invokerId);
+        LOGGER.debug("→ InvokerId set: {}", invokerId);
         this.authorizationContext = authorizationContext;
-        System.out.println("Office365CalendarRequestAuthenticator constructor - authorizationContext set");
-        System.out.println("Office365CalendarRequestAuthenticator constructor - END");
+        LOGGER.debug("→ AuthorizationContext dependency set");
+        LOGGER.debug("→ Office365CalendarRequestAuthenticator: Initialization complete");
     }
 
     @Override
     public String getScheme() {
-        System.out.println("getScheme method - START");
-        System.out.println("getScheme method - END returning null");
+        LOGGER.debug("→ getScheme: Returning null (no specific scheme)");
         return null;
     }
 
     @Override
     public Set<String> getSupportedProtocols() {
-        System.out.println("getSupportedProtocols method - START");
+        LOGGER.debug("→ getSupportedProtocols: Returning empty set");
         Set<String> result = Set.of();
-        System.out.println("getSupportedProtocols method - END returning empty set");
         return result;
     }
 
     @Override
     public String getAuthenticatedAccountId(ProtoRequest protoRequest) {
-        System.out.println("getAuthenticatedAccountId method - START");
+        LOGGER.debug("→ getAuthenticatedAccountId: Processing authentication request");
         try {
-            System.out.println("getAuthenticatedAccountId method - entering try block");
+            LOGGER.debug("→ getAuthenticatedAccountId: Parsing HTTP request");
             HttpRequest httpRequest = (HttpRequest) protoRequest;
             if (EXTENSION_OAUTH_VERIFICATION_PATH_V3.equals(httpRequest.getUri().getPath()) ||
                     EXTENSION_OAUTH_VERIFICATION_PATH_V2.equals(httpRequest.getUri().getPath())) {
-                System.out.println("getAuthenticatedAccountId method - path matches OAuth verification path");
+                LOGGER.debug("→ getAuthenticatedAccountId: Path matches OAuth verification endpoint");
                 httpRequest.bufferBody();
                 MultivaluedMap<String, String> queryParameters = httpRequest.getQueryParameters();
                 String state = String.valueOf(queryParameters.get(STATE).get(0));
-                System.out.println("getAuthenticatedAccountId method - extracted state: " + state);
+                LOGGER.debug("→ getAuthenticatedAccountId: Extracted state parameter: {}", state);
                 String[] parts = state.split(Constants.HASH);
-                System.out.println("getAuthenticatedAccountId method - END returning parts[0]: " + parts[0]);
+                LOGGER.debug("→ getAuthenticatedAccountId: Returning authenticated account ID: {}", parts[0]);
                 return parts[0];
             } else {
-                System.out.println("getAuthenticatedAccountId method - path does not match OAuth verification path");
-                System.out.println("getAuthenticatedAccountId method - END returning null");
+                LOGGER.debug("→ getAuthenticatedAccountId: Path does not match OAuth verification endpoint");
                 return null;
             }
         } catch (RuntimeException | IOException cause) {
-            System.out.println("getAuthenticatedAccountId method - exception occurred: " + cause.getMessage());
             LOGGER.error("Failed to get the Authenticated Account Id", cause);
-            System.out.println("getAuthenticatedAccountId method - END returning null due to exception");
             return null;
         }
     }
 
     @Override
     public boolean setServiceAuthorization(String key) {
-        System.out.println("setServiceAuthorization method - START with key: " + key);
-        System.out.println("setServiceAuthorization method - END returning false");
+        LOGGER.debug("→ setServiceAuthorization: Called with key: {}, returning false", key);
         return false;
     }
 
     @Override
     public Map<String, NamedField> getAttributeFields() {
-        System.out.println("getAttributeFields method - START");
+        LOGGER.debug("→ getAttributeFields: Returning empty attribute fields map");
         Map<String, NamedField> result = Map.of();
-        System.out.println("getAttributeFields method - END returning empty map");
         return result;
     }
 
     @Override
     public ProtoResponse getMustAuthenticateResponse(MustAuthenticateException cause, ProtoRequest request) {
-        System.out.println("getMustAuthenticateResponse method (ProtoResponse) - START");
-        System.out.println("getMustAuthenticateResponse method (ProtoResponse) - END returning null");
+        LOGGER.debug("→ getMustAuthenticateResponse (ProtoResponse): Returning null");
         return null;
     }
 
     @Override
     public AuthorizationResponse getMustAuthenticateResponse(MustAuthenticateException cause) {
-        System.out.println("getMustAuthenticateResponse method (AuthorizationResponse) - START");
-        System.out.println("getMustAuthenticateResponse method (AuthorizationResponse) - END returning null");
+        LOGGER.debug("→ getMustAuthenticateResponse (AuthorizationResponse): Returning null");
         return null;
     }
 
     @Override
     public ProtoResponse getMustAuthorizeResponse(MustAuthorizeException cause, ProtoRequest request) {
-        System.out.println("getMustAuthorizeResponse method (ProtoResponse) - START");
-        System.out.println("getMustAuthorizeResponse method (ProtoResponse) - END returning null");
+        LOGGER.debug("→ getMustAuthorizeResponse (ProtoResponse): Returning null");
         return null;
     }
 
     @Override
     public AuthorizationResponse getMustAuthorizeResponse(MustAuthorizeException cause) {
-        System.out.println("getMustAuthorizeResponse method (AuthorizationResponse) - START");
+        LOGGER.debug("→ getMustAuthorizeResponse: Creating authorization response");
         String userId = (String) cause.getDetails().get(0).getValue();
-        System.out.println("getMustAuthorizeResponse method - extracted userId: " + userId);
+        LOGGER.debug("→ getMustAuthorizeResponse: Extracted userId: {}", userId);
 
         Optional<NamedValuedField> authContext = cause.getDetails().stream()
                 .filter(namedValuedField -> Objects.equals(namedValuedField.getName(), Constants.AUTH_CONTEXT_ID))
                 .findFirst();
-        System.out.println("getMustAuthorizeResponse method - authContext present: " + authContext.isPresent());
+        LOGGER.debug("→ getMustAuthorizeResponse: AuthContext present: {}", authContext.isPresent());
 
         String state = userId;
         Office365CalendarAttributes attributes;
         if (authContext.isPresent()) {
-            System.out.println("getMustAuthorizeResponse method - authContext is present");
+            LOGGER.debug("→ getMustAuthorizeResponse: Using authContext for attribute loading");
             String authContextId = (String) authContext.get().getValue();
-            System.out.println("getMustAuthorizeResponse method - authContextId: " + authContextId);
+            LOGGER.debug("→ getMustAuthorizeResponse: AuthContextId: {}", authContextId);
             attributes = attributeStore.load(authContextId);
             state += Constants.HASH + authContextId;
         } else {
-            System.out.println("getMustAuthorizeResponse method - authContext is not present, using invokerId");
+            LOGGER.debug("→ getMustAuthorizeResponse: Using invokerId for attribute loading");
             attributes = attributeStore.load(invokerId);
         }
-        System.out.println("getMustAuthorizeResponse method - loaded attributes, state: " + state);
+        LOGGER.debug("→ getMustAuthorizeResponse: Attributes loaded, current state: {}", state);
 
         if (Constants.PUBLIC.equals(attributes.getAuthType())) {
-            System.out.println("getMustAuthorizeResponse method - authType is PUBLIC, adding forward path");
+            LOGGER.debug("→ getMustAuthorizeResponse: PUBLIC auth type, adding forward path");
             state += Constants.HASH + attributes.getForwardPath();
         }
-        System.out.println("getMustAuthorizeResponse method - final state: " + state);
+        LOGGER.debug("→ getMustAuthorizeResponse: Final state parameter: {}", state);
 
         OAuth20Service oAuth20Service = new OAuthService(attributes).getOAuth20Service();
         String url = oAuth20Service.getAuthorizationUrl(state) + Constants.AUTH_URL_QUERY_PARAMS;
-        System.out.println("getMustAuthorizeResponse method - generated URL: " + url);
+        LOGGER.debug("→ getMustAuthorizeResponse: Generated authorization URL");
 
         AuthorizationResponse response = new AuthorizationResponse(url, Collections.emptyList());
-        System.out.println("getMustAuthorizeResponse method - END returning AuthorizationResponse");
+        LOGGER.debug("→ getMustAuthorizeResponse: Authorization response created successfully");
         return response;
     }
 

@@ -2,6 +2,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 
 import app.krista.extensions.util.KeyValueStore;
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.Set;
@@ -9,14 +11,15 @@ import java.util.Set;
 @Service
 public final class RefreshTokenStore {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RefreshTokenStore.class);
     private final KeyValueStore keyValueStore;
 
     @Inject
     public RefreshTokenStore(KeyValueStore keyValueStore) {
-        System.out.println("RefreshTokenStore constructor - START");
+        LOGGER.debug("→ RefreshTokenStore: Initializing with KeyValueStore dependency");
         this.keyValueStore = keyValueStore;
-        System.out.println("RefreshTokenStore constructor - keyValueStore set");
-        System.out.println("RefreshTokenStore constructor - END");
+        LOGGER.debug("→ KeyValueStore dependency set");
+        LOGGER.debug("→ RefreshTokenStore: Initialization complete");
     }
 
     /**
@@ -26,9 +29,9 @@ public final class RefreshTokenStore {
      * @param refToken refresh token
      */
     public void put(String key, String refToken) {
-        System.out.println("put method - START with key: " + key);
+        LOGGER.debug("→ put: Storing refresh token for key: {}", key);
         keyValueStore.put(key, refToken);
-        System.out.println("put method - END");
+        LOGGER.debug("→ put: Refresh token stored successfully");
     }
 
     /**
@@ -38,21 +41,21 @@ public final class RefreshTokenStore {
      * @return stored refresh token for the given key
      */
     public String get(String key) {
-        System.out.println("get method - START with key: " + key);
+        LOGGER.debug("→ get: Retrieving refresh token for key: {}", key);
         try {
             String result = keyValueStore.get(key, String.class);
-            System.out.println("get method - END with result: " + (result != null ? "not null " + result : "null"));
+            LOGGER.debug("→ get: Token retrieved successfully: {}", result != null ? "found" : "not found");
             return result;
         } catch (Exception e) {
-            System.out.println("get method - Error parsing value for key: " + key + ", error: " + e.getMessage());
+            LOGGER.warn("→ get: Error parsing value for key: {}, attempting fallback: {}", key, e.getMessage());
             // Fallback to raw object and convert to string
             try {
                 Object rawValue = keyValueStore.get(key);
                 String result = rawValue != null ? rawValue.toString() : null;
-                System.out.println("get method - END with fallback result: " + (result != null ? "not null " + result : "null"));
+                LOGGER.debug("→ get: Fallback successful, token retrieved: {}", result != null ? "found" : "not found");
                 return result;
             } catch (Exception fallbackException) {
-                System.out.println("get method - Fallback also failed: " + fallbackException.getMessage());
+                LOGGER.error("→ get: Fallback also failed for key: {}, error: {}", key, fallbackException.getMessage(), fallbackException);
                 return null;
             }
         }
@@ -62,9 +65,9 @@ public final class RefreshTokenStore {
      * @param key key to be removed
      */
     public void remove(String key) {
-        System.out.println("remove method - START with key: " + key);
+        LOGGER.debug("→ remove: Removing refresh token for key: {}", key);
         keyValueStore.remove(key);
-        System.out.println("remove method - END");
+        LOGGER.debug("→ remove: Refresh token removed successfully");
     }
 
     /**
@@ -72,26 +75,26 @@ public final class RefreshTokenStore {
      * This method iterates through all stored refresh tokens and prints them directly to console.
      */
     public void getAllKeyValuePairsAsString() {
-        System.out.println("getAllKeyValuePairsAsString method - START");
+        LOGGER.debug("→ getAllKeyValuePairsAsString: Retrieving all stored refresh tokens");
 
         Set<String> keys = keyValueStore.getKeys();
-        System.out.println("getAllKeyValuePairsAsString method - found " + keys.size() + " keys");
+        LOGGER.info("→ getAllKeyValuePairsAsString: Found {} stored refresh tokens", keys.size());
 
         if (keys.isEmpty()) {
-            System.out.println("No refresh tokens stored.");
+            LOGGER.info("→ No refresh tokens stored");
         } else {
             for (String key : keys) {
                 try {
                     Object rawValue = keyValueStore.get(key);
                     String value = rawValue != null ? rawValue.toString() : "null";
-                    System.out.println("Key: " + key + " | Value: " + value);
+                    LOGGER.debug("→ Key: {} | Value: {}", key, value);
                 } catch (Exception e) {
-                    System.out.println("Key: " + key + " | Value: [Error retrieving value: " + e.getMessage() + "]");
+                    LOGGER.warn("→ Key: {} | Value: [Error retrieving value: {}]", key, e.getMessage());
                 }
             }
         }
 
-        System.out.println("getAllKeyValuePairsAsString method - END with " + keys.size() + " entries");
+        LOGGER.debug("→ getAllKeyValuePairsAsString: Completed listing {} entries", keys.size());
     }
 
     /**
@@ -101,15 +104,15 @@ public final class RefreshTokenStore {
      * @return A string message indicating the number of tokens removed
      */
     public String removeAll() {
-        System.out.println("removeAll method - START");
+        LOGGER.debug("→ removeAll: Starting removal of all refresh tokens");
 
         Set<String> keys = keyValueStore.getKeys();
         int initialCount = keys.size();
-        System.out.println("removeAll method - found " + initialCount + " keys to remove");
+        LOGGER.info("→ removeAll: Found {} refresh tokens to remove", initialCount);
 
         if (initialCount == 0) {
             String message = "No refresh tokens found to remove.";
-            System.out.println("removeAll method - END with message: " + message);
+            LOGGER.info("→ removeAll: {}", message);
             return message;
         }
 
@@ -118,14 +121,14 @@ public final class RefreshTokenStore {
             try {
                 keyValueStore.remove(key);
                 removedCount++;
-                System.out.println("removeAll method - removed key: " + key);
+                LOGGER.debug("→ removeAll: Removed key: {}", key);
             } catch (Exception e) {
-                System.out.println("removeAll method - failed to remove key: " + key + ", error: " + e.getMessage());
+                LOGGER.warn("→ removeAll: Failed to remove key: {}, error: {}", key, e.getMessage());
             }
         }
 
         String message = "Successfully removed " + removedCount + " out of " + initialCount + " refresh tokens.";
-        System.out.println("removeAll method - END with message: " + message);
+        LOGGER.info("→ removeAll: {}", message);
         return message;
     }
 }

@@ -6,6 +6,9 @@ import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -24,6 +27,7 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
  */
 public final class Office365CalendarAttributes {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarAttributes.class);
     public static final String CLIENT_ID = "clientId";
     public static final String CLIENT_SECRET = "clientSecret";
     public static final String TENANT_ID = "tenantId";
@@ -50,16 +54,17 @@ public final class Office365CalendarAttributes {
     private OAuth20Service oAuth20Service;
 
     public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
-                                     String timeZone, String authType, String routingUrl) {
+                                       String timeZone, String authType, String routingUrl) {
         loadPublicConfig();
         this.clientId = clientId == null ? publicClientId : clientId;
         this.clientSecret = clientSecret == null ? publicClientSecret : clientSecret;
         this.tenantId = tenantId;
         this.email = email;
-        this.timeZone = timeZone;
         this.authType = authType;
+        this.timeZone = (timeZone == null || timeZone.trim().isEmpty()) ? "UTC" : timeZone;
         this.routingUrl = routingUrl.replace(LOCAL_EXTN_URL, LOCAL_EXTN_REPLACE_URL);
     }
+
 
 
 
@@ -125,8 +130,7 @@ public final class Office365CalendarAttributes {
 
     public String getCallbackEndPoint() {
         if (Constants.PUBLIC.equals(authType)) {
-            System.out.println("Public routing Url");
-            System.out.println(routingUrl);
+            LOGGER.debug("→ getCallbackEndPoint: Using PUBLIC routing URL: {}", routingUrl);
             return routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
         } else if (Constants.PRIVATE.equals(authType)) {
             return routingUrl + "/rest/calendar/callback";
