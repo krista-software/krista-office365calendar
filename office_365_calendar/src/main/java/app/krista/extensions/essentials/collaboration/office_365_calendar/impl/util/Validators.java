@@ -2,6 +2,7 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utility class providing common validation methods for Office 365 calendar integration.
@@ -11,6 +12,20 @@ import java.util.List;
  * </p>
  */
 public class Validators {
+
+    /**
+     * Adds an attribute to the map if the value is not null.
+     *
+     * @param attributeMap   the map to add the attribute to
+     * @param attributeName  the name of the attribute
+     * @param attributeValue the value of the attribute
+     */
+    public static void addAttributeIfNotNull(Map<String, Object> attributeMap, String attributeName,
+                                           Object attributeValue) {
+        if (attributeValue != null) {
+            attributeMap.put(attributeName, attributeValue);
+        }
+    }
 
     /**
      * This function will validate if the string is empty or null

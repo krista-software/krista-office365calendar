@@ -41,31 +41,24 @@ public class FieldAttributeExtractor {
      * @return a map containing the field attributes, or an empty map if no attributes are found
      */
     public static Map<String, Object> extractFieldAttributes(Method method, String fieldName) {
-        System.out.println("    → FieldAttributeExtractor.extractFieldAttributes()");
-        System.out.println("    → Method: " + (method != null ? method.getName() : "null"));
-        System.out.println("    → Field Name: " + fieldName);
+
 
         if (method == null || fieldName == null) {
-            System.out.println("    → Null method or field name, returning empty map");
             return Map.of();
         }
 
         Parameter[] parameters = method.getParameters();
-        System.out.println("    → Examining " + parameters.length + " parameters...");
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
-            System.out.println("    → Parameter " + i + ": " + parameter.getType().getSimpleName());
 
             // Use strategy pattern to extract attributes
             Map<String, Object> attributes = strategyRegistry.extractAttributes(parameter, fieldName);
             if (!attributes.isEmpty()) {
-                System.out.println("    → ✓ Field name matches! Attributes extracted using strategy pattern");
                 return attributes;
             }
         }
 
-        System.out.println("    → No matching field annotation found for: " + fieldName);
         return Map.of();
     }
 
@@ -85,31 +78,24 @@ public class FieldAttributeExtractor {
      * @return the field type string, or null if no matching field is found
      */
     public static String extractFieldType(Method method, String fieldName) {
-        System.out.println("    → FieldAttributeExtractor.extractFieldType()");
-        System.out.println("    → Method: " + (method != null ? method.getName() : "null"));
-        System.out.println("    → Field Name: " + fieldName);
+
 
         if (method == null || fieldName == null) {
-            System.out.println("    → Null method or field name, returning null");
             return null;
         }
 
         Parameter[] parameters = method.getParameters();
-        System.out.println("    → Examining " + parameters.length + " parameters for field type...");
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
-            System.out.println("    → Parameter " + i + ": " + parameter.getType().getSimpleName());
 
             // Use strategy pattern to extract field type
             String fieldType = strategyRegistry.extractFieldType(parameter, fieldName);
             if (fieldType != null) {
-                System.out.println("    → ✓ Field name matches! Field type extracted using strategy pattern: " + fieldType);
                 return fieldType;
             }
         }
 
-        System.out.println("    → No matching field annotation found for field type extraction: " + fieldName);
         return null;
     }
 
@@ -140,44 +126,33 @@ public class FieldAttributeExtractor {
 
 
     public static Map<String, Validator.ValidationResource> createFieldNameToResourceMapping(Method method) {
-        System.out.println("    → FieldAttributeExtractor.createFieldNameToResourceMapping()");
-        System.out.println("    → Method: " + (method != null ? method.getName() : "null"));
 
         Map<String, Validator.ValidationResource> mapping = new HashMap<>();
 
         if (method == null) {
-            System.out.println("    → Method is null, returning empty mapping");
             return mapping;
         }
 
         Parameter[] parameters = method.getParameters();
-        System.out.println("    → Processing " + parameters.length + " parameters to create field mappings...");
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
-            System.out.println("    → Parameter " + i + ": " + parameter.getType().getSimpleName());
 
             // Use strategy pattern to find field name and validation resource
             for (FieldAnnotationStrategy strategy : strategyRegistry.getAllStrategies()) {
                 String fieldName = extractFieldNameFromParameter(parameter, strategy);
                 if (fieldName != null) {
-                    System.out.println("    → Found field annotation using " + strategy.getStrategyName() + " strategy: name='" + fieldName + "'");
 
                     Validator.ValidationResource resource = strategy.mapToValidationResource(parameter, fieldName);
-                    System.out.println("    → Mapped to validation resource: " + resource);
 
                     if (resource != null) {
-                        System.out.println("    → ✓ Adding mapping: '" + fieldName + "' → " + resource);
                         mapping.put(fieldName, resource);
-                    } else {
-                        System.out.println("    → ⚠ Field '" + fieldName + "' could not be mapped to a validation resource");
                     }
                     break; // Found a matching strategy, no need to check others
                 }
             }
         }
 
-        System.out.println("    → Final field name to resource mapping: " + mapping);
         return mapping;
     }
 

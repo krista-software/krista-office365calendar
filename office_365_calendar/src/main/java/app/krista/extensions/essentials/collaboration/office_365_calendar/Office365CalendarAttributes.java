@@ -1,17 +1,22 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar;
 
-import app.krista.extension.executor.Invoker;
-import app.krista.extension.request.RoutingInfo;
-import app.krista.extension.request.protos.http.HttpProtocol;
-import app.krista.extension.util.InvokerAttributes;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import com.github.scribejava.apis.MicrosoftAzureActiveDirectory20Api;
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import org.jvnet.hk2.annotations.Service;
+import com.google.gson.JsonObject;
+import com.google.gson.annotations.SerializedName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.*;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Validators.addAttributeIfNotNull;
 
 /**
  * Main extension entry point for Office 365 Calendar integration with the Krista platform.
@@ -20,61 +25,78 @@ import java.util.Map;
  * It exposes invoker requests for authentication, documentation tabs, attribute validation, connection testing, and attribute updates.
  * </p>
  */
-@Service
 public final class Office365CalendarAttributes {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarAttributes.class);
     public static final String CLIENT_ID = "clientId";
     public static final String CLIENT_SECRET = "clientSecret";
     public static final String TENANT_ID = "tenantId";
     public static final String EMAIL = "email";
     public static final String TIMEZONE = "timeZone";
+    public static final String AUTH_TYPE = "authType";
+
+    @SerializedName(EMAIL)
+    private final String email;
+    @SerializedName(CLIENT_ID)
+    private final String clientId;
+    @SerializedName(CLIENT_SECRET)
+    private final String clientSecret;
+    @SerializedName(AUTH_TYPE)
+    private final String authType;
+    @SerializedName(TENANT_ID)
+    private final String tenantId;
+    @SerializedName(TIMEZONE)
+    private final String timeZone;
+
     private final String routingUrl;
-    private String clientId;
-    private String clientSecret;
-    private String email;
-    private String tenantId;
-    private String timeZone;
+    private String publicClientId;
+    private String publicClientSecret;
     private OAuth20Service oAuth20Service;
 
-    @Inject
-    public Office365CalendarAttributes(Invoker invoker) {
-        this(invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
-                invoker.getAttributes());
-    }
-
-    public Office365CalendarAttributes(String routingUrl, Map<String, Object> attributes) {
-        this(routingUrl, InvokerAttributes.getStringOrNull(attributes, CLIENT_ID),
-                InvokerAttributes.getStringOrNull(attributes, CLIENT_SECRET),
-                InvokerAttributes.getStringOrNull(attributes, EMAIL),
-                InvokerAttributes.getStringOrNull(attributes, TENANT_ID),
-                InvokerAttributes.getStringOrNull(attributes, TIMEZONE));
-    }
-
-    public Office365CalendarAttributes(String routingUrl, String clientId, String clientSecret, String email, String tenantId, String timeZone) {
-        this.routingUrl = routingUrl;
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.email = email;
+    public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
+                                       String timeZone, String authType, String routingUrl) {
+        loadPublicConfig();
+        this.clientId = clientId == null ? publicClientId : clientId;
+        this.clientSecret = clientSecret == null ? publicClientSecret : clientSecret;
         this.tenantId = tenantId;
-        this.timeZone = timeZone;
+        this.email = email;
+        this.authType = authType;
+        this.timeZone = (timeZone == null || timeZone.trim().isEmpty()) ? "UTC" : timeZone;
+        this.routingUrl = routingUrl.replace(LOCAL_EXTN_URL, LOCAL_EXTN_REPLACE_URL);
     }
 
-    public static Office365CalendarAttributes create(Invoker invoker, Map<String, Object> attributes) {
-        return new Office365CalendarAttributes(
-                invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE),
-                attributes);
+
+
+
+    public static Office365CalendarAttributes create(JsonObject authPayload, String baseurl) {
+        String authType = authPayload.get("authType").getAsString();
+        if (Constants.PUBLIC.equals(authType)) {
+            return new Office365CalendarAttributes(null, null, null, authPayload.get(EMAIL).getAsString(),
+                    authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "", authType, baseurl);
+        } else if (Constants.PRIVATE.equals(authType)) {
+            return new Office365CalendarAttributes(authPayload.get(CLIENT_ID).getAsString(),
+                    authPayload.get(CLIENT_SECRET).getAsString(),
+                    authPayload.get(TENANT_ID).getAsString(),
+                    authPayload.get(EMAIL).getAsString(),
+                    authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "",
+                    authType, baseurl);
+        } else {
+            throw new IllegalArgumentException(UNSUPPORTED_AUTH);
+        }
     }
 
-    /**
-     * @param newAttributes This function updates the attributes provided by user
-     */
-    public void update(Map<String, Object> newAttributes) {
-        clientId = InvokerAttributes.getStringOrNull(newAttributes, CLIENT_ID);
-        clientSecret = InvokerAttributes.getStringOrNull(newAttributes, CLIENT_SECRET);
-        email = InvokerAttributes.getStringOrNull(newAttributes, EMAIL);
-        tenantId = InvokerAttributes.getStringOrNull(newAttributes, TENANT_ID);
-        timeZone = InvokerAttributes.getStringOrNull(newAttributes, TIMEZONE);
+    private void loadPublicConfig() {
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(inputStream);
+            this.publicClientId = properties.getProperty("public.clientId");
+            this.publicClientSecret = properties.getProperty("public.clientSecret");
+        } catch (IOException cause) {
+            throw new RuntimeException("Failed to load public configuration file.", cause);
+        }
     }
+
+
 
     public String getClientId() {
         return clientId;
@@ -96,17 +118,50 @@ public final class Office365CalendarAttributes {
         return timeZone;
     }
 
-    public String getCallbackUrl() {
-        return routingUrl + "/rest/calendar/callback";
+    public String getAuthType() {
+        return authType;
     }
+
+    public String getCallbackEndPoint() {
+        if (Constants.PUBLIC.equals(authType)) {
+            LOGGER.debug("→ getCallbackEndPoint: Using PUBLIC routing URL: {}", routingUrl);
+            return routingUrl.replaceAll("/extension/api/.*", DEFAULT_CALLBACK_PATH);
+        } else if (Constants.PRIVATE.equals(authType)) {
+            return routingUrl + "/rest/calendar/callback";
+        } else {
+            return EMPTY_STRING;
+        }
+    }
+
+    public String getForwardPath() {
+        if (Constants.PUBLIC.equals(authType)) {
+            return routingUrl + EXTENSION_FORWARD_PATH;
+        } else {
+            return EMPTY_STRING;
+        }
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> attributesMap = new HashMap<>();
+        addAttributeIfNotNull(attributesMap, CLIENT_ID, getClientId());
+        addAttributeIfNotNull(attributesMap, CLIENT_SECRET, getClientSecret());
+        addAttributeIfNotNull(attributesMap, TENANT_ID, getTenantId());
+        addAttributeIfNotNull(attributesMap, EMAIL, getEmail());
+        addAttributeIfNotNull(attributesMap, TIMEZONE, getTimeZone());
+        addAttributeIfNotNull(attributesMap, AUTH_TYPE, getAuthType());
+        return attributesMap;
+    }
+
+
 
     public synchronized OAuth20Service getOAuth20Service() {
         if (oAuth20Service == null) {
-            oAuth20Service = new ServiceBuilder((clientId))
+            oAuth20Service = new ServiceBuilder(clientId)
                     .apiSecret(clientSecret)
-                    .defaultScope(GraphServiceClientProvider.REQUIRED_SCOPE)
-                    .callback(getCallbackUrl())
-                    .build(MicrosoftAzureActiveDirectory20Api.custom(tenantId));
+                    .defaultScope(Constants.REQUIRED_SCOPE)
+                    .callback(getCallbackEndPoint())
+                    .build(Constants.PUBLIC.equals(authType) ? MicrosoftAzureActiveDirectory20Api.instance()
+                            : MicrosoftAzureActiveDirectory20Api.custom(tenantId));
         }
         return oAuth20Service;
     }

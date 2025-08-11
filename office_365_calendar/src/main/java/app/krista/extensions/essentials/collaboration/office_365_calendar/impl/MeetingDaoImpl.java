@@ -8,7 +8,6 @@ import app.krista.extension.executor.RemediationActions;
 import app.krista.extension.executor.impl.AskAPersonAction;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.CatalogTypes;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.NamedFieldFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
@@ -49,7 +48,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.MeetingDaoHelper.*;
@@ -73,18 +71,14 @@ public class MeetingDaoImpl implements MeetingDao {
     public static Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
 
     @Inject
-    public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory, Office365CalendarAttributes office365CalendarAttributes) {
-        this(clientProviderFactory.create(), office365CalendarAttributes);
+    public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory) {
+        this(clientProviderFactory.create(), clientProviderFactory.create().getOffice365CalendarAttributes());
         LOGGER.info("MeetingDaoImpl initialized successfully with factory");
     }
 
     public MeetingDaoImpl(GraphServiceClientProvider clientProvider, Office365CalendarAttributes office365CalendarAttributes) {
-        LOGGER.info("Initializing MeetingDaoImpl with direct provider");
         this.clientProvider = clientProvider;
-        LOGGER.debug("GraphServiceClientProvider set");
         this.office365CalendarAttributes = office365CalendarAttributes;
-        LOGGER.debug("Office365CalendarAttributes set with timezone: {}", office365CalendarAttributes.getTimeZone());
-        LOGGER.info("MeetingDaoImpl initialized successfully");
     }
 
     @NotNull

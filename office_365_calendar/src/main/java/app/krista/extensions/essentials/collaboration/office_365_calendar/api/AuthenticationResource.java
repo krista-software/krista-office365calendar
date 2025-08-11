@@ -1,25 +1,29 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.api;
 
+import app.krista.extension.executor.Invoker;
+import app.krista.extension.request.RoutingInfo;
+import app.krista.extension.request.protos.http.HttpProtocol;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.TestConnectionServiceImpl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.RefreshTokenStore;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.AuthenticationResponse;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.ksdk.authentication.AuthorizationListener;
 import app.krista.ksdk.context.AuthorizationContext;
 import com.github.scribejava.core.exceptions.OAuthException;
 import com.github.scribejava.core.model.OAuth2AccessToken;
+import com.google.gson.JsonObject;
 import com.microsoft.graph.http.GraphServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -43,36 +47,46 @@ import java.util.concurrent.ExecutionException;
 @Path("/")
 public final class AuthenticationResource {
 
+    public static final String USER_AUTHENTICATED_SUCCESSFULLY_PLEASE_PROCEED_WITH_REQUEST = "User Authenticated Successfully. Please proceed with the request.";
     public static final String ERROR_DESCRIPTION = "error_description";
     private static final String CODE = "code";
     private static final String STATE = "state";
+    private static final String UNDER_SCORE = "_";
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
     private final RefreshTokenStore refreshTokenStore;
     private final GraphServiceClientProviderFactory providerFactory;
     private final AuthorizationContext context;
     private final AuthorizationListener authorizationListener;
+    private final TestConnectionServiceImpl testConnectionService;
+    private final String baseRoutingUrl;
+    private final String invokerId;
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationResource.class);
 
     @Inject
-    public AuthenticationResource(Office365CalendarAttributeStore office365CalendarAttributeStore, RefreshTokenStore refreshTokenStore, GraphServiceClientProviderFactory providerFactory, AuthorizationContext context, AuthorizationListener authorizationListener) {
+    public AuthenticationResource(Office365CalendarAttributeStore office365CalendarAttributeStore,
+                                RefreshTokenStore refreshTokenStore,
+                                GraphServiceClientProviderFactory providerFactory,
+                                AuthorizationContext context,
+                                AuthorizationListener authorizationListener,
+                                TestConnectionServiceImpl testConnectionService,
+                                Invoker invoker) {
         LOGGER.info("→ AuthenticationResource: Initializing with injected dependencies");
 
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        LOGGER.debug("→ Office365CalendarAttributeStore set");
 
         this.refreshTokenStore = refreshTokenStore;
-        LOGGER.debug("→ RefreshTokenStore set");
 
         this.providerFactory = providerFactory;
-        LOGGER.debug("→ GraphServiceClientProviderFactory set");
 
         this.context = context;
-        LOGGER.debug("→ AuthorizationContext set with authenticated: {}", context.isAuthenticated());
 
         this.authorizationListener = authorizationListener;
-        LOGGER.debug("→ AuthorizationListener set");
 
-        LOGGER.info("→ AuthenticationResource: Initialization completed successfully");
+        this.testConnectionService = testConnectionService;
+
+        this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
+        this.invokerId = invoker.getInvokerId();
+
     }
 
     /**
@@ -89,72 +103,95 @@ public final class AuthenticationResource {
     @GET
     @Path("/callback")
     public String getCallBack(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
-        LOGGER.info("→ getCallBack: Processing OAuth callback with state: {}", state);
+        String result = getAuthenticationResponseMessage(code, state);
+        return result;
+    }
 
-        Objects.requireNonNull(code);
-        LOGGER.debug("→ Authorization code received and validated");
+    @GET
+    @Path("v3/oauth/callback")
+    public String getCallbackForV3Auth(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
+        String result = getAuthenticationResponseMessage(code, state);
+        return result;
+    }
 
-        String[] parts = state.split("#");
-        LOGGER.debug("→ Split state into {} parts", parts.length);
+    private String getAuthenticationResponseMessage(@QueryParam(CODE) String code, @QueryParam(STATE) String state) {
+        LOGGER.info("→ getAuthenticationResponseMessage: Processing OAuth callback with code: [{}], state: [{}]", code, state);
 
-        if (parts[0].isBlank() || parts.length > 2) {
-            LOGGER.error("→ getCallBack: Invalid state parameters - parts[0].isBlank(): {}, parts.length: {}", parts[0].isBlank(), parts.length);
+        if (code == null) {
+            LOGGER.debug("Missing authorization code in callback. Rejecting authentication.");
+            return "Authentication Failed. Please re-authorize.";
+        }
+
+        String[] parts = state.split(Constants.HASH);
+        if (parts[0].isBlank()) {
+            LOGGER.error("State parameter is invalid or empty.");
             throw new BadRequestException(Constants.INVALID_STATE_PARAMETERS);
         }
 
         String key = parts[0];
-        String authContextId = parts.length == 2 ? parts[1] : null;
-        LOGGER.debug("→ Extracted key: {}, authContextId: {}", key, authContextId);
-        try {
-            GraphServiceClientProvider clientProvider;
-            if (authContextId == null) {
-                LOGGER.debug("→ Using default client provider (no authContextId)");
-                clientProvider = providerFactory.create();
-            } else {
-                LOGGER.debug("→ Loading attributes for authContextId: {}", authContextId);
-                Office365CalendarAttributes effectiveOffice365CalendarAttributes = office365CalendarAttributeStore.load(authContextId);
-                clientProvider = providerFactory.create(effectiveOffice365CalendarAttributes);
-                LOGGER.debug("→ Created client provider with custom attributes");
-            }
+        String authContextId = getAuthContextId(state);
 
-            OAuth2AccessToken accessToken = clientProvider.getOffice365CalendarAttributes().getOAuth20Service().getAccessToken(code);
-            LOGGER.debug("→ Successfully obtained OAuth2 access token");
+        LOGGER.debug("→ Parsed key: [{}] from state. AuthContextId resolved: [{}]", key, authContextId);
+
+        try {
+            LOGGER.info("Retrieving GraphServiceClientProvider using AuthContextId: {}", authContextId);
+            GraphServiceClientProvider clientProvider = getGraphServiceClientProvider(authContextId);
+
+            LOGGER.debug("Fetching Office 365 Calendar attributes for authentication...");
+            Office365CalendarAttributes office365CalendarAttributes = clientProvider.getOffice365CalendarAttributes();
+
+            LOGGER.debug("Initializing OAuth20Service for token exchange...");
+            OAuth2AccessToken accessToken = office365CalendarAttributes.getOAuth20Service().getAccessToken(code);
+            LOGGER.info("Access token retrieved successfully.");
 
             refreshTokenStore.put(key, accessToken.getRefreshToken());
-            LOGGER.debug("→ Stored refresh token for key: {}", key);
+            LOGGER.debug("Refresh token stored for key: {}", key);
 
             if (!key.startsWith(Constants.WS_CONTACT) && !hasUserAccess(clientProvider)) {
-                LOGGER.warn("→ User access validation failed for key: {}", key);
+                LOGGER.debug("User access check failed. Authenticated user does not match setup user.");
                 refreshTokenStore.remove(key);
-                LOGGER.debug("→ Removed refresh token due to access validation failure");
-                return "Unauthorised user. User email '" + key + "'configured in the setup does not match with authenticated user.";
+                return Constants.UNAUTHORISED_USER + " User email '" + key.split(UNDER_SCORE)[0] + "' configured in the setup does not match with authenticated user.";
             }
+
             if (context.isAuthenticated()) {
-                LOGGER.debug("→ Context is authenticated, notifying authorization listener");
+                LOGGER.info("User is authenticated. Notifying authorization listener.");
                 authorizationListener.authorized();
-                LOGGER.info("→ getCallBack: User authenticated successfully (context authenticated)");
-                return "user authenticated successfully. Please close the dialog.";
+                return USER_AUTHENTICATED_SUCCESSFULLY_PLEASE_PROCEED_WITH_REQUEST;
             }
-            LOGGER.info("→ getCallBack: User authenticated successfully (context not authenticated)");
-            return "User authenticated successfully. Save the changes.";
+
+            LOGGER.info("User authenticated successfully but not yet in active context.");
+            return Constants.USER_AUTHENTICATED_SUCCESSFULLY_SAVE_THE_CHANGES;
         } catch (OAuthException cause) {
-            String errorDescription = getErrorDescription(cause);
-            LOGGER.error("→ getCallBack: OAuth exception occurred - {}", errorDescription, cause);
-            throw new IllegalStateException(errorDescription, cause.getCause());
-        } catch (IOException | ExecutionException exception) {
-            LOGGER.error("→ getCallBack: IOException/ExecutionException occurred - {}", exception.getMessage(), exception);
-            throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, exception.getCause());
-        } catch (InterruptedException exception) {
-            LOGGER.error("→ getCallBack: InterruptedException occurred - {}", exception.getMessage(), exception);
+            LOGGER.error("OAuthException occurred during token exchange: {}", cause.getMessage(), cause);
+            throw new IllegalStateException(getErrorDescription(cause), cause.getCause());
+
+        } catch (IOException | ExecutionException cause) {
+            LOGGER.error("Exception occurred during authorization (I/O or Execution): {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, cause.getCause());
+
+        } catch (InterruptedException cause) {
+            LOGGER.error("InterruptedException occurred during authorization: {}", cause.getMessage(), cause);
             Thread.currentThread().interrupt();
-            throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, exception.getCause());
-        } finally {
-            if (authContextId != null) {
-                LOGGER.debug("→ Cleaning up authContextId: {}", authContextId);
-                office365CalendarAttributeStore.remove(authContextId);
-                LOGGER.debug("→ Removed authContextId from attribute store");
-            }
+            throw new IllegalStateException(Constants.ERROR_OCCURRED_DURING_AUTHORIZATION, cause.getCause());
         }
+    }
+
+    private String getAuthContextId(String state) {
+        LOGGER.debug("→ getAuthContextId: Extracting authContextId from state: {}", state);
+        String[] parts = state.split(Constants.HASH);
+        String result = parts.length > 1 ? parts[1] : null;
+        LOGGER.debug("→ getAuthContextId: Extracted authContextId: {}", result);
+        return result;
+    }
+
+    private GraphServiceClientProvider getGraphServiceClientProvider(String authContextId) {
+        GraphServiceClientProvider provider;
+        if (authContextId == null) {
+            provider = providerFactory.create();
+        } else {
+            provider = providerFactory.create(authContextId);
+        }
+        return provider;
     }
 
     /**
@@ -210,7 +247,114 @@ public final class AuthenticationResource {
             return false;
         }
     }
+
+    /**
+     * Saves credentials after validation.
+     *
+     * @param authPayload JSON payload containing authentication details
+     * @return JSON response indicating success or failure
+     */
+    @POST
+    @Path("/saveCredentials")
+    @Produces("text/plain")
+    public String saveCredentials(JsonObject authPayload) {
+        LOGGER.info("→ saveCredentials: Processing save credentials request");
+
+        Office365CalendarAttributes attributes = Office365CalendarAttributes.create(authPayload, baseRoutingUrl);
+        String authContextId = providerFactory.createAttributes(attributes);
+
+        try {
+            LOGGER.debug("→ Testing connection before saving credentials");
+            providerFactory.create(authContextId).getGraphServiceClientForAdmin()
+                    .users(attributes.getEmail())
+                    .calendars().buildRequest().get();
+
+            boolean isSaved = office365CalendarAttributeStore.save(attributes, invokerId);
+            LOGGER.info("→ saveCredentials: Credentials saved successfully: {}", isSaved);
+
+            String result = isSaved
+                    ? Constants.GSON.toJson(new AuthenticationResponse(true, null, null))
+                    : Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
+            LOGGER.debug("→ saveCredentials: Returning result for save operation: {}", isSaved ? "success" : "failure");
+            return result;
+        } catch (Exception cause) {
+            LOGGER.error("→ saveCredentials: Failed to save credentials", cause);
+            return Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
+        } finally {
+            LOGGER.debug("→ saveCredentials: Cleanup - removing temporary authContextId");
+            office365CalendarAttributeStore.remove(authContextId);
+        }
+    }
+
+    /**
+     * Tests connection with provided credentials.
+     *
+     * @param authPayload JSON payload containing authentication details
+     * @return JSON response with connection test results
+     */
+    @POST
+    @Path("/testConnection")
+    @Produces("text/plain")
+    public String testConnection(JsonObject authPayload) {
+        LOGGER.info("→ testConnection: Processing test connection request");
+
+        Office365CalendarAttributes office365CalendarAttributes = Office365CalendarAttributes.create(authPayload, baseRoutingUrl);
+        String result = testConnectionService.testConnection(office365CalendarAttributes);
+        return result;
+    }
+
+    /**
+     * Retrieves stored credentials for a specific authentication type.
+     *
+     * @param authType The authentication type (Public or Private)
+     * @return JSON representation of stored credentials
+     */
+    @GET
+    @Path("/getCredentials")
+    @Produces("text/plain")
+    public String getCredentials(@QueryParam("authType") String authType) {
+        LOGGER.info("→ getCredentials: Loading attributes for auth-type: {} for invoker {}", authType, invokerId);
+
+        final Office365CalendarAttributes loadedAttributes = office365CalendarAttributeStore.load(invokerId);
+        if (loadedAttributes != null && authType.equals(loadedAttributes.getAuthType())) {
+            return Constants.GSON.toJson(loadedAttributes.toMap());
+        } else {
+            return "";
+        }
+    }
+
+    /**
+     * Retrieves the stored authentication key/type.
+     *
+     * @return JSON representation of the authentication type
+     */
+    @GET
+    @Path("/getAuthKey")
+    @Produces("text/plain")
+    public String getAuthKey() {
+        LOGGER.info("→ getAuthKey: Loading stored authentication key");
+
+        final Office365CalendarAttributes attributes = office365CalendarAttributeStore.load(invokerId);
+        if (attributes != null) {
+            final String authType = attributes.getAuthType();
+            String result = Constants.GSON.toJson(Objects.requireNonNullElse(authType, Constants.PUBLIC));
+            return result;
+        } else {
+            return "";
+        }
+    }
+
+    /**
+     * Serves UI documentation files.
+     *
+     * @param subPath The sub-path for the requested file
+     * @return InputStream of the requested file
+     */
+    @GET
+    @Path("/docs/{subPath:.*}")
+    public InputStream customTabs(@PathParam("subPath") String subPath) {
+        String filePath = "ui/office365calendaroauth/" + (subPath.isEmpty() ? "index.html" : subPath);
+        InputStream result = getClass().getClassLoader().getResourceAsStream(filePath);
+        return result;
+    }
 }
-
-
-

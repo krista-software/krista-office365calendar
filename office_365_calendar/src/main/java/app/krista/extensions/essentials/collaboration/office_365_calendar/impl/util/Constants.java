@@ -57,6 +57,22 @@ public final class Constants {
             + CALENDARS_READWRITE + SPACE
             + CALENDARS_READWRITE_SHARED + SPACE
             + USER_READ;
+
+    // OAuth Flow Constants
+    public static final String PUBLIC = "Public";
+    public static final String PRIVATE = "Private";
+    public static final String AUTH_TYPE = "authType";
+    public static final String HASH = "#";
+    public static final String UNDER_SCORE = "_";
+    public static final String AUTH_CONTEXT_ID = "authContextId";
+    public static final String UNSUPPORTED_AUTH = "Unsupported authentication type provided. Please select either Public or Private.";
+    public static final String LOCAL_EXTN_URL = "https://extension.local.eng.krista.app";
+    public static final String LOCAL_EXTN_REPLACE_URL = "http://localhost:8765";
+    public static final String DEFAULT_CALLBACK_PATH = "/extension/api/rest/v3/oauth/callback";
+    public static final String EXTENSION_FORWARD_PATH = "/rest/calendar/callback";
+    public static final String ORG_AUTHORITY = "https://login.microsoftonline.com/organizations/";
+    public static final String AUTHORITY = "https://login.microsoftonline.com/";
+    public static final String AUTH_URL_QUERY_PARAMS = "&access_type=offline&approval_prompt=force&prompt=select_account";
     public static final String AUTHORIZATION_PROMPT = "Authorize yourself and click 'Validate Attributes' before saving changes to proceed further";
     public static final String FAILED_TO_GET_USER_EVENTS = "Failed to get user events. ";
     public static final String UTC = "UTC";
@@ -175,6 +191,12 @@ public final class Constants {
     public static final String RETRY_ATTEMPT_MESSAGE = "Retry attempt {} of {} for operation: {}";
     public static final String RETRY_EXHAUSTED_MESSAGE = "All retry attempts exhausted for operation: {}";
     public static final String RETRY_SUCCESS_MESSAGE = "Operation succeeded on retry attempt {} of {}: {}";
+
+    // Additional constants for OAuth flow
+    public static final String FAILED_TO_SAVE_ATTRIBUTES = "Failed to save attributes";
+    public static final String UNAUTHORISED_USER = "Unauthorised user.";
+    public static final String USER_AUTHENTICATED_SUCCESSFULLY_SAVE_THE_CHANGES = "User authenticated successfully. Save the changes.";
+    public static final String EMPTY_STRING = "";
 
     private Constants() {
     }

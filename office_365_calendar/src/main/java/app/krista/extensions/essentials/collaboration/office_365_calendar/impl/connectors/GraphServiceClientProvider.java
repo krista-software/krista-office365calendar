@@ -19,13 +19,15 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.PRIVATE;
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.PUBLIC;
 
 /**
  * Provides authenticated Microsoft Graph API clients for Office 365 calendar integration.
@@ -54,7 +56,7 @@ public final class GraphServiceClientProvider {
      * @param requestContext              the request context
      * @param authorizationContext        the authorization context
      */
-    @Inject
+
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext) {
         this(refreshTokenStore, office365CalendarAttributes, requestContext, authorizationContext, null);
         LOGGER.info("→ GraphServiceClientProvider: Initialized successfully with default auth context");
@@ -69,25 +71,19 @@ public final class GraphServiceClientProvider {
      * @param authorizationContext        the authorization context
      * @param authContextId               optional authentication context ID
      */
-    public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
-        LOGGER.info("→ GraphServiceClientProvider: Initializing with authContextId: {}", authContextId);
 
+
+    public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
         this.refreshTokenStore = refreshTokenStore;
-        LOGGER.debug("→ RefreshTokenStore set");
 
         this.office365CalendarAttributes = office365CalendarAttributes;
-        LOGGER.debug("→ Office365CalendarAttributes set with tenant: {}", office365CalendarAttributes.getTenantId());
 
         this.requestContext = requestContext;
-        LOGGER.debug("→ RequestContext set with invokeAsUser: {}", requestContext.invokeAsUser());
 
         this.authorizationContext = authorizationContext;
-        LOGGER.debug("→ AuthorizationContext set");
 
         this.authContextId = authContextId;
-        LOGGER.debug("→ AuthContextId set: {}", authContextId);
 
-        LOGGER.info("→ GraphServiceClientProvider: Initialization completed successfully");
     }
 
     /**
@@ -107,6 +103,7 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient() {
+        LOGGER.debug("→ getGraphServiceClient: Starting client creation");
         boolean useEmail = !requestContext.invokeAsUser();
         LOGGER.info("→ getGraphServiceClient: Creating client for context - invokeAsUser: {}, useEmail: {}",
                 requestContext.invokeAsUser(), useEmail);
@@ -158,7 +155,8 @@ public final class GraphServiceClientProvider {
 
 
     private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
-        return getGraphServiceClientWithClientCredentials(RetryConfiguration.defaultConfiguration());
+        GraphServiceClient<Request> result = getGraphServiceClientWithClientCredentials(RetryConfiguration.defaultConfiguration());
+        return result;
     }
 
     private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials(RetryConfiguration retryConfig) {
@@ -215,12 +213,14 @@ public final class GraphServiceClientProvider {
 
         try {
             String userId = getUserId(useEmail);
+            String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
-
-            String refreshToken = refreshTokenStore.get(userId);
+            String s = refreshTokenStore.get(refreshTokenStoreKey);
+            String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
+            refreshTokenStore.getAllKeyValuePairsAsString();
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
-                throw createMustAuthorizationException(userId, false);
+                throw createMustAuthorizationException(refreshTokenStoreKey, false);
             }
             LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
 
@@ -233,6 +233,16 @@ public final class GraphServiceClientProvider {
         }
     }
 
+    @NotNull
+    private String getRefTokenStoreKey(String userId) {
+        if (userId.startsWith(Constants.WS_CONTACT)) {
+            return userId;
+        } else {
+            String key = userId + Constants.UNDER_SCORE + office365CalendarAttributes.getClientId() + Constants.UNDER_SCORE + office365CalendarAttributes.getAuthType();
+            return key;
+        }
+    }
+
     /**
      * Returns a GraphServiceClient for the specified user, using the provided refresh token.
      * Uses exponential backoff retry mechanism for transient network failures.
@@ -242,7 +252,8 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
-        return getGraphServiceClient(userId, refreshToken, RetryConfiguration.defaultConfiguration());
+        GraphServiceClient<Request> result = getGraphServiceClient(userId, refreshToken, RetryConfiguration.defaultConfiguration());
+        return result;
     }
 
     /**
@@ -271,7 +282,14 @@ public final class GraphServiceClientProvider {
                 IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
                 LOGGER.debug("→ Created client credential from secret");
 
-                String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
+                String authority;
+                if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                    authority = Constants.AUTHORITY + office365CalendarAttributes.getTenantId();
+                } else if (PUBLIC.equals(office365CalendarAttributes.getAuthType())) {
+                    authority = Constants.ORG_AUTHORITY;
+                } else {
+                    throw new IllegalArgumentException("No authentication type found.");
+                }
                 LOGGER.debug("→ Built authority URL: {}", authority);
 
                 ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(
@@ -285,9 +303,9 @@ public final class GraphServiceClientProvider {
                 final String cachedTokenContent = confidentialClientApplication.tokenCache().serialize();
                 updateRefreshToken(userId, Constants.GSON.fromJson(cachedTokenContent, JsonObject.class));
                 LOGGER.debug("→ Updated refresh token for userId: {}", userId);
-
+                String accessToken = authenticationResult.accessToken();
                 GraphServiceClient<Request> client = GraphServiceClient.builder()
-                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(authenticationResult.accessToken()))
+                        .authenticationProvider(new GraphServiceClientAuthenticationProvider(accessToken))
                         .buildClient();
                 LOGGER.debug("→ Created GraphServiceClient successfully");
 
@@ -458,12 +476,14 @@ public final class GraphServiceClientProvider {
 
         try {
             String userId = getUserId(useEmail);
+            String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
-
-            String refreshToken = refreshTokenStore.get(userId);
+            LOGGER.info("getGraphServiceClientForUsers method - calling refreshTokenStore.getAllKeyValuePairsAsString()");
+            refreshTokenStore.getAllKeyValuePairsAsString();
+            String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
-                throw createMustAuthorizationException(userId, false);
+                throw createMustAuthorizationException(refreshTokenStoreKey, false);
             }
             LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
 
@@ -543,7 +563,8 @@ public final class GraphServiceClientProvider {
         @Override
         public CompletableFuture<String> getAuthorizationTokenAsync(@NotNull URL requestUrl) {
             LOGGER.debug("→ getAuthorizationTokenAsync: Providing access token for request URL: {}", requestUrl);
-            return CompletableFuture.completedFuture(accessToken);
+            CompletableFuture<String> result = CompletableFuture.completedFuture(accessToken);
+            return result;
         }
     }
 

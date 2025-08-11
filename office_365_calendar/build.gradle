@@ -1,6 +1,10 @@
-apply plugin: 'java-library'
-apply plugin: 'maven-publish'
+plugins {
+    id 'java'
+    id "com.github.node-gradle.node" version "3.1.0"
+    id 'maven-publish'
+}
 
+apply plugin: 'java-library'
 group 'app.krista.extensions.essentials.collaboration'
 
 /*
@@ -19,7 +23,35 @@ if (releasePropsFile.exists()) {
 }
 version = computedVersion
 
+if (rootProject.file('builder.txt').canRead()) {
+    ext.builder = rootProject.file('builder.txt').text.trim()
+} else {
+    ext.builder = "0"
+}
+
+node {
+    version = '24.2.0'
+    npmVersion = '7.0.8'
+    yarnVersion = '1.22.17'
+    download = true
+    workDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/nodejs")
+    npmWorkDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/npm")
+    yarnWorkDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/yarn")
+    nodeModulesDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/")
+}
+
+task updateVersion {
+    doFirst {
+        project.ext.newbuilder = Integer.parseInt(project.ext.builder) + 1
+        print "Building extension version: " + version.toString() + "-" + project.ext.newbuilder
+        rootProject.file('builder.txt').text = project.ext.newbuilder
+        System.clearProperty("extensionVersion")
+        System.setProperty("extensionVersion", version.toString() + "-" + project.ext.newbuilder)
+    }
+}
+
 compileJava.dependsOn clean
+compileJava.dependsOn updateVersion
 
 System.setProperty("extensionVersion", version.toString())
 
@@ -41,6 +73,10 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.register('compile') {
     dependsOn compileJava
+}
+
+tasks.named('compileTestJava') {
+    dependsOn(tasks.named('buildAndCopyUI'))
 }
 
 publishing {
@@ -259,6 +295,37 @@ tasks.register('generateReleaseProperties', GenerateReleasePropertiesTask) {
     group = 'build'
     description = 'Generates release.properties file with extension version and domain information'
 }
+tasks.register('bundleUI', YarnTask) {
+    dependsOn(tasks.named('nodeSetup'))
+    dependsOn(tasks.named('yarnSetup'))
+    dependsOn(tasks.named('yarn'))
+    execOverrides {
+        it.workingDir = file("src/main/ui/office365calendaroauth")
+    }
+    args.set(['build'])
+}
+
+tasks.register('filepermission', Exec) {
+    commandLine('chmod', '-R', '755', "${project.projectDir}/src/main/ui/office365calendaroauth")
+}
+
+tasks.register('buildAndCopyUI', Copy) {
+    dependsOn(tasks.named("bundleUI"))
+    from("${project.projectDir}/src/main/ui/office365calendaroauth/build")
+    into("${project.buildDir}/resources/main/ui/office365calendaroauth")
+}
+
+tasks.register('buildUI') {
+    dependsOn(tasks.named('buildAndCopyUI'))
+    dependsOn(tasks.named('filepermission'))
+}
+
+tasks.register('cleanDir', Delete) {
+    delete("${project.projectDir}/main/ui/office365calendaroauth/build")
+    delete("${project.buildDir}/resources/ui/office365calendaroauth")
+}
+
 tasks.named("jar") {
     dependsOn tasks.named("generateReleaseProperties")
+    dependsOn tasks.named("buildAndCopyUI")
 }
