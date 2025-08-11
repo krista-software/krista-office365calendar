@@ -1,7 +1,6 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.attributes.FieldAttributeProviderRegistry;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Print;
 import app.krista.model.field.NamedField;
 import com.google.gson.Gson;
 
@@ -405,7 +404,6 @@ public class NamedFieldFactory {
         fileUploadConfig.put("maxFileSizeUnit", "MB");
         fileUploadConfig.put("fileTypes", "[\"Document\",\"Image gallery\",\"Camera\",\"Contact\",\"Audio\"]");
 
-        Print.prettyPrint(fileUploadConfig);
 
         return new NamedField(fieldName, FieldTypes.FILE_FIELD, fileUploadConfig, Map.of());
     }
@@ -465,7 +463,6 @@ public class NamedFieldFactory {
         Map<String, Object> listAttributes = new HashMap<>();
         listAttributes.put("field", fieldMapJson);
         System.out.println("List Attributes:");
-        Print.prettyPrint(listAttributes);
 
         return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, listAttributes, Map.of());
     }
