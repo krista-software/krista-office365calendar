@@ -96,13 +96,7 @@ public final class Office365CalendarAttributes {
         }
     }
 
-    /**
-     * @param newAttributes This function updates the attributes provided by user
-     */
-    public void update(Map<String, Object> newAttributes) {
-        // Note: These fields are final, so we can't update them directly
-        // This method might need to be reconsidered or removed
-    }
+
 
     public String getClientId() {
         return clientId;
