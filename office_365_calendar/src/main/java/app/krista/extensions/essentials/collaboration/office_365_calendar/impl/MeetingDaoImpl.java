@@ -77,12 +77,8 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     public MeetingDaoImpl(GraphServiceClientProvider clientProvider, Office365CalendarAttributes office365CalendarAttributes) {
-        LOGGER.info("Initializing MeetingDaoImpl with direct provider");
         this.clientProvider = clientProvider;
-        LOGGER.debug("GraphServiceClientProvider set");
         this.office365CalendarAttributes = office365CalendarAttributes;
-        LOGGER.debug("Office365CalendarAttributes set with timezone: {}", office365CalendarAttributes.getTimeZone());
-        LOGGER.info("MeetingDaoImpl initialized successfully");
     }
 
     @NotNull

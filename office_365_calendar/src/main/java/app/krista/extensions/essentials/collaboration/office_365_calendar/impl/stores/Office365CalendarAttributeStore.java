@@ -31,12 +31,8 @@ public final class Office365CalendarAttributeStore {
 
     @Inject
     public Office365CalendarAttributeStore(Invoker invoker, KeyValueStore store) {
-        LOGGER.debug("→ Office365CalendarAttributeStore: Initializing with injected dependencies");
         this.invoker = invoker;
-        LOGGER.debug("→ Invoker dependency set");
         this.store = store;
-        LOGGER.debug("→ KeyValueStore dependency set");
-        LOGGER.debug("→ Office365CalendarAttributeStore: Initialization complete");
     }
 
 

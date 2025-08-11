@@ -55,27 +55,18 @@ public final class MeetingsArea {
 
     @Inject
     public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager, ExtensionResponseGenerator responseGenerator, TelemetryHelper telemetryHelper) {
-        LOGGER.info("→ MeetingsArea: Initializing with injected dependencies");
 
         this.meetingDao = meetingDao;
-        LOGGER.debug("→ MeetingDaoImpl set");
 
         this.catalogTypes = catalogTypes;
-        LOGGER.debug("→ CatalogTypes set");
 
         this.validationOrchestrator = validationOrchestrator;
-        LOGGER.debug("→ ValidationOrchestrator set");
 
         this.errorHandlingStateManager = errorHandlingStateManager;
-        LOGGER.debug("→ ErrorHandlingStateManager set");
 
         this.responseGenerator = responseGenerator;
-        LOGGER.debug("→ ExtensionResponseGenerator set");
 
         this.telemetryHelper = telemetryHelper;
-        LOGGER.debug("→ TelemetryHelper set");
-
-        LOGGER.info("→ MeetingsArea: Initialization completed successfully");
     }
 
     /**

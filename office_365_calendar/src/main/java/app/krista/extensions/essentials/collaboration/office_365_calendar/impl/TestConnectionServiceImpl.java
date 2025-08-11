@@ -35,13 +35,9 @@ public class TestConnectionServiceImpl {
     public TestConnectionServiceImpl(GraphServiceClientProviderFactory providerFactory,
                                    Office365CalendarAttributeStore office365CalendarAttributeStore,
                                    Invoker invoker) {
-        LOGGER.debug("→ TestConnectionServiceImpl: Initializing with injected dependencies");
         this.providerFactory = providerFactory;
-        LOGGER.debug("→ GraphServiceClientProviderFactory dependency set");
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        LOGGER.debug("→ Office365CalendarAttributeStore dependency set");
         this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
-        LOGGER.debug("→ TestConnectionServiceImpl: Initialization complete with baseRoutingUrl: {}", baseRoutingUrl);
     }
 
     public String testConnection(Office365CalendarAttributes office365CalendarAttributes) {

@@ -36,14 +36,9 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
 
     @Inject
     public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId, AuthorizationContext authorizationContext) {
-        LOGGER.debug("→ Office365CalendarRequestAuthenticator: Initializing with injected dependencies");
         this.attributeStore = attributeStore;
-        LOGGER.debug("→ AttributeStore dependency set");
         this.invokerId = invokerId;
-        LOGGER.debug("→ InvokerId set: {}", invokerId);
         this.authorizationContext = authorizationContext;
-        LOGGER.debug("→ AuthorizationContext dependency set");
-        LOGGER.debug("→ Office365CalendarRequestAuthenticator: Initialization complete");
     }
 
     @Override

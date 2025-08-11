@@ -27,16 +27,10 @@ public class GraphServiceClientProviderFactory {
                                              Office365CalendarAttributeStore office365CalendarAttributeStore,
                                              RequestContext requestContext,
                                              AuthorizationContext authorizationContext) {
-        LOGGER.debug("→ GraphServiceClientProviderFactory: Initializing with injected dependencies");
         this.refreshTokenStore = refreshTokenStore;
-        LOGGER.debug("→ RefreshTokenStore dependency set");
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-        LOGGER.debug("→ Office365CalendarAttributeStore dependency set");
         this.requestContext = requestContext;
-        LOGGER.debug("→ RequestContext dependency set");
         this.authorizationContext = authorizationContext;
-        LOGGER.debug("→ AuthorizationContext dependency set");
-        LOGGER.debug("→ GraphServiceClientProviderFactory: Initialization complete");
     }
 
     public String createAttributes(Office365CalendarAttributes attributes) {

@@ -16,10 +16,7 @@ public final class RefreshTokenStore {
 
     @Inject
     public RefreshTokenStore(KeyValueStore keyValueStore) {
-        LOGGER.debug("→ RefreshTokenStore: Initializing with KeyValueStore dependency");
         this.keyValueStore = keyValueStore;
-        LOGGER.debug("→ KeyValueStore dependency set");
-        LOGGER.debug("→ RefreshTokenStore: Initialization complete");
     }
 
     /**

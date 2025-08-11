@@ -56,12 +56,10 @@ public class MeetingsAreaSubCatalogRequestHelper {
      */
     @Inject
     public MeetingsAreaSubCatalogRequestHelper(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ErrorHandlingStateManager internalStateManager, ExtensionResponseGenerator responseGenerator) {
-        LOGGER.info("Initializing MeetingsAreaSubCatalogRequestHelper with dependencies");
         this.meetingDao = meetingDao;
         this.catalogTypes = catalogTypes;
         this.internalStateManager = internalStateManager;
         this.responseGenerator = responseGenerator;
-        LOGGER.info("MeetingsAreaSubCatalogRequestHelper initialized successfully");
     }
 
     /**
