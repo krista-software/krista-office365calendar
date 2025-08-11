@@ -74,24 +74,16 @@ public final class GraphServiceClientProvider {
 
 
     public GraphServiceClientProvider(RefreshTokenStore refreshTokenStore, Office365CalendarAttributes office365CalendarAttributes, RequestContext requestContext, AuthorizationContext authorizationContext, String authContextId) {
-        LOGGER.info("→ GraphServiceClientProvider: Initializing with authContextId: {}", authContextId);
-
         this.refreshTokenStore = refreshTokenStore;
-        LOGGER.debug("→ RefreshTokenStore set");
 
         this.office365CalendarAttributes = office365CalendarAttributes;
-        LOGGER.debug("→ Office365CalendarAttributes set with tenant: {}", office365CalendarAttributes.getTenantId());
 
         this.requestContext = requestContext;
-        LOGGER.debug("→ RequestContext set with invokeAsUser: {}", requestContext.invokeAsUser());
 
         this.authorizationContext = authorizationContext;
-        LOGGER.debug("→ AuthorizationContext set");
 
         this.authContextId = authContextId;
-        LOGGER.debug("→ AuthContextId set: {}", authContextId);
 
-        LOGGER.info("→ GraphServiceClientProvider: Initialization completed successfully");
     }
 
     /**
