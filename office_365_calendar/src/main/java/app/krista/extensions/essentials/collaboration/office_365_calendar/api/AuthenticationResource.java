@@ -75,19 +75,14 @@ public final class AuthenticationResource {
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
 
         this.refreshTokenStore = refreshTokenStore;
-        System.out.println("AuthenticationResource constructor - RefreshTokenStore set");
 
         this.providerFactory = providerFactory;
-        System.out.println("AuthenticationResource constructor - GraphServiceClientProviderFactory set");
 
         this.context = context;
-        System.out.println("AuthenticationResource constructor - AuthorizationContext set with authenticated: " + context.isAuthenticated());
 
         this.authorizationListener = authorizationListener;
-        System.out.println("AuthenticationResource constructor - AuthorizationListener set");
 
         this.testConnectionService = testConnectionService;
-        System.out.println("AuthenticationResource constructor - TestConnectionService set");
 
         this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
         this.invokerId = invoker.getInvokerId();

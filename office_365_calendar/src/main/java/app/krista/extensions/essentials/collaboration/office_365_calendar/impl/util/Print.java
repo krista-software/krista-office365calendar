@@ -21,10 +21,7 @@ public class Print {
             try {
                 String className = object.getClass().getName();
                 String json = gson.toJson(object);
-                System.out.println("Class Name: " + className);
-                System.out.println("Object Details:\n" + json);
             } catch (Exception e) {
-                System.err.println("Error while printing object: " + e.getMessage());
             }
         } else {
             System.out.println("Object is null");
