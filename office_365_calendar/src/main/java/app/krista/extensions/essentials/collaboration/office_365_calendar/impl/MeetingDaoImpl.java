@@ -698,7 +698,40 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.error("→ addMeeting: Failed to schedule meeting '{}' - {}", title, cause.getMessage(), cause);
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
         }
+
     }
+
+    // Overload: schedule in organizer's delegated calendar
+    @Override
+    public Meeting addMeeting(String organizerEmail, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting) {
+        LOGGER.info("→ addMeeting(delegated): Scheduling meeting for organizer: {}", organizerEmail);
+        Validators.validateString(dateFrom.toString(), "date");
+        if ((dateTo != null) && (dateFrom > dateTo)) {
+            throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+        }
+        try {
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
+            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
+            Event newEvent = getCalendarRequestBuilderDelegated(organizerEmail)
+                    .events()
+                    .buildRequest()
+                    .post(event);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
+            for (Attachment attachment : attachments) {
+                getCalendarRequestBuilder().events(newEvent.id).attachments().buildRequest().post(attachment);
+            }
+            if (!attachments.isEmpty()) {
+                getCalendarRequestBuilder().events(newEvent.id).buildRequest().patch(newEvent);
+            }
+            return new MeetingImpl(newEvent);
+        } catch (GraphServiceException | IOException cause) {
+            LOGGER.error("→ addMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
+        }
+    }
+
+
+
 
     /**
      * Forwards the meeting invitation to the given attendees.
@@ -781,6 +814,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 LOGGER.debug("→ Preserved existing attendees from old event");
             }
 
+
             if (isOldEventOnline(details, oldEvent, event)) {
                 Pattern regex = Pattern.compile("\\.{137}");
                 String[] result = new String[3];
@@ -847,6 +881,71 @@ public class MeetingDaoImpl implements MeetingDao {
      * @param id the Office 365 calendar meeting ID
      * @return the updated Meeting object
      */
+
+    // Overload: cancel meeting using delegate's email (delegated calendar)
+    @Override
+    public Meeting cancelMeeting(String id, String delegateEmail) {
+        LOGGER.info("→ cancelMeeting(delegated): Cancelling meeting {} for delegate {}", id, delegateEmail);
+        Validators.validateString(id, Constants.MEETING_ID);
+        try {
+            Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
+            clientProvider.getUserRequestBuilder(false, null, delegateEmail).events(id).buildRequest().delete();
+            return new MeetingImpl(event);
+        } catch (ClientException | IOException cause) {
+            LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+        }
+    }
+
+    // Overload: update in organizer's delegated calendar
+    @Override
+    public Meeting updateMeeting(String organizerEmail, String id, String title, String details, String location, Long dateFrom, Long dateTo,
+                                 String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
+                                 Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval,
+                                 List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex,
+                                 String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+        LOGGER.info("→ updateMeeting(delegated): Updating meeting {} for organizer {}", id, organizerEmail);
+        if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
+            throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+        }
+        try {
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
+            Event oldEvent = getCalendarRequestBuilderDelegated(organizerEmail).events(id)
+                    .buildRequest()
+                    .get();
+
+            SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
+            Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
+            long eventStart = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
+            date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
+            long eventEnd = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
+
+            if (isAllDay != null && isAllDay && dateFrom == null) {
+                dateFrom = eventStart;
+            }
+            if ((dateFrom != null && dateTo == null && dateFrom > eventEnd) || (dateFrom == null && dateTo != null && eventStart > dateTo)) {
+                throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+            }
+
+            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
+            if (event.attendees == null || event.attendees.isEmpty()) {
+                event.attendees = oldEvent.attendees;
+            }
+            event.changeKey = oldEvent.changeKey;
+            event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
+            event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
+
+            Event newEvent = getCalendarRequestBuilderDelegated(organizerEmail).events(id)
+                    .buildRequest()
+                    .patch(event);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
+            return new MeetingImpl(newEvent);
+        } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
+            LOGGER.error("→ updateMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
+        }
+    }
+
     @Override
     public Meeting declineMeetingInvitation(String id) {
         LOGGER.info("→ declineMeetingInvitation: Declining meeting invitation for ID: {}", id);
@@ -1059,6 +1158,23 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ getCalendarRequestBuilder: Creating calendar request builder");
         CalendarRequestBuilder builder = clientProvider.getUserRequestBuilder(false, null).calendar();
         LOGGER.debug("→ getCalendarRequestBuilder: Calendar request builder created successfully");
+        return builder;
+    }
+    /**
+     * Creates a calendar request builder for delegated operations.
+     * If delegateEmail is provided and not blank, creates a delegated request builder for that user.
+     * Otherwise, falls back to the standard calendar request builder.
+     *
+     * @param delegateEmail the email of the user to delegate to, can be null or blank
+     * @return CalendarRequestBuilder for the appropriate user context
+     * @throws IOException if there's an error creating the request builder
+     */
+    private CalendarRequestBuilder getCalendarRequestBuilderDelegated(String delegateEmail) throws IOException {
+        LOGGER.debug("→ getCalendarRequestBuilderDelegated: Creating delegated calendar request builder for: {}", delegateEmail);
+
+        // Use the 3-parameter getUserRequestBuilder method to match reference implementation pattern
+        CalendarRequestBuilder builder = clientProvider.getUserRequestBuilder(false, null, delegateEmail).calendar();
+        LOGGER.debug("→ getCalendarRequestBuilderDelegated: Calendar request builder created successfully for delegate: {}", delegateEmail);
         return builder;
     }
 

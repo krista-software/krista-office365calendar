@@ -83,6 +83,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
+            @Field.Text(name = "Delegate Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String delegateEmail,
             @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId) {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}", eventId);
@@ -92,6 +93,14 @@ public final class MeetingsArea {
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
             LOGGER.debug("→ Created validation parameters map");
+
+            // Validate Delegate Email (required)
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EMAIL, delegateEmail);
+                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+            } else {
+                LOGGER.warn("→ Delegate Email is null or empty");
+            }
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
@@ -109,7 +118,7 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the cancel event operation
                 LOGGER.debug("→ Validation passed, proceeding with event cancellation");
-                Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+                Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
                 LOGGER.debug("→ Event cancelled successfully via DAO");
 
                 EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
@@ -134,6 +143,7 @@ public final class MeetingsArea {
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
                         Map.of(Constants.STATE_ID, stateId,
+                              "Delegate Email", delegateEmail != null ? delegateEmail : "",
                               Constants.EVENT_ID, eventId != null ? eventId : ""));
                 LOGGER.debug("→ Generated confirmation response for validation errors");
                 telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
@@ -453,6 +463,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse scheduleMeeting(
+            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String organizerEmail,
             @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {}) String title,
             @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {}) String location,
             @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {})  Long dateFrom,
@@ -538,7 +549,7 @@ public final class MeetingsArea {
                 LOGGER.debug("→ Validation passed, creating meeting via DAO");
                 LOGGER.debug("→ Converting {} attachments to Attachment objects", attachments != null ? attachments.size() : 0);
 
-                Meeting createdMeeting = meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting);
+                Meeting createdMeeting = meetingDao.addMeeting(organizerEmail,title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting);
                 LOGGER.debug("→ Meeting created successfully via DAO");
 
                 EventDetails eventDetails = CatalogTypes.fromEvent(createdMeeting);
@@ -559,7 +570,7 @@ public final class MeetingsArea {
                         Constants.VALIDATION_RESULTS, validationResults));
                 LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
+                Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
                 LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.scheduleMeeting", startTime,
@@ -592,11 +603,12 @@ public final class MeetingsArea {
     /**
      * Helper method to create confirmation parameters for schedule meeting error handling.
      */
-    private Map<String, Object> createScheduleMeetingConfirmationParams(String stateId, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<File> attachments, String details, Boolean isTeamsMeeting) {
+    private Map<String, Object> createScheduleMeetingConfirmationParams(String stateId, String organizerEmail, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<File> attachments, String details, Boolean isTeamsMeeting) {
         LOGGER.debug("→ createScheduleMeetingConfirmationParams: Creating confirmation parameters for stateId: {}", stateId);
 
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.STATE_ID, stateId);
+        params.put("Organizer Email", organizerEmail != null ? organizerEmail : "");
         params.put(Constants.TITLE, title != null ? title : "");
         params.put(Constants.LOCATION, location != null ? location : "");
         params.put(Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L);
@@ -762,6 +774,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse updateEvent(
+            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String organizerEmail,
             @Field(name = "Event Id", type = "Text") String eventId,
             @Field(name = "Title", type = "Text", required = false) String title,
             @Field(name = "Location", type = "Text", required = false) String location,
@@ -793,6 +806,11 @@ public final class MeetingsArea {
 
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+
+            // Validate Organizer Email (optional)
+            if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.EMAIL, organizerEmail);
+            }
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
@@ -831,7 +849,7 @@ public final class MeetingsArea {
 
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the update event operation
-                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+                EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(organizerEmail, eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
                 telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime,
                         safeTagMap("event_id", eventId, "title", title));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
@@ -846,7 +864,7 @@ public final class MeetingsArea {
                 ExtensionResponse response = responseGenerator.generateConfirmationResponse(
                         ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
                         Constants.CONFIRM_REENTER_UPDATE_EVENT,
-                        createUpdateEventConfirmationParams(stateId, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+                        createUpdateEventConfirmationParams(stateId, organizerEmail, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
                 telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime, safeTagMap("event_id", eventId));
                 return response;
             }
@@ -867,9 +885,10 @@ public final class MeetingsArea {
     /**
      * Helper method to create confirmation parameters for update event error handling.
      */
-    private Map<String, Object> createUpdateEventConfirmationParams(String stateId, String eventId, String title, String location, Long dateFrom, Long dateTo, String details, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+    private Map<String, Object> createUpdateEventConfirmationParams(String stateId, String organizerEmail, String eventId, String title, String location, Long dateFrom, Long dateTo, String details, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.STATE_ID, stateId);
+        params.put("Organizer Email", organizerEmail != null ? organizerEmail : "");
         params.put(Constants.EVENT_ID, eventId != null ? eventId : "");
         params.put(Constants.TITLE, title != null ? title : "");
         params.put(Constants.LOCATION, location != null ? location : "");
@@ -1579,7 +1598,7 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get attachments operation
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-                LOGGER.info("  → Attachments retrieved successfully");
+                 LOGGER.info("  → Attachments retrieved successfully");
                 LOGGER.info("  → Number of attachments found: {}", fileAttachments.size());
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
                 LOGGER.info("  → Attachments converted to Krista File objects");
