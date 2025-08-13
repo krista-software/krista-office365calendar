@@ -61,7 +61,6 @@ public final class Constants {
     // OAuth Flow Constants
     public static final String PUBLIC = "Public";
     public static final String PRIVATE = "Private";
-    public static final String AUTH_TYPE = "authType";
     public static final String HASH = "#";
     public static final String UNDER_SCORE = "_";
     public static final String AUTH_CONTEXT_ID = "authContextId";
