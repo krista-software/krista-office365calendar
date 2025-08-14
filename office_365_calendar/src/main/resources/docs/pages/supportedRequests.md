@@ -43,6 +43,7 @@ The Office 365 Calendar Extension supports the following catalog requests.
 
 | **Parameter Name**      | **Parameter Type** | **Mandatory** | **Example**                |
 |-------------------------|--------------------|---------------|----------------------------|
+| Organizer Email         | Email              | No            | Email address of the person on whose behalf the event is being updated. When provided, the event will be updated in the specified organizer's calendar. For example: organizer@company.com |
 | Event ID                | Text               | Yes           | Event_Id                   |
 | Title                   | Text               | No            | Company Update             |
 | Location                | Text               | No            | Pune                       |
@@ -116,6 +117,7 @@ Note: Detail description of fields is [here](pages/details.md).
 
 | **Parameter Name**      | **Parameter Type** | **Mandatory** | **Description & Example**                                                                                                        |
 |-------------------------|--------------------|---------------|----------------------------------------------------------------------------------------------------------------------------------|
+| Organizer Email         | Email              | No            | Email address of the person on whose behalf the meeting is being scheduled. When provided, the meeting will be created in the specified organizer's calendar instead of the current user's calendar. For example: organizer@company.com |
 | Title                   | Text               | No            | Company Update                                                                                                                   |
 | Location                | Text               | No            | Pune                                                                                                                             |
 | Date From               | Date               | Yes           | 5 Jun 2022 17:00                                                                                                                 |
@@ -215,6 +217,7 @@ Notes:
 
 | **Parameter Name** | **Parameter Type** | **Mandatory** | **Example** |
 |--------------------|--------------------|---------------|-------------|
+| Delegate Email     | Email              | Yes           | Email address of the person on whose behalf the event is being cancelled. The event will be cancelled from the specified delegate's calendar. For example: delegate@company.com |
 | Event ID           | Text               | Yes           | Event_Id    |
 
 - **Output Parameters**:
@@ -283,6 +286,20 @@ click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get
 
 Note: To refer additional time zones, please
 click [here](pages/details.md?id=supported-time-zones-for-get-free-slots-and-get-schedules).
+
+## Delegation Support
+
+The Office 365 Calendar Extension now supports delegation functionality for the following operations:
+
+- **Schedule Meeting**: Use the "Organizer Email" parameter to schedule meetings on behalf of another user
+- **Update Event**: Use the "Organizer Email" parameter to update events in another user's calendar
+- **Cancel Event**: Use the "Delegate Email" parameter to cancel events from another user's calendar
+
+**Important Notes:**
+- When delegation parameters are provided, the operation will be performed in the specified user's calendar context
+- The current user must have appropriate delegation permissions to access the target user's calendar
+- If delegation parameters are not provided, operations will be performed in the current user's calendar context
+- Delegation functionality requires proper Office 365 permissions and calendar sharing settings
 
 #### Search Events
 
