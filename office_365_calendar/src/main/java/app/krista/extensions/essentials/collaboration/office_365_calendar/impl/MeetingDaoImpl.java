@@ -919,9 +919,10 @@ public class MeetingDaoImpl implements MeetingDao {
         }
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
-            Event oldEvent = getCalendarRequestBuilderDelegated(organizerEmail).events(id)
+            CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(organizerEmail);
+            Event oldEvent = calendarRequestBuilderDelegated.events(id)
                     .buildRequest()
-                    .get();
+                    .get();;
 
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
@@ -944,7 +945,7 @@ public class MeetingDaoImpl implements MeetingDao {
             event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
             event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
 
-            Event newEvent = getCalendarRequestBuilderDelegated(organizerEmail).events(id)
+            Event newEvent = calendarRequestBuilderDelegated.events(id)
                     .buildRequest()
                     .patch(event);
             setDateTimeTimeZone(selectedTimeZone, newEvent);
