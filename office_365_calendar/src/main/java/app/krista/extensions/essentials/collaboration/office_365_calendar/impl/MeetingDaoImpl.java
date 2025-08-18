@@ -896,8 +896,9 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.info("→ cancelMeeting(delegated): Cancelling meeting {} for delegate {}", id, delegateEmail);
         Validators.validateString(id, Constants.MEETING_ID);
         try {
-            Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
-            clientProvider.getUserRequestBuilder(false, null, delegateEmail).events(id).buildRequest().delete();
+            CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(delegateEmail);
+            Event event = calendarRequestBuilderDelegated.events(id).buildRequest().get();
+            calendarRequestBuilderDelegated.events(id).buildRequest().delete();
             return new MeetingImpl(event);
         } catch (ClientException | IOException cause) {
             LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
