@@ -673,7 +673,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
 
         try {
-            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : "UTC";
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
             LOGGER.debug("→ Selected timezone: {}", selectedTimeZone);
 
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
