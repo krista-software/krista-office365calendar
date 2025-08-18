@@ -83,7 +83,7 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
-            @Field.Text(name = "Delegate Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String delegateEmail,
+            @Field.Text(name = "Delegate Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String delegateEmail,
             @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId) {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}", eventId);
@@ -94,13 +94,6 @@ public final class MeetingsArea {
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
             LOGGER.debug("→ Created validation parameters map");
 
-            // Validate Delegate Email (required)
-            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EMAIL, delegateEmail);
-                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
-            } else {
-                LOGGER.warn("→ Delegate Email is null or empty");
-            }
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
