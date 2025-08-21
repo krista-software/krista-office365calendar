@@ -695,10 +695,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 LOGGER.debug("→ Added attachment: {}", attachment.name);
             }
 
-            if (!attachments.isEmpty()) {
-                getCalendarRequestBuilder().events(newEvent.id).buildRequest().patch(newEvent);
-                LOGGER.debug("→ Patched event with {} attachments", attachments.size());
-            }
+
 
             LOGGER.info("→ addMeeting: Successfully scheduled meeting '{}' with ID: {}", title, newEvent.id);
             return new MeetingImpl(newEvent);
