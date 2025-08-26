@@ -61,7 +61,7 @@ public final class Office365CalendarAttributes {
         this.tenantId = tenantId;
         this.email = email;
         this.authType = authType;
-        this.timeZone = (timeZone == null || timeZone.trim().isEmpty()) ? "UTC" : timeZone;
+        this.timeZone = timeZone;
         this.routingUrl = routingUrl.replace(LOCAL_EXTN_URL, LOCAL_EXTN_REPLACE_URL);
     }
 

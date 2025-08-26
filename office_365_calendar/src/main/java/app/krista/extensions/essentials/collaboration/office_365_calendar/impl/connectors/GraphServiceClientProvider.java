@@ -438,6 +438,36 @@ public final class GraphServiceClientProvider {
             throw new IllegalStateException(cause);
         }
     }
+    /**
+     * Retrieves a UserRequestBuilder based on the provided parameters, allowing interaction with Microsoft Graph API
+     * for user-related operations. This overload supports delegated operations.
+     *
+     * @param useEmail     A Boolean flag indicating whether to use email for user identification. If true, the 'accountID'
+     *                     parameter is used; if false, the current user's information is retrieved.
+     * @param accountID    The account ID of the user when 'useEmail' is true. Ignored if 'useEmail' is false.
+     * @param delegateEmail The email of the user to delegate to. If provided and not blank, creates a delegated request builder.
+     * @return A UserRequestBuilder instance configured for the specified user, delegate, or the current user, depending on the parameters.
+     * @throws IllegalStateException If an IOException occurs while trying to build the request or if there is an issue
+     *                               with the underlying state.
+     */
+    public UserRequestBuilder getUserRequestBuilder(Boolean useEmail, String accountID, String delegateEmail) {
+        LOGGER.debug("→ getUserRequestBuilder(3-param): Creating UserRequestBuilder with useEmail: {}, accountID: {}, delegateEmail: {}", useEmail, accountID, delegateEmail);
+
+        try {
+            // Check for delegated operation first (matches reference implementation pattern)
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                LOGGER.debug("→ Using delegated mode - creating users() request for delegate: {}", delegateEmail);
+                return getGraphServiceClientForUser(false, null).users(delegateEmail);
+            }
+
+            // Fall back to the existing 2-parameter logic
+            LOGGER.debug("→ No delegate email provided, falling back to standard getUserRequestBuilder logic");
+            return getUserRequestBuilder(useEmail, accountID);
+        } catch (IOException cause) {
+            LOGGER.error("→ getUserRequestBuilder(3-param): IOException occurred - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(cause);
+        }
+    }
 
     /**
      * Gets a GraphServiceClient for user-related operations based on the specified parameters.

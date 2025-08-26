@@ -79,6 +79,10 @@ public interface MeetingDao {
      */
     Meeting addMeeting(String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting);
 
+    // Overload to support scheduling in a delegated organizer's calendar
+    Meeting addMeeting(String organizerEmail, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting);
+
+
     /**
      * Forward the meeting invitation to the given attendees email addresses
      *
@@ -118,6 +122,10 @@ public interface MeetingDao {
      */
     Meeting updateMeeting(String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting);
 
+    // Overload to support delegated update using organizer's email
+    Meeting updateMeeting(String organizerEmail, String id, String title, String details, String location, Long dateFrom, Long dateTo, String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting);
+
+
     /**
      * Returns the meeting with updated attendees
      *
@@ -141,6 +149,10 @@ public interface MeetingDao {
      * @return {@link Meeting} the Office 365 calendar meeting object with updated meeting attendees
      */
     Meeting tentativeMeetingInvitation(String id);
+
+    // Overload to support delegated cancellation using delegate's email
+    Meeting cancelMeeting(String id, String delegateEmail);
+
 
     /**
      * Returns the cancelled meeting object of Office 365 calendar

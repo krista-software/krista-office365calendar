@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.CONFIRM_RE_ENTER_CANCEL_EVENT;
+
 /**
  * Helper class for handling sub-catalog requests related to meeting attachments and validation flows
  * in the Office 365 calendar integration.
@@ -140,7 +142,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @param map input map containing reEnter flag, stateId, and eventId
      * @return an extension response prompting for re-entry or indicating failure
      */
-    @SubCatalogRequest(name = "confirmReenterCancelEvent", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
+    @SubCatalogRequest(name = CONFIRM_RE_ENTER_CANCEL_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
     public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterCancelEvent: Starting confirmation for re-entering cancel event details");
         LOGGER.debug("→ confirmReenterCancelEvent: Input map: {}", map);

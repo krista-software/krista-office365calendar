@@ -81,6 +81,14 @@ public class MeetingDaoImpl implements MeetingDao {
         this.office365CalendarAttributes = office365CalendarAttributes;
     }
 
+    /**
+     * Helper method to get effective timezone, defaulting to UTC if null or empty
+     */
+    private String getEffectiveTimeZone() {
+        String timeZone = office365CalendarAttributes.getTimeZone();
+        return (timeZone != null && !timeZone.trim().isEmpty()) ? timeZone : "UTC";
+    }
+
     @NotNull
     private static LinkedList<SearchRequest> getSearchRequests(String queryString) {
         LOGGER.debug("→ getSearchRequests: Creating search requests for query: '{}'", queryString);
@@ -169,7 +177,7 @@ public class MeetingDaoImpl implements MeetingDao {
     public List<Meeting> getMeetings() {
         LOGGER.info("→ getMeetings: Retrieving all unaccepted meetings");
         try {
-            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, office365CalendarAttributes.getTimeZone()).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, getEffectiveTimeZone()).dateTime;
             LOGGER.debug("→ Built filter dateTime: {}", dateTime);
 
             EventCollectionPage eventCollection = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").get();
@@ -231,8 +239,8 @@ public class MeetingDaoImpl implements MeetingDao {
                 .getSchedule(CalendarGetScheduleParameterSet
                         .newBuilder()
                         .withSchedules(schedulesList)
-                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone()))
-                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone()))
+                        .withEndTime(buildDateTimeTimeZone(dateTo, timeZone, getEffectiveTimeZone()))
+                        .withStartTime(buildDateTimeTimeZone(dateFrom, timeZone, getEffectiveTimeZone()))
                         .build())
                 .buildRequest()
                 .post();
@@ -318,7 +326,7 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ Number of meetings validation passed");
 
             List<Meeting> eventDetails = new ArrayList<>();
-            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, office365CalendarAttributes.getTimeZone()).dateTime;
+            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, getEffectiveTimeZone()).dateTime;
             LOGGER.debug("→ Built filter dateTime: {}", dateTime);
 
             EventCollectionPage eventCollPage = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").top(numberOfMeetings).get();
@@ -611,8 +619,8 @@ public class MeetingDaoImpl implements MeetingDao {
 
         LinkedList<TimeSlot> timeSlotsList = new LinkedList<>();
         TimeSlot timeSlots = new TimeSlot();
-        timeSlots.start = buildDateTimeTimeZone(dateFrom, timeZone, office365CalendarAttributes.getTimeZone());
-        timeSlots.end = buildDateTimeTimeZone(dateTo, timeZone, office365CalendarAttributes.getTimeZone());
+        timeSlots.start = buildDateTimeTimeZone(dateFrom, timeZone, getEffectiveTimeZone());
+        timeSlots.end = buildDateTimeTimeZone(dateTo, timeZone, getEffectiveTimeZone());
         LOGGER.debug("→ Built start and end date time zones");
 
         timeSlotsList.add(timeSlots);
@@ -665,7 +673,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
 
         try {
-            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
             LOGGER.debug("→ Selected timezone: {}", selectedTimeZone);
 
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
@@ -687,10 +695,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 LOGGER.debug("→ Added attachment: {}", attachment.name);
             }
 
-            if (!attachments.isEmpty()) {
-                getCalendarRequestBuilder().events(newEvent.id).buildRequest().patch(newEvent);
-                LOGGER.debug("→ Patched event with {} attachments", attachments.size());
-            }
+
 
             LOGGER.info("→ addMeeting: Successfully scheduled meeting '{}' with ID: {}", title, newEvent.id);
             return new MeetingImpl(newEvent);
@@ -698,7 +703,40 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.error("→ addMeeting: Failed to schedule meeting '{}' - {}", title, cause.getMessage(), cause);
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
         }
+
     }
+
+    // Overload: schedule in organizer's delegated calendar
+    @Override
+    public Meeting addMeeting(String organizerEmail, String title, String location, Long dateFrom, Long dateTo, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail, Boolean isAllDay, String timeZone, String reminder, String recurrence, Double recurrenceInterval, List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex, String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, List<Attachment> attachments, String details, Boolean isTeamsMeeting) {
+        LOGGER.info("→ addMeeting(delegated): Scheduling meeting for organizer: {}", organizerEmail);
+        Validators.validateString(dateFrom.toString(), "date");
+        if ((dateTo != null) && (dateFrom > dateTo)) {
+            throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+        }
+        try {
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
+            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
+            Event newEvent = getCalendarRequestBuilderDelegated(organizerEmail)
+                    .events()
+                    .buildRequest()
+                    .post(event);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
+            for (Attachment attachment : attachments) {
+                getCalendarRequestBuilder().events(newEvent.id).attachments().buildRequest().post(attachment);
+            }
+            if (!attachments.isEmpty()) {
+                getCalendarRequestBuilder().events(newEvent.id).buildRequest().patch(newEvent);
+            }
+            return new MeetingImpl(newEvent);
+        } catch (GraphServiceException | IOException cause) {
+            LOGGER.error("→ addMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
+        }
+    }
+
+
+
 
     /**
      * Forwards the meeting invitation to the given attendees.
@@ -745,7 +783,7 @@ public class MeetingDaoImpl implements MeetingDao {
         }
 
         try {
-            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : office365CalendarAttributes.getTimeZone();
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
             LOGGER.debug("→ Selected timezone: {}", selectedTimeZone);
 
             Event oldEvent = getCalendarRequestBuilder().events(id)
@@ -780,6 +818,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 event.attendees = oldEvent.attendees;
                 LOGGER.debug("→ Preserved existing attendees from old event");
             }
+
 
             if (isOldEventOnline(details, oldEvent, event)) {
                 Pattern regex = Pattern.compile("\\.{137}");
@@ -847,6 +886,73 @@ public class MeetingDaoImpl implements MeetingDao {
      * @param id the Office 365 calendar meeting ID
      * @return the updated Meeting object
      */
+
+    // Overload: cancel meeting using delegate's email (delegated calendar)
+    @Override
+    public Meeting cancelMeeting(String id, String delegateEmail) {
+        LOGGER.info("→ cancelMeeting(delegated): Cancelling meeting {} for delegate {}", id, delegateEmail);
+        Validators.validateString(id, Constants.MEETING_ID);
+        try {
+            CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(delegateEmail);
+            Event event = calendarRequestBuilderDelegated.events(id).buildRequest().get();
+            calendarRequestBuilderDelegated.events(id).buildRequest().delete();
+            return new MeetingImpl(event);
+        } catch (ClientException | IOException cause) {
+            LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+        }
+    }
+
+    // Overload: update in organizer's delegated calendar
+    @Override
+    public Meeting updateMeeting(String organizerEmail, String id, String title, String details, String location, Long dateFrom, Long dateTo,
+                                 String timeZone, List<String> requiredAttendeeEmail, List<String> optionalAttendeeEmail,
+                                 Boolean isAllDay, String recurrence, String reminder, Double recurrenceInterval,
+                                 List<String> daysOfWeek, String recurrenceType, Double dayOfMonth, String repeatIndex,
+                                 String repeatDay, String repeatMonth, String endRecurrence, Long endDate, Double numberedOccurrences, Boolean isTeamsMeeting) {
+        LOGGER.info("→ updateMeeting(delegated): Updating meeting {} for organizer {}", id, organizerEmail);
+        if (dateFrom != null && dateTo != null && dateFrom > dateTo) {
+            throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+        }
+        try {
+            String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
+            CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(organizerEmail);
+            Event oldEvent = calendarRequestBuilderDelegated.events(id)
+                    .buildRequest()
+                    .get();;
+
+            SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
+            Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
+            long eventStart = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
+            date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).end).dateTime);
+            long eventEnd = convertDateTimeToEpochInTimeZone(convertDateToFormattedString(date), selectedTimeZone);
+
+            if (isAllDay != null && isAllDay && dateFrom == null) {
+                dateFrom = eventStart;
+            }
+            if ((dateFrom != null && dateTo == null && dateFrom > eventEnd) || (dateFrom == null && dateTo != null && eventStart > dateTo)) {
+                throw new IllegalArgumentException(Constants.FAILED_TO_SCHEDULE_MEETING + Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+            }
+
+            Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, false, isTeamsMeeting);
+            if (event.attendees == null || event.attendees.isEmpty()) {
+                event.attendees = oldEvent.attendees;
+            }
+            event.changeKey = oldEvent.changeKey;
+            event.originalStartTimeZone = Objects.requireNonNull(oldEvent.start).timeZone;
+            event.originalEndTimeZone = Objects.requireNonNull(oldEvent.end).timeZone;
+
+            Event newEvent = calendarRequestBuilderDelegated.events(id)
+                    .buildRequest()
+                    .patch(event);
+            setDateTimeTimeZone(selectedTimeZone, newEvent);
+            return new MeetingImpl(newEvent);
+        } catch (GraphServiceException | ParseException | IOException | NullPointerException cause) {
+            LOGGER.error("→ updateMeeting(delegated): Failed - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_UPDATE_EVENT + cause.getMessage());
+        }
+    }
+
     @Override
     public Meeting declineMeetingInvitation(String id) {
         LOGGER.info("→ declineMeetingInvitation: Declining meeting invitation for ID: {}", id);
@@ -1022,7 +1128,7 @@ public class MeetingDaoImpl implements MeetingDao {
             CreateMeetingHelper.setEventBody(details, event);
             LOGGER.debug("→ Set event body");
 
-            CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, office365CalendarAttributes.getTimeZone(), event);
+            CreateMeetingHelper.setEventDateTime(dateFrom, dateTo, isAllDay, timeZone, isCreateEvent, getEffectiveTimeZone(), event);
             LOGGER.debug("→ Set event date/time");
 
             CreateMeetingHelper.setEventLocation(location, event);
@@ -1061,6 +1167,23 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ getCalendarRequestBuilder: Calendar request builder created successfully");
         return builder;
     }
+    /**
+     * Creates a calendar request builder for delegated operations.
+     * If delegateEmail is provided and not blank, creates a delegated request builder for that user.
+     * Otherwise, falls back to the standard calendar request builder.
+     *
+     * @param delegateEmail the email of the user to delegate to, can be null or blank
+     * @return CalendarRequestBuilder for the appropriate user context
+     * @throws IOException if there's an error creating the request builder
+     */
+    private CalendarRequestBuilder getCalendarRequestBuilderDelegated(String delegateEmail) throws IOException {
+        LOGGER.debug("→ getCalendarRequestBuilderDelegated: Creating delegated calendar request builder for: {}", delegateEmail);
+
+        // Use the 3-parameter getUserRequestBuilder method to match reference implementation pattern
+        CalendarRequestBuilder builder = clientProvider.getUserRequestBuilder(false, null, delegateEmail).calendar();
+        LOGGER.debug("→ getCalendarRequestBuilderDelegated: Calendar request builder created successfully for delegate: {}", delegateEmail);
+        return builder;
+    }
 
     private long getDateInMilliSecond(DateTimeTimeZone dateToParse) {
         LOGGER.debug("→ getDateInMilliSecond: Parsing date: {} in timezone: {}", dateToParse.dateTime, dateToParse.timeZone);
@@ -1072,7 +1195,9 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ Parsed date in UTC: {}", date);
 
             SimpleDateFormat customFormat = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            customFormat.setTimeZone(TimeZone.getTimeZone(office365CalendarAttributes.getTimeZone()));
+            String userTimeZone = office365CalendarAttributes.getTimeZone();
+            String effectiveTimeZone = (userTimeZone != null && !userTimeZone.trim().isEmpty()) ? userTimeZone : "UTC";
+            customFormat.setTimeZone(TimeZone.getTimeZone(effectiveTimeZone));
             Date newDate = customFormat.parse(customFormat.format(date));
             long result = newDate.getTime();
             LOGGER.debug("→ getDateInMilliSecond: Converted to milliseconds: {}", result);
@@ -1259,7 +1384,9 @@ public class MeetingDaoImpl implements MeetingDao {
 
         try {
             // Use ZonedDateTime for consistent date/time handling
-            ZoneId userTimeZone = ZoneId.of(office365CalendarAttributes.getTimeZone());
+            String userTimeZoneStr = office365CalendarAttributes.getTimeZone();
+            String effectiveTimeZone = (userTimeZoneStr != null && !userTimeZoneStr.trim().isEmpty()) ? userTimeZoneStr : "UTC";
+            ZoneId userTimeZone = ZoneId.of(effectiveTimeZone);
             ZonedDateTime now = ZonedDateTime.now(userTimeZone);
             ZonedDateTime endDate = now.plusDays(30);
             LOGGER.debug("→ Date range: {} to {} in timezone: {}", now, endDate, userTimeZone);
