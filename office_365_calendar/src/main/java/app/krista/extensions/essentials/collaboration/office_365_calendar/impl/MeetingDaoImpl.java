@@ -169,6 +169,28 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     /**
+     * Retrieves a meeting by its ID from the Office 365 calendar using delegated access.
+     *
+     * @param id the Office 365 Calendar event ID
+     * @param delegateEmail email of the user to delegate to, can be null or blank for current user
+     * @return the Meeting object for the specified event
+     * @throws IOException if there is an error retrieving the event
+     */
+    @Override
+    public Meeting getMeetingByIdDelegated(String id, String delegateEmail) throws IOException {
+        LOGGER.info("→ getMeetingByIdDelegated: Retrieving meeting with ID: {} for delegate: {}", id, delegateEmail);
+        Validators.validateString(id, Constants.MEETING_ID);
+        LOGGER.debug("→ Meeting ID validation passed");
+
+        Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
+        LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+
+        Meeting meeting = new MeetingImpl(event);
+        LOGGER.info("→ getMeetingByIdDelegated: Successfully retrieved meeting: {}", event.subject);
+        return meeting;
+    }
+
+    /**
      * Retrieves a list of upcoming meetings that are neither accepted nor declined by the current user.
      *
      * @return a list of Meeting objects for upcoming events

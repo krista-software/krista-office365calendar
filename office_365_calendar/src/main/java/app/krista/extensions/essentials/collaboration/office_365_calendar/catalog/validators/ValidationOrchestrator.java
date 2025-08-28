@@ -198,7 +198,7 @@ public class ValidationOrchestrator {
     private String getFieldTypeForResourceFallback(Validator.ValidationResource resource) {
         return switch (resource) {
             case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> "Date";
-            case EMAIL -> "Email";
+            case EMAIL, DELEGATE_EMAIL -> "Email";
             case EVENT_ID -> "Text";
             case NUMBER_OF_MEETINGS, RECURRENCE_INTERVAL, NUMBERED_OCCURRENCES -> "Number";
             case ATTENDEES -> "[ Email ]"; // For list of emails, we'll use the list format
@@ -352,7 +352,7 @@ public class ValidationOrchestrator {
     private Map<String, Object> getFieldAttributesForResourceFallback(Validator.ValidationResource resource) {
         return switch (resource) {
             case FROM_DATE, TO_DATE, DATE_RANGE, DATE_RANGE_TO -> Map.of("includeTimeOfDay", "true");
-            case EMAIL -> Map.of(); // No special attributes for email fields
+            case EMAIL, DELEGATE_EMAIL -> Map.of(); // No special attributes for email fields
             case EVENT_ID -> Map.of(); // No special attributes for text fields
             case NUMBER_OF_MEETINGS, RECURRENCE_INTERVAL, NUMBERED_OCCURRENCES -> Map.of(); // No special attributes for number fields
             case MEETING_DURATION -> Map.of("visualWidth", "S"); // Small visual width for meeting duration

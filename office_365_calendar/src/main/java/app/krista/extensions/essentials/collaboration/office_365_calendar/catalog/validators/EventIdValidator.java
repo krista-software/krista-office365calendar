@@ -29,8 +29,24 @@ public class EventIdValidator implements Validator {
     @Override
     public Boolean validate(String eventId, Map<ValidationResource, String> context) {
         try {
-            Meeting meeting = meetingDao.getMeetingById(eventId);
-            return meeting != null;
+            // Extract delegate email from context if available
+            String delegateEmail = context.get(ValidationResource.DELEGATE_EMAIL);
+            logger.info("→ validate: Validating event ID {} with delegate email: {}", eventId, delegateEmail);
+
+            Meeting meeting;
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                // Use delegated access
+                logger.debug("→ validate: Using delegated access for validation");
+                meeting = meetingDao.getMeetingByIdDelegated(eventId, delegateEmail);
+            } else {
+                // Use current user access (existing behavior)
+                logger.debug("→ validate: Using current user access for validation");
+                meeting = meetingDao.getMeetingById(eventId);
+            }
+
+            boolean isValid = meeting != null;
+            logger.debug("→ validate: Event ID validation result: {}", isValid);
+            return isValid;
         } catch (MustAuthorizeException cause) {
             logger.error("Exception thrown while authorizing user : {} {}", cause.getMessage(), cause);
             throw cause;

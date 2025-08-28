@@ -94,6 +94,11 @@ public final class MeetingsArea {
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
             LOGGER.debug("→ Created validation parameters map");
 
+            // Add delegate email to validation context if provided
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
+                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+            }
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
@@ -800,6 +805,12 @@ public final class MeetingsArea {
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
+
+            // Add delegate email to validation context if provided
+            if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, organizerEmail);
+                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+            }
             // Validate Organizer Email (optional)
             if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
                 validationParams.put(Validator.ValidationResource.EMAIL, organizerEmail);
