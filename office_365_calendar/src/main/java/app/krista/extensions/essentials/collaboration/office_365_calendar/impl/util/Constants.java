@@ -84,6 +84,8 @@ public final class Constants {
     public static final String VALIDATION_RESULTS = "Validation Results";
     public static final String STATE_ID = "stateId";
     public static final String EVENT_ID = "Event Id";
+    public static final String DELEGATE_EMAIL = "Delegate Email";
+    public static final String ORGANIZER_EMAIL = "Organizer Email";
     public static final String RE_ENTER = "re-enter";
     public static final String INVALID_INPUT = "Input is invalid. would you like to re-enter details?";
     public static final String HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER = "handleReEnterGetAttachmentForGivenUser";

@@ -131,9 +131,15 @@ public final class MeetingsArea {
                 String stateId = UUID.randomUUID().toString();
                 LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                // Store validation results and delegate email in state
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                    stateData.put(Constants.DELEGATE_EMAIL, delegateEmail);
+                    LOGGER.debug("→ Stored delegate email in state: {}", delegateEmail);
+                }
+                errorHandlingStateManager.put(stateId, stateData);
+                LOGGER.debug("→ Stored validation results and delegate email in error handling state manager");
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
@@ -564,9 +570,15 @@ public final class MeetingsArea {
                 String stateId = UUID.randomUUID().toString();
                 LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                // Store validation results and organizer email in state
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                }
+                errorHandlingStateManager.put(stateId, stateData);
+                LOGGER.debug("→ Stored validation results and organizer email in error handling state manager");
 
                 Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
                 LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
@@ -860,8 +872,14 @@ public final class MeetingsArea {
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
                 String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Store validation results and organizer email in state
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                }
+                errorHandlingStateManager.put(stateId, stateData);
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.updateEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
