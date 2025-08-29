@@ -1529,7 +1529,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             LOGGER.debug("  → Extracted parameters:");
             LOGGER.debug("    → Event ID: {}", eventId);
-            LOGGER.info("    → State ID: {}", stateId);
+            LOGGER.debug("    → State ID: {}", stateId);
 
             // Retrieve delegate email from state if available
             String delegateEmail = null;
