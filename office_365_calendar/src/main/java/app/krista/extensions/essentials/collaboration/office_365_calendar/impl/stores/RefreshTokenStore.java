@@ -67,32 +67,6 @@ public final class RefreshTokenStore {
         LOGGER.debug("→ remove: Refresh token removed successfully");
     }
 
-    /**
-     * Prints all key-value pairs for debugging purposes.
-     * This method iterates through all stored refresh tokens and prints them directly to console.
-     */
-    public void getAllKeyValuePairsAsString() {
-        LOGGER.debug("→ getAllKeyValuePairsAsString: Retrieving all stored refresh tokens");
-
-        Set<String> keys = keyValueStore.getKeys();
-        LOGGER.info("→ getAllKeyValuePairsAsString: Found {} stored refresh tokens", keys.size());
-
-        if (keys.isEmpty()) {
-            LOGGER.info("→ No refresh tokens stored");
-        } else {
-            for (String key : keys) {
-                try {
-                    Object rawValue = keyValueStore.get(key);
-                    String value = rawValue != null ? rawValue.toString() : "null";
-                    LOGGER.debug("→ Key: {} | Value: {}", key, value);
-                } catch (Exception e) {
-                    LOGGER.warn("→ Key: {} | Value: [Error retrieving value: {}]", key, e.getMessage());
-                }
-            }
-        }
-
-        LOGGER.debug("→ getAllKeyValuePairsAsString: Completed listing {} entries", keys.size());
-    }
 
     /**
      * Removes all stored refresh tokens from the KeyValueStore.
