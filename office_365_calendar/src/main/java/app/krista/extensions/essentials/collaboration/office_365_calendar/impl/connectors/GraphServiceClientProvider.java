@@ -217,7 +217,6 @@ public final class GraphServiceClientProvider {
             LOGGER.debug("→ Retrieved userId: {}", userId);
             String s = refreshTokenStore.get(refreshTokenStoreKey);
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
-            refreshTokenStore.getAllKeyValuePairsAsString();
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
                 throw createMustAuthorizationException(refreshTokenStoreKey, false);
@@ -509,7 +508,6 @@ public final class GraphServiceClientProvider {
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
             LOGGER.info("getGraphServiceClientForUsers method - calling refreshTokenStore.getAllKeyValuePairsAsString()");
-            refreshTokenStore.getAllKeyValuePairsAsString();
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
