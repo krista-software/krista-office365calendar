@@ -26,9 +26,7 @@ public final class RefreshTokenStore {
      * @param refToken refresh token
      */
     public void put(String key, String refToken) {
-        LOGGER.debug("→ put: Storing refresh token for key: {}", key);
         keyValueStore.put(key, refToken);
-        LOGGER.debug("→ put: Refresh token stored successfully");
     }
 
     /**
@@ -38,21 +36,16 @@ public final class RefreshTokenStore {
      * @return stored refresh token for the given key
      */
     public String get(String key) {
-        LOGGER.debug("→ get: Retrieving refresh token for key: {}", key);
         try {
             String result = keyValueStore.get(key, String.class);
-            LOGGER.debug("→ get: Token retrieved successfully: {}", result != null ? "found" : "not found");
             return result;
         } catch (Exception e) {
-            LOGGER.warn("→ get: Error parsing value for key: {}, attempting fallback: {}", key, e.getMessage());
             // Fallback to raw object and convert to string
             try {
                 Object rawValue = keyValueStore.get(key);
                 String result = rawValue != null ? rawValue.toString() : null;
-                LOGGER.debug("→ get: Fallback successful, token retrieved: {}", result != null ? "found" : "not found");
                 return result;
             } catch (Exception fallbackException) {
-                LOGGER.error("→ get: Fallback also failed for key: {}, error: {}", key, fallbackException.getMessage(), fallbackException);
                 return null;
             }
         }
@@ -62,9 +55,7 @@ public final class RefreshTokenStore {
      * @param key key to be removed
      */
     public void remove(String key) {
-        LOGGER.debug("→ remove: Removing refresh token for key: {}", key);
         keyValueStore.remove(key);
-        LOGGER.debug("→ remove: Refresh token removed successfully");
     }
 
 
@@ -75,31 +66,22 @@ public final class RefreshTokenStore {
      * @return A string message indicating the number of tokens removed
      */
     public String removeAll() {
-        LOGGER.debug("→ removeAll: Starting removal of all refresh tokens");
 
         Set<String> keys = keyValueStore.getKeys();
         int initialCount = keys.size();
-        LOGGER.info("→ removeAll: Found {} refresh tokens to remove", initialCount);
 
         if (initialCount == 0) {
             String message = "No refresh tokens found to remove.";
-            LOGGER.info("→ removeAll: {}", message);
             return message;
         }
 
         int removedCount = 0;
         for (String key : keys) {
-            try {
-                keyValueStore.remove(key);
-                removedCount++;
-                LOGGER.debug("→ removeAll: Removed key: {}", key);
-            } catch (Exception e) {
-                LOGGER.warn("→ removeAll: Failed to remove key: {}, error: {}", key, e.getMessage());
-            }
+            keyValueStore.remove(key);
+            removedCount++;
         }
 
-        String message = "Successfully removed " + removedCount + " out of " + initialCount + " refresh tokens.";
-        LOGGER.info("→ removeAll: {}", message);
-        return message;
+        return "Successfully removed " + removedCount + " out of " + initialCount + " refresh tokens.";
+
     }
 }
