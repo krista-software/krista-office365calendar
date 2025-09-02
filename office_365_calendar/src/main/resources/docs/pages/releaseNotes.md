@@ -8,6 +8,6 @@
 - **Appliance Release Version** : 3.5.1
 
 
-### Known Issues
+### Solved Issue
 
-Not Available
+- **KE-2456** - Adding Support for delegated email in the error handling flow
