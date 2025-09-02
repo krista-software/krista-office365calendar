@@ -17,6 +17,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.model.base.File;
 import com.microsoft.graph.models.FileAttachment;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,12 +133,7 @@ public final class MeetingsArea {
                 LOGGER.debug("→ Generated state ID: {}", stateId);
 
                 // Store validation results and delegate email in state
-                Map<String, Object> stateData = new HashMap<>();
-                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
-                if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
-                    stateData.put(Constants.DELEGATE_EMAIL, delegateEmail);
-                    LOGGER.debug("→ Stored delegate email in state: {}", delegateEmail);
-                }
+                Map<String, Object> stateData = formStateData(delegateEmail, validationResults);
                 errorHandlingStateManager.put(stateId, stateData);
                 LOGGER.debug("→ Stored validation results and delegate email in error handling state manager");
 
@@ -165,6 +161,17 @@ public final class MeetingsArea {
             LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
+    }
+
+    @NotNull
+    private static Map<String, Object> formStateData(String delegateEmail, List<ValidationOrchestrator.ValidationResult> validationResults) {
+        Map<String, Object> stateData = new HashMap<>();
+        stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+        if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+            stateData.put(Constants.DELEGATE_EMAIL, delegateEmail);
+            LOGGER.debug("→ Stored delegate email in state: {}", delegateEmail);
+        }
+        return stateData;
     }
 
     /**
