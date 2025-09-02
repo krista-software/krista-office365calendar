@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -143,7 +144,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = CONFIRM_RE_ENTER_CANCEL_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
-    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text , Delegate Email: Text }") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterCancelEvent: Starting confirmation for re-entering cancel event details");
         LOGGER.debug("→ confirmReenterCancelEvent: Input map: {}", map);
 
@@ -976,10 +977,10 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterScheduleMeeting(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean, Organizer Email: Text }", required = true) Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER SCHEDULE MEETING START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterScheduleMeeting");
-        LOGGER.debug("  → Input map: {}", map);
+        LOGGER.info("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
@@ -1022,7 +1023,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterScheduleMeeting(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean , Organizer Email: Text }") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterScheduleMeeting");
         LOGGER.debug("  → Input map: {}", map);
@@ -1031,6 +1032,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         try {
             LOGGER.debug("  → Starting parameter extraction...");
             // Extract all parameters from the map
+            String stateId = (String) map.get(Constants.STATE_ID);
             String title = (String) map.get(Constants.TITLE);
             String location = (String) map.get(Constants.LOCATION);
             Long dateFrom = map.get(Constants.FROM_DATE) != null ? ((Number) map.get(Constants.FROM_DATE)).longValue() : null;
@@ -1084,11 +1086,28 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.debug("    → Details: {}", (details != null ? details.length() + " chars" : "null"));
             LOGGER.debug("    → Is Teams Meeting: {}", isTeamsMeeting);
 
-            LOGGER.debug("  → Calling meetingDao.addMeeting...");
-            LOGGER.info("handleReenterScheduleMeeting: title={}, dateFrom={}, dateTo={}, timeZone={}", title, dateFrom, dateTo, timeZone);
+            // Retrieve organizer email from state if available
+            String organizerEmail = null;
+            if (stateId != null) {
+                Map<String, Object> state = internalStateManager.get(stateId);
+                if (state != null) {
+                    organizerEmail = (String) state.get(Constants.ORGANIZER_EMAIL);
+                    LOGGER.debug("    → Organizer Email from state: {}", organizerEmail);
+                }
+            }
 
-            // Schedule the meeting
-            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+            LOGGER.debug("  → Calling meetingDao.addMeeting...");
+            LOGGER.info("handleReenterScheduleMeeting: title={}, dateFrom={}, dateTo={}, timeZone={}, organizerEmail={}", title, dateFrom, dateTo, timeZone, organizerEmail);
+
+            // Schedule the meeting using appropriate method based on organizer email
+            EventDetails eventDetails;
+            if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                LOGGER.debug("  → Using delegated schedule meeting");
+                eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+            } else {
+                LOGGER.debug("  → Using standard schedule meeting");
+                eventDetails = CatalogTypes.fromEvent(meetingDao.addMeeting(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting));
+            }
 
             LOGGER.debug("  → Meeting scheduled successfully");
             LOGGER.debug("  → Event Details: {}", eventDetails);
@@ -1345,10 +1364,10 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterUpdateEvent(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }", required = true) Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER UPDATE EVENT START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterUpdateEvent");
-        LOGGER.debug("  → Input map: {}", map);
+        LOGGER.info("  → Input map: {}", map);
 
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
@@ -1389,7 +1408,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterUpdateEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER UPDATE EVENT START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterUpdateEvent");
         LOGGER.debug("  → Input map: {}", map);
@@ -1398,6 +1417,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         try {
             LOGGER.debug("  → Starting parameter extraction...");
             // Extract all parameters from the map
+            String stateId = (String) map.get(Constants.STATE_ID);
             String eventId = (String) map.get(Constants.EVENT_ID);
             String title = (String) map.get(Constants.TITLE);
             String location = (String) map.get(Constants.LOCATION);
@@ -1436,11 +1456,28 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.debug("    → Days Of Week: {}", daysOfWeek);
             LOGGER.debug("    → Numbered Occurrences: {}", numberedOccurrences);
 
-            LOGGER.info("handleReenterUpdateEvent: eventId={}, title={}, dateFrom={}, dateTo={}, timeZone={}", eventId, title, dateFrom, dateTo, timeZone);
+            // Retrieve organizer email from state if available
+            String organizerEmail = null;
+            if (stateId != null) {
+                Map<String, Object> state = internalStateManager.get(stateId);
+                if (state != null) {
+                    organizerEmail = (String) state.get(Constants.ORGANIZER_EMAIL);
+                    LOGGER.debug("    → Organizer Email from state: {}", organizerEmail);
+                }
+            }
+
+            LOGGER.info("handleReenterUpdateEvent: eventId={}, title={}, dateFrom={}, dateTo={}, timeZone={}, organizerEmail={}", eventId, title, dateFrom, dateTo, timeZone, organizerEmail);
 
             LOGGER.debug("  → Calling meetingDao.updateMeeting...");
-            // Update the event
-            EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+            // Update the event using appropriate method based on organizer email
+            EventDetails eventDetails;
+            if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                LOGGER.debug("  → Using delegated update meeting");
+                eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(organizerEmail, eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+            } else {
+                LOGGER.debug("  → Using standard update meeting");
+                eventDetails = CatalogTypes.fromEvent(meetingDao.updateMeeting(eventId, title, details, location, dateFrom, dateTo, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, recurrence, reminder, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+            }
 
             LOGGER.debug("  → Event updated successfully");
             LOGGER.debug("  → Event Details: {}", eventDetails);
@@ -1479,24 +1516,43 @@ public class MeetingsAreaSubCatalogRequestHelper {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse handleReenterCancelEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text , Delegate Email: Text }") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER CANCEL EVENT START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterCancelEvent");
-        LOGGER.debug("  → Input map: {}", map);
+        LOGGER.info("  → Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterCancelEvent start: {}", map);
 
         try {
             LOGGER.debug("  → Starting parameter extraction...");
             String eventId = (String) map.get(Constants.EVENT_ID);
+            String stateId = (String) map.get(Constants.STATE_ID);
 
             LOGGER.debug("  → Extracted parameters:");
             LOGGER.debug("    → Event ID: {}", eventId);
+            LOGGER.debug("    → State ID: {}", stateId);
 
-            LOGGER.info("handleReenterCancelEvent: eventId={}", eventId);
+            // Retrieve delegate email from state if available
+            String delegateEmail = null;
+            if (stateId != null) {
+                Map<String, Object> state = internalStateManager.get(stateId);
+                if (state != null) {
+                    delegateEmail = (String) state.get(Constants.DELEGATE_EMAIL);
+                    LOGGER.debug("    → Delegate Email from state: {}", delegateEmail);
+                }
+            }
+
+            LOGGER.info("handleReenterCancelEvent: eventId={}, delegateEmail={}", eventId, delegateEmail);
 
             LOGGER.debug("  → Calling meetingDao.cancelMeeting...");
-            // Cancel the event
-            Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId);
+            // Cancel the event using appropriate method based on delegate email
+            Meeting cancelledMeeting;
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                LOGGER.debug("  → Using delegated cancel meeting");
+                cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
+            } else {
+                LOGGER.debug("  → Using standard cancel meeting");
+                cancelledMeeting = meetingDao.cancelMeeting(eventId);
+            }
             EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
 
             LOGGER.debug("  → Event cancelled successfully");

@@ -20,6 +20,16 @@ public interface MeetingDao {
     Meeting getMeetingById(String id) throws IOException;
 
     /**
+     * Returns {@link Meeting} object of Office 365 calendar event using delegated access
+     *
+     * @param id Office 365 Calendar event id
+     * @param delegateEmail email of the user to delegate to, can be null or blank for current user
+     * @return {@link Meeting} Office 365 Calendar event
+     * @throws IOException if there is error in id
+     */
+    Meeting getMeetingByIdDelegated(String id, String delegateEmail) throws IOException;
+
+    /**
      * Returns {@link List<Meeting>} list of Office 365 calendar events
      *
      * @return {@link List<Meeting>} list of Office 365 calendar events

@@ -1,8 +1,5 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.strategy;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 
 import java.lang.reflect.Parameter;
@@ -22,8 +19,6 @@ import java.util.Optional;
  * </p>
  */
 public class FieldAnnotationStrategyRegistry {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(FieldAnnotationStrategyRegistry.class);
 
     private final List<FieldAnnotationStrategy> strategies;
 
@@ -49,23 +44,14 @@ public class FieldAnnotationStrategyRegistry {
      * @return an Optional containing the matching strategy, or empty if no strategy can handle the parameter
      */
     public Optional<FieldAnnotationStrategy> findStrategy(Parameter parameter, String fieldName) {
-        LOGGER.debug("      → FieldAnnotationStrategyRegistry.findStrategy()");
-        LOGGER.debug("      → Parameter: " + parameter.getType().getSimpleName() + ", Field Name: " + fieldName);
-        LOGGER.debug("      → Checking " + strategies.size() + " available strategies...");
-
         for (int i = 0; i < strategies.size(); i++) {
             FieldAnnotationStrategy strategy = strategies.get(i);
-            LOGGER.debug("      → Testing strategy " + (i + 1) + "/" + strategies.size() + ": " + strategy.getStrategyName());
 
             if (strategy.canHandle(parameter, fieldName)) {
-                LOGGER.debug("      → ✓ Found matching strategy: " + strategy.getStrategyName() + " (strategy " + (i + 1) + ")");
                 return Optional.of(strategy);
-            } else {
-                LOGGER.debug("      → ✗ Strategy " + strategy.getStrategyName() + " cannot handle this parameter");
             }
         }
 
-        LOGGER.debug("      → ⚠ No matching strategy found for field: " + fieldName + " after checking all " + strategies.size() + " strategies");
         return Optional.empty();
     }
 
@@ -77,18 +63,12 @@ public class FieldAnnotationStrategyRegistry {
      * @return a map containing the extracted attributes, or empty map if no strategy found
      */
     public Map<String, Object> extractAttributes(Parameter parameter, String fieldName) {
-        LOGGER.debug("      → FieldAnnotationStrategyRegistry.extractAttributes()");
-        LOGGER.debug("      → Parameter: " + parameter.getType().getSimpleName() + ", Field Name: " + fieldName);
-
         Optional<FieldAnnotationStrategy> strategyOpt = findStrategy(parameter, fieldName);
         if (strategyOpt.isPresent()) {
             FieldAnnotationStrategy strategy = strategyOpt.get();
-            LOGGER.debug("      → Using " + strategy.getStrategyName() + " strategy to extract attributes");
             Map<String, Object> result = strategy.extractAttributes(parameter, fieldName);
-            LOGGER.debug("      → FieldAnnotationStrategyRegistry returning attributes: " + result);
             return result;
         } else {
-            LOGGER.debug("      → No strategy found, returning empty map");
             return Map.of();
         }
     }
@@ -101,18 +81,12 @@ public class FieldAnnotationStrategyRegistry {
      * @return the field type string, or null if no strategy found
      */
     public String extractFieldType(Parameter parameter, String fieldName) {
-        LOGGER.debug("      → FieldAnnotationStrategyRegistry.extractFieldType()");
-        LOGGER.debug("      → Parameter: " + parameter.getType().getSimpleName() + ", Field Name: " + fieldName);
-
         Optional<FieldAnnotationStrategy> strategyOpt = findStrategy(parameter, fieldName);
         if (strategyOpt.isPresent()) {
             FieldAnnotationStrategy strategy = strategyOpt.get();
-            LOGGER.debug("      → Using " + strategy.getStrategyName() + " strategy to extract field type");
             String result = strategy.extractFieldType(parameter, fieldName);
-            LOGGER.debug("      → FieldAnnotationStrategyRegistry returning field type: " + result);
             return result;
         } else {
-            LOGGER.debug("      → No strategy found, returning null");
             return null;
         }
     }
@@ -125,18 +99,12 @@ public class FieldAnnotationStrategyRegistry {
      * @return the corresponding ValidationResource, or null if no strategy found
      */
     public Validator.ValidationResource mapToValidationResource(Parameter parameter, String fieldName) {
-        LOGGER.debug("      → FieldAnnotationStrategyRegistry.mapToValidationResource()");
-        LOGGER.debug("      → Parameter: " + parameter.getType().getSimpleName() + ", Field Name: " + fieldName);
-
         Optional<FieldAnnotationStrategy> strategyOpt = findStrategy(parameter, fieldName);
         if (strategyOpt.isPresent()) {
             FieldAnnotationStrategy strategy = strategyOpt.get();
-            LOGGER.debug("      → Using " + strategy.getStrategyName() + " strategy to map to validation resource");
             Validator.ValidationResource result = strategy.mapToValidationResource(parameter, fieldName);
-            LOGGER.debug("      → FieldAnnotationStrategyRegistry returning validation resource: " + result);
             return result;
         } else {
-            LOGGER.debug("      → No strategy found, returning null");
             return null;
         }
     }

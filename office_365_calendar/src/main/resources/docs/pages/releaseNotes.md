@@ -1,6 +1,6 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2.0.14
+### Version 2.0.15
 
 - **Developer Name** : Avadh Dobariya
 - **Krista Service APIs Java** : 1.0.115
@@ -8,6 +8,6 @@
 - **Appliance Release Version** : 3.5.1
 
 
-### Known Issues
+### Solved Issue
 
-Not Available
+- **KE-2456** - Adding Support for delegated email in the error handling flow

@@ -18,7 +18,8 @@ public interface Validator {
         DAYS_OF_WEEK,
         NUMBERED_OCCURRENCES,
         ATTACHMENTS,
-        MEETING_DURATION
+        MEETING_DURATION,
+        DELEGATE_EMAIL
     }
 
     Boolean validate(String resourceId, Map<ValidationResource, String> context);

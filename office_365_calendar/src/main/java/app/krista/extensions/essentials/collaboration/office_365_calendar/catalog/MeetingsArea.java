@@ -17,6 +17,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.model.base.File;
 import com.microsoft.graph.models.FileAttachment;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +95,11 @@ public final class MeetingsArea {
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
             LOGGER.debug("→ Created validation parameters map");
 
+            // Add delegate email to validation context if provided
+            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
+                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+            }
 
             // Validate Event ID (required)
             if (eventId != null && !eventId.trim().isEmpty()) {
@@ -126,9 +132,10 @@ public final class MeetingsArea {
                 String stateId = UUID.randomUUID().toString();
                 LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                // Store validation results and delegate email in state
+                Map<String, Object> stateData = formStateData(delegateEmail, validationResults);
+                errorHandlingStateManager.put(stateId, stateData);
+                LOGGER.debug("→ Stored validation results and delegate email in error handling state manager");
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
@@ -154,6 +161,17 @@ public final class MeetingsArea {
             LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
+    }
+
+    @NotNull
+    private static Map<String, Object> formStateData(String delegateEmail, List<ValidationOrchestrator.ValidationResult> validationResults) {
+        Map<String, Object> stateData = new HashMap<>();
+        stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+        if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+            stateData.put(Constants.DELEGATE_EMAIL, delegateEmail);
+            LOGGER.debug("→ Stored delegate email in state: {}", delegateEmail);
+        }
+        return stateData;
     }
 
     /**
@@ -460,7 +478,7 @@ public final class MeetingsArea {
             @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {}) String title,
             @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {}) String location,
             @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {})  Long dateFrom,
-            @Field.Date(name = "Date to", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {})  Long dateTo,
+            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {})  Long dateTo,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
             @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this if the meeting lasts the entire day'")}, options = {}) Boolean isAllDay,
@@ -559,9 +577,15 @@ public final class MeetingsArea {
                 String stateId = UUID.randomUUID().toString();
                 LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                // Store validation results and organizer email in state
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                }
+                errorHandlingStateManager.put(stateId, stateData);
+                LOGGER.debug("→ Stored validation results and organizer email in error handling state manager");
 
                 Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
                 LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
@@ -800,6 +824,12 @@ public final class MeetingsArea {
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
+
+            // Add delegate email to validation context if provided
+            if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, organizerEmail);
+                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+            }
             // Validate Organizer Email (optional)
             if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
                 validationParams.put(Validator.ValidationResource.EMAIL, organizerEmail);
@@ -849,8 +879,14 @@ public final class MeetingsArea {
             } else {
                 // Store validation results and call confirmation SubCatalogRequest
                 String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Store validation results and organizer email in state
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                }
+                errorHandlingStateManager.put(stateId, stateData);
 
                 telemetryHelper.recordRetryPrompted("office365Calendar.updateEvent", startTime,
                         safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
