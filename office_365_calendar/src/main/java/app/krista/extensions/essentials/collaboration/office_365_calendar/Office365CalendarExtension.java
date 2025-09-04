@@ -18,7 +18,7 @@ import java.util.Map;
 
 
 @Java(version = Java.Version.JAVA_21)
-@Extension(version = "2.0.15", name = "Office 365 Calendar")
+@Extension(version = "2025.09.1", name = "Office 365 Calendar")
 @StaticResource(path = "docs", file = "docs")
 public final class Office365CalendarExtension {
 
