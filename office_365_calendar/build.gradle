@@ -19,7 +19,7 @@ if (releasePropsFile.exists()) {
     releasePropsFile.withInputStream { stream -> props.load(stream) }
     // Remove whitespace for base name, but allow dashes/underscores
     computedBaseName = (props['extension.name'] ?: "Office365Calendar").replaceAll(/\s+/, "")
-    computedVersion = props['extension.version'] ?: "local"
+    computedVersion = "2025.09.1"
 }
 version = computedVersion
 
