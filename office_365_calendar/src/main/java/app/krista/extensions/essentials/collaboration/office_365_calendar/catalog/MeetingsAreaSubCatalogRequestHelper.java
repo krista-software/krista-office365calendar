@@ -477,7 +477,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             // Handle attendees conversion
             if (attendeesObj instanceof List) {
-                attendees = (List<String>) attendeesObj;
+                @SuppressWarnings("unchecked")
+                List<String> tempAttendees = (List<String>) attendeesObj;
+                attendees = tempAttendees;
                 LOGGER.debug("→ Converted attendees: {}", attendees);
             } else {
                 LOGGER.debug("→ attendeesObj is not a List, keeping as null");
@@ -672,7 +674,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             // Handle list conversion for required attendees
             if (requiredAttendeeObj instanceof List) {
-                requiredAttendee = (List<String>) requiredAttendeeObj;
+                @SuppressWarnings("unchecked")
+                List<String> tempRequiredAttendee = (List<String>) requiredAttendeeObj;
+                requiredAttendee = tempRequiredAttendee;
                 LOGGER.debug("Converted requiredAttendee: " + requiredAttendee);
             } else {
                 LOGGER.debug("requiredAttendeeObj is not a List, keeping as null");
@@ -680,7 +684,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
 
             // Handle list conversion for optional attendees
             if (optionalAttendeeObj instanceof List) {
-                optionalAttendee = (List<String>) optionalAttendeeObj;
+                @SuppressWarnings("unchecked")
+                List<String> tempOptionalAttendee = (List<String>) optionalAttendeeObj;
+                optionalAttendee = tempOptionalAttendee;
                 LOGGER.debug("Converted optionalAttendee: " + optionalAttendee);
             } else {
                 LOGGER.debug("optionalAttendeeObj is not a List, keeping as null");
