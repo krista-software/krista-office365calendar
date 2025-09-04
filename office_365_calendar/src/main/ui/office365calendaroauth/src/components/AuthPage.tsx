@@ -30,11 +30,7 @@ const AuthPage = () => {
     const [authPayload, setAuthPayload] = useState<AuthPayload | null>(null);
     const [isConnectionSuccess, setIsConnectionSuccess] = useState<boolean>(false);
 
-    useEffect(() => {
-        getAuth().catch(error => console.log(error));
-    }, []);
-
-    const getAuth = async () => {
+    const getAuth = useCallback(async () => {
         try {
             const key = await getAuthKey();
             if (key !== selectedOption) {
@@ -43,7 +39,11 @@ const AuthPage = () => {
         } catch (error) {
             console.error('Error fetching credentials:', error);
         }
-    }
+    }, [selectedOption]);
+
+    useEffect(() => {
+        getAuth().catch(error => console.log(error));
+    }, [getAuth]);
 
     const handleOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedOption(e.target.value as AuthType);
