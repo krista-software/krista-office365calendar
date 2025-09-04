@@ -250,8 +250,8 @@ public class MeetingDaoImplTest {
         Long fromDate = System.currentTimeMillis();
         Long toDate = fromDate + 86400000L;
 
-        @SuppressWarnings("rawtypes")
-        GraphServiceClient systemClient = Mockito.mock(GraphServiceClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        GraphServiceClient<okhttp3.Request> systemClient = Mockito.mock(GraphServiceClient.class);
         UserCollectionRequestBuilder userCollectionBuilder = Mockito.mock(UserCollectionRequestBuilder.class);
         UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
         EventCollectionRequestBuilder calendarViewBuilder = Mockito.mock(EventCollectionRequestBuilder.class);
@@ -262,7 +262,7 @@ public class MeetingDaoImplTest {
         mockEvent.id = "event-123";
         mockEvent.subject = "Test Event";
 
-        Mockito.when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
+        Mockito.<GraphServiceClient<okhttp3.Request>>when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
         Mockito.when(systemClient.users(userEmail)).thenReturn(userRequestBuilder);
         Mockito.when(userRequestBuilder.calendarView()).thenReturn(calendarViewBuilder);
         Mockito.when(calendarViewBuilder.buildRequest(ArgumentMatchers.anyList())).thenReturn(calendarViewRequest);
@@ -581,8 +581,8 @@ public class MeetingDaoImplTest {
         fileAttachment.name = "test-file.pdf";
         fileAttachment.id = "attachment-123";
 
-        @SuppressWarnings("rawtypes")
-        GraphServiceClient systemClient = Mockito.mock(GraphServiceClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        GraphServiceClient<okhttp3.Request> systemClient = Mockito.mock(GraphServiceClient.class);
         UserCollectionRequestBuilder userCollectionBuilder = Mockito.mock(UserCollectionRequestBuilder.class);
         UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
         EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
@@ -590,7 +590,7 @@ public class MeetingDaoImplTest {
         AttachmentCollectionRequest attachmentCollectionRequest = Mockito.mock(AttachmentCollectionRequest.class);
         AttachmentCollectionPage attachmentCollectionPage = Mockito.mock(AttachmentCollectionPage.class);
 
-        Mockito.when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
+        Mockito.<GraphServiceClient<okhttp3.Request>>when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
         Mockito.when(systemClient.users(userEmail)).thenReturn(userRequestBuilder);
         Mockito.when(userRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
         Mockito.when(eventRequestBuilder.attachments()).thenReturn(attachmentCollectionBuilder);
@@ -1365,14 +1365,14 @@ public class MeetingDaoImplTest {
         Long fromDate = System.currentTimeMillis();
         Long toDate = fromDate + 86400000L;
 
-        @SuppressWarnings("rawtypes")
-        GraphServiceClient systemClient = Mockito.mock(GraphServiceClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        GraphServiceClient<okhttp3.Request> systemClient = Mockito.mock(GraphServiceClient.class);
         UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
         EventCollectionRequestBuilder calendarViewBuilder = Mockito.mock(EventCollectionRequestBuilder.class);
         EventCollectionRequest calendarViewRequest = Mockito.mock(EventCollectionRequest.class);
         EventCollectionPage eventPage = Mockito.mock(EventCollectionPage.class);
 
-        Mockito.when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
+        Mockito.<GraphServiceClient<okhttp3.Request>>when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
         Mockito.when(systemClient.users(userEmail)).thenReturn(userRequestBuilder);
         Mockito.when(userRequestBuilder.calendarView()).thenReturn(calendarViewBuilder);
         Mockito.when(calendarViewBuilder.buildRequest(ArgumentMatchers.anyList())).thenReturn(calendarViewRequest);
@@ -1447,15 +1447,15 @@ public class MeetingDaoImplTest {
         String userEmail = "user@test.com";
         String eventId = "event-123";
 
-        @SuppressWarnings("rawtypes")
-        GraphServiceClient systemClient = Mockito.mock(GraphServiceClient.class);
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        GraphServiceClient<okhttp3.Request> systemClient = Mockito.mock(GraphServiceClient.class);
         UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
         EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
         AttachmentCollectionRequestBuilder attachmentCollectionBuilder = Mockito.mock(AttachmentCollectionRequestBuilder.class);
         AttachmentCollectionRequest attachmentCollectionRequest = Mockito.mock(AttachmentCollectionRequest.class);
         AttachmentCollectionPage attachmentCollectionPage = Mockito.mock(AttachmentCollectionPage.class);
 
-        Mockito.when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
+        Mockito.<GraphServiceClient<okhttp3.Request>>when(clientProvider.getGraphServiceClientForSystem()).thenReturn(systemClient);
         Mockito.when(systemClient.users(userEmail)).thenReturn(userRequestBuilder);
         Mockito.when(userRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
         Mockito.when(eventRequestBuilder.attachments()).thenReturn(attachmentCollectionBuilder);
