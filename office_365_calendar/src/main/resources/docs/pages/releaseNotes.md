@@ -1,10 +1,10 @@
 # Release Notes - Office 365 Calendar Extension
 
-### Version 2025.09.1
+### Version 2.0.15
 
 - **Developer Name** : Avadh Dobariya
 - **Krista Service APIs Java** : 1.0.115
-- **Global Catalog Version** : GC-1.0.59
+- **Global Catalog Version** : GC-2025.09.2
 - **Appliance Release Version** : 3.5.1
 
 
