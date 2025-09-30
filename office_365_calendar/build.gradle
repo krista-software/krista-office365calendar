@@ -52,9 +52,6 @@ task updateVersion {
     }
 }
 
-compileJava.dependsOn clean
-compileJava.dependsOn updateVersion
-
 System.setProperty("extensionVersion", version.toString())
 
 java {

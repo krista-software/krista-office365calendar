@@ -30,20 +30,21 @@ const AuthPage = () => {
     const [authPayload, setAuthPayload] = useState<AuthPayload | null>(null);
     const [isConnectionSuccess, setIsConnectionSuccess] = useState<boolean>(false);
 
-    const getAuth = useCallback(async () => {
-        try {
-            const key = await getAuthKey();
-            if (key !== selectedOption) {
-                setSelectedOption(key as AuthType);
-            }
-        } catch (error) {
-            console.error('Error fetching credentials:', error);
-        }
-    }, [selectedOption]);
-
+    // Fetch the saved auth mode once on initial mount so it doesn't override
+    // the user's manual tab selection afterward.
     useEffect(() => {
-        getAuth().catch(error => console.log(error));
-    }, [getAuth]);
+        const fetchAuth = async () => {
+            try {
+                const key = await getAuthKey();
+                if (key) {
+                    setSelectedOption(key as AuthType);
+                }
+            } catch (error) {
+                console.error('Error fetching credentials:', error);
+            }
+        };
+        fetchAuth().catch(error => console.log(error));
+    }, []);
 
     const handleOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedOption(e.target.value as AuthType);
