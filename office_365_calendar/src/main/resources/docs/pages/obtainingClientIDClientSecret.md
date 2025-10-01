@@ -10,7 +10,7 @@ For the Office 365 Calendar Extension, you would need to obtain Client ID, Tenan
   ![Home Page](../_media/homePage.png)
 
 
-* Under **Azure services**, click **Azure Active Directory**. If not found readily click **More services** to find Azure Active Directory.
+* Under **Azure services**, click **Micrsoft Entra ID**. If not found readily click **More services** to find Microsoft Entra ID.
   ![Azure Active Directory](../_media/azureActiveDirectory.png)
 
 
