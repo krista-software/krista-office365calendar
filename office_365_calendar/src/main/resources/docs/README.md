@@ -28,13 +28,13 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 ### 2. Setup Steps
 
 1. **Create Microsoft Entra ID App Registration**
-   - Follow the guide in [Creating Office 365 App](#/pages/CreatingOffice365App)
+   - Follow the guide in [Creating Office 365 App](pages/CreatingOffice365App)
    - Obtain Client ID, Tenant ID, and Client Secret
 
 2. **Configure the Extension**
    - Add the extension to your Krista application
    - Configure authentication parameters
-   - See [Extension Configuration](#/pages/ExtensionConfiguration) for details
+   - See [Extension Configuration](pages/ExtensionConfiguration) for details
 
 3. **Authenticate**
    - Choose between Service Account or User Account authentication
@@ -88,7 +88,7 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 
 ### Additional Resources
 
-- [Release Notes](#/pages/releaseNotes) - Version history and updates
+- [Release Notes](pages/releaseNotes) - Version history and updates
 - [Field Details](pages/details.md) - Detailed field descriptions and supported values
 
 ## Support & Resources
@@ -161,4 +161,4 @@ Events can be created as Microsoft Teams meetings by setting the "Is Teams Meeti
 
 ---
 
-**Ready to get started?** Begin with [Extension Configuration](#/pages/ExtensionConfiguration) to set up your Office 365 Calendar integration.
+**Ready to get started?** Begin with [Extension Configuration](pages/ExtensionConfiguration) to set up your Office 365 Calendar integration.

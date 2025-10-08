@@ -443,6 +443,5 @@ Result: Meeting appears in executive's calendar as organizer
 - [Extension Configuration](pages/ExtensionConfiguration.md) - Configure the extension
 - [Authentication](pages/Authentication.md) - Understanding authentication modes
 - [Creating Office 365 App](pages/CreatingOffice365App.md) - Microsoft Entra ID setup
-- [Field Details](details.md) - Detailed field descriptions and supported values
 - [Microsoft Graph Calendar API](https://learn.microsoft.com/en-us/graph/api/resources/calendar) - Official API documentation
 

@@ -4,7 +4,7 @@
 
 ### Release Information
 
-- **Developer Name**: Vaibhav Choudhary
+- **Developer Name**: Vrushali Gaikwad
 - **Krista Service APIs Java**: 1.0.115
 - **Global Catalog Version**: GC-2025.10.2
 
