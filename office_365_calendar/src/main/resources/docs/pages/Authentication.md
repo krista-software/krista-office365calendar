@@ -228,7 +228,8 @@ client_id={client_id}
    User grants requested permissions
    ↓
 5. Microsoft redirects back to Krista with authorization code
-   URL: {Extension Base URL}/office365calendar/callback?code={code}
+   Private Auth URL: https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback?code={code}
+   Public Auth URL: https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback?code={code}
    ↓
 6. Extension exchanges authorization code for tokens
    POST to: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
@@ -436,10 +437,13 @@ Authorization: Bearer {access_token}
 **Cause**: Redirect URI doesn't match Microsoft Entra ID configuration
 
 **Solution**:
-1. Verify Extension Base URL in Krista configuration
-2. Check redirect URI in Microsoft Entra ID: `{Base URL}/office365calendar/callback`
+1. Verify authentication type (Private or Public) in Krista configuration
+2. Check redirect URI in Microsoft Entra ID:
+   - **Private Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback`
+   - **Public Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback`
 3. Ensure exact match (case-sensitive, no trailing slash)
-4. Update Microsoft Entra ID if needed
+4. Verify the routing ID is correct (for Private Authentication)
+5. Update Microsoft Entra ID if needed
 
 ### Issue: "Invalid Client"
 
