@@ -29,17 +29,17 @@ public class EmailValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter valid email.";
+        return "Please enter a valid email address (e.g., user@company.com).";
     }
 
     @Override
     public String getConfirmationStepMessage(String emailId, Map<ValidationResource, String> context) {
-        return String.format("The provided email: %s does not exist. Please check.", emailId);
+        return String.format("The email address '%s' appears to be invalid or doesn't exist. Please verify the email address and try again.", emailId);
     }
 
     @Override
     public String getErrMessage(String emailId) {
-        return String.format("Invalid email: %s", emailId);
+        return String.format("Invalid email address: %s. Please enter a valid email format (e.g., user@company.com).", emailId);
     }
 
     /**

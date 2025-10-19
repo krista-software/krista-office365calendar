@@ -359,6 +359,44 @@ For automated workflows, use Service Account authentication with a dedicated ser
 ### 7. Enable Allow Retry
 Set Allow Retry to Yes for better user experience and easier troubleshooting
 
+## Troubleshooting Common Issues
+
+### Authentication Errors
+
+**Issue**: "Unable to authenticate with Office 365"
+- **Solution**: Verify your Client ID, Client Secret, and Tenant ID are correct
+- **Action**: Check that your Microsoft Entra ID app has the required permissions
+- **Tip**: Ensure admin consent has been granted for the application
+
+**Issue**: "Authentication failed. Please verify your credentials"
+- **Solution**: Re-enter your credentials and ensure they haven't expired
+- **Action**: Check if your Client Secret has expired in Azure portal
+- **Tip**: Generate a new Client Secret if the current one has expired
+
+### Permission Errors
+
+**Issue**: "Unable to access your Office 365 account"
+- **Solution**: Verify the user has appropriate calendar permissions
+- **Action**: Check Microsoft Entra ID app permissions include Calendars.ReadWrite
+- **Tip**: Ensure the user has consented to the application permissions
+
+### Input Validation Errors
+
+**Issue**: "Please enter a valid email address"
+- **Solution**: Use proper email format (e.g., user@company.com)
+- **Action**: Check for typos in email addresses
+- **Tip**: Verify the email address exists in your organization
+
+**Issue**: "Please enter a valid time zone"
+- **Solution**: Use standard time zone identifiers (e.g., 'America/New_York', 'Europe/London', 'UTC')
+- **Action**: Refer to standard IANA time zone database
+- **Tip**: Common time zones include 'UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo'
+
+**Issue**: "The start date must be before or equal to the end date"
+- **Solution**: Adjust your date selection to ensure proper chronological order
+- **Action**: Double-check your date inputs
+- **Tip**: For single-day events, start and end dates can be the same
+
 ## Next Steps
 
 After configuring the extension:

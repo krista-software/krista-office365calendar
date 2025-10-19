@@ -71,16 +71,16 @@ public class DaysOfWeekValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter valid days of the week (Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday).";
+        return "Please enter valid days of the week separated by commas (e.g., Monday, Wednesday, Friday). Valid days are: Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.";
     }
 
     @Override
     public String getConfirmationStepMessage(String daysStr, Map<ValidationResource, String> context) {
-        return String.format("The provided days of week: %s contains invalid day names or duplicates. Please use valid day names (Sunday, Monday, etc.).", daysStr);
+        return String.format("The days you entered '%s' contain invalid day names or duplicates. Please use valid day names like 'Monday, Tuesday, Wednesday' without duplicates.", daysStr);
     }
 
     @Override
     public String getErrMessage(String daysStr) {
-        return String.format("Invalid days of week: %s. Must contain valid day names without duplicates.", daysStr);
+        return String.format("Invalid days of the week: %s. Please enter valid day names separated by commas (e.g., Monday, Wednesday, Friday).", daysStr);
     }
 }

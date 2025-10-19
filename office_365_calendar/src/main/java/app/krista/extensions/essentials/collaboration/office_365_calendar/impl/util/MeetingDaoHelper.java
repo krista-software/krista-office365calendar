@@ -125,6 +125,9 @@ public final class MeetingDaoHelper {
      * @return {@link Boolean} value if the event is accepted or not by user
      */
     public static boolean isEventNeitherAcceptedNorDeclined(Event event, String currentUserMailAddress) {
+        if (event == null) {
+            return false;
+        }
         List<Attendee> attendees = event.attendees;
         if (event.organizer != null && event.organizer.emailAddress != null && attendees != null) {
             String organizerAddress = event.organizer.emailAddress.address;
@@ -471,13 +474,15 @@ public final class MeetingDaoHelper {
      */
     public static List<AttendeeBase> getRequiredAttendee(List<String> requiredAttendee, List<String> optionalAttendee) {
         List<AttendeeBase> attendeesList = new LinkedList<>();
-        for (String attendeeEmail : requiredAttendee) {
+        if (requiredAttendee != null) {
+            for (String attendeeEmail : requiredAttendee) {
             AttendeeBase attendees = new AttendeeBase();
             EmailAddress emailAddress = new EmailAddress();
             emailAddress.address = attendeeEmail;
             attendees.emailAddress = emailAddress;
             attendees.type = AttendeeType.REQUIRED;
             attendeesList.add(attendees);
+            }
         }
         if (optionalAttendee != null && !optionalAttendee.isEmpty()) {
             for (String attendeeEmail : optionalAttendee) {
