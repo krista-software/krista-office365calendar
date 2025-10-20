@@ -22,7 +22,7 @@ Before you begin, ensure you have:
 1. Navigate to the [Azure Portal](https://portal.azure.com/)
 2. Sign in with your administrator account
 
-![Azure Portal Home Page](../_media/CreatingOffice365App_homePage.png)
+![Azure Portal Home Page](../_media/ExtensionConfiguration_homePage.png)
 
 ### Step 2: Navigate to Microsoft Entra ID
 
@@ -50,8 +50,10 @@ Before you begin, ensure you have:
 1. **Name**: Enter a descriptive name for your application (e.g., "Krista Office 365 Calendar Integration")
 2. **Supported account types**: Select **Accounts in this organizational directory only (Single tenant)**
 3. **Redirect URI**: Select **Web** platform and add the authorized redirect URI corresponding to your Office 365 Calendar extension
-   - Format: `{Extension Base URL}/office365calendar/callback`
-   - Example: `https://your-krista-instance.com/office365calendar/callback`
+   - **Private Authentication Format**: `https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback`
+   - **Private Authentication Example**: `https://extension.qa-in.eng.krista.app/extension/api/OHhmYTQX_sE8Tv7UKy_pEJZg_e_e/rest/calendar/callback`
+   - **Public Authentication Format**: `https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback`
+   - **Note**: The routing ID is unique to your extension instance and can be found in your Krista extension configuration
 4. Click **Register**
 
 ![Register Application](../_media/CreatingOffice365App_register.png)
@@ -130,9 +132,11 @@ After registration, you'll be taken to the app's overview page:
 
 1. In the left navigation menu, click **Authentication**
 2. Under **Platform configurations**, verify the redirect URI is correctly configured
-3. Ensure the redirect URI matches: `{Extension Base URL}/office365calendar/callback`
+3. Ensure the redirect URI matches based on your authentication type:
+   - **Private Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback`
+   - **Public Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback`
 
-![Redirect URI Configuration](../_media/CreatingOffice365App_authorizedRedirectURI.png)
+![Redirect URI Configuration](../_media/ExtensionConfiguration_authorizedRedirectURIReference.png)
 
 ### Step 10: Verify Configuration
 
@@ -225,10 +229,12 @@ Ensure you have collected all required information:
 **Cause**: The redirect URI in the app registration doesn't match the extension configuration
 
 **Solution**:
-1. Verify the Extension Base URL in Krista
-2. Ensure the redirect URI is: `{Extension Base URL}/office365calendar/callback`
-3. Check for trailing slashes and ensure exact match
-4. Update the redirect URI in the app registration if needed
+1. Verify the authentication type (Private or Public) in Krista
+2. For **Private Authentication**, ensure the redirect URI is: `https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback`
+3. For **Public Authentication**, ensure the redirect URI is: `https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback`
+4. Check for trailing slashes and ensure exact match
+5. Verify the routing ID is correct (for Private Authentication)
+6. Update the redirect URI in the app registration if needed
 
 ### Issue: "Permission Not Granted"
 
