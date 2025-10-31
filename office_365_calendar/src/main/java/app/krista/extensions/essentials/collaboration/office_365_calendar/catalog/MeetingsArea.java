@@ -85,9 +85,11 @@ public final class MeetingsArea {
     @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
     public ExtensionResponse cancelEvent(
             @Field.Text(name = "Delegate Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String delegateEmail,
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}", eventId);
+        LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}, allowRetry: {}", eventId, allowRetry);
 
         try {
             telemetryHelper.incrementCount("office365Calendar.cancelEvent");
@@ -127,27 +129,34 @@ public final class MeetingsArea {
                 telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
                 return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated state ID: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                // Store validation results and delegate email in state
-                Map<String, Object> stateData = formStateData(delegateEmail, validationResults);
-                errorHandlingStateManager.put(stateId, stateData);
-                LOGGER.debug("→ Stored validation results and delegate email in error handling state manager");
+                    // Store validation results and delegate email in state
+                    Map<String, Object> stateData = formStateData(delegateEmail, validationResults);
+                    errorHandlingStateManager.put(stateId, stateData);
+                    LOGGER.debug("→ Stored validation results and delegate email in error handling state manager");
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
-                        Map.of(Constants.STATE_ID, stateId,
-                              "Delegate Email", delegateEmail != null ? delegateEmail : "",
-                              Constants.EVENT_ID, eventId != null ? eventId : ""));
-                LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.cancelEvent", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_RE_ENTER_CANCEL_EVENT,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    "Delegate Email", delegateEmail != null ? delegateEmail : "",
+                                    Constants.EVENT_ID, eventId != null ? eventId : ""));
+                    LOGGER.debug("→ Generated confirmation response for validation errors");
+                    telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("→ cancelEvent: Exception occurred - {}", cause.getMessage(), cause);
@@ -188,9 +197,11 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
     public ExtensionResponse getNextUpcomingMeetings(
-            @Field(name = "Number of meeting", type = "Number", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many upcoming meetings to retrieve (e.g., 5 for next 5 meetings)'")}) Double numberOfMeeting) {
+            @Field(name = "Number of meeting", type = "Number", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many upcoming meetings to retrieve (e.g., 5 for next 5 meetings)'")}) Double numberOfMeeting,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info("→ getNextUpcomingMeetings: Starting retrieval for numberOfMeeting: {}", numberOfMeeting);
+        LOGGER.info("→ getNextUpcomingMeetings: Starting retrieval for numberOfMeeting: {}, allowRetry: {}", numberOfMeeting, allowRetry);
 
         try {
             telemetryHelper.incrementCount("office365Calendar.getNextUpcomingMeetings");
@@ -225,26 +236,34 @@ public final class MeetingsArea {
                         safeTagMap("meeting_count", String.valueOf(events.size()), "requested_count", String.valueOf(numberOfMeeting)));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated state ID: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
+                    LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getNextUpcomingMeetings", startTime,
-                        safeTagMap("requested_count", String.valueOf(numberOfMeeting), "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.NUMBER_OF_MEETING, numberOfMeeting != null ? numberOfMeeting : 0.0));
-                LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordSuccess("office365Calendar.getNextUpcomingMeetings", startTime,
-                        safeTagMap("meeting_count", String.valueOf(numberOfMeeting), "requested_count", String.valueOf(numberOfMeeting)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getNextUpcomingMeetings", startTime,
+                            safeTagMap("requested_count", String.valueOf(numberOfMeeting), "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.NUMBER_OF_MEETING, numberOfMeeting != null ? numberOfMeeting : 0.0));
+                    LOGGER.debug("→ Generated confirmation response for validation errors");
+                    telemetryHelper.recordSuccess("office365Calendar.getNextUpcomingMeetings", startTime,
+                            safeTagMap("meeting_count", String.valueOf(numberOfMeeting), "requested_count", String.valueOf(numberOfMeeting)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getNextUpcomingMeetings", startTime,
+                            safeTagMap("requested_count", String.valueOf(numberOfMeeting), "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("→ getNextUpcomingMeetings: Exception occurred - {}", cause.getMessage(), cause);
@@ -275,16 +294,18 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse declineInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to decline'")}) String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to decline'")}) String eventId,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info("→ declineInvitation: Starting invitation decline for eventId: {}", eventId);
+        LOGGER.info("→ declineInvitation: Starting invitation decline for eventId: {}, allowRetry: {}", eventId, allowRetry);
 
         try {
             telemetryHelper.incrementCount("office365Calendar.declineInvitation");
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
-                            Validator.ValidationResource.EVENT_ID, eventId),
+                                    Validator.ValidationResource.EVENT_ID, eventId),
                             MeetingsArea.class, "declineInvitation");
             LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
@@ -301,25 +322,33 @@ public final class MeetingsArea {
                 telemetryHelper.recordSuccess("office365Calendar.declineInvitation", startTime, safeTagMap("event_id", eventId));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated state ID: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
-                LOGGER.debug("→ Stored validation results in error handling state manager");
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
+                    LOGGER.debug("→ Stored validation results in error handling state manager");
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.declineInvitation", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_DECLINE_INVITATION,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : ""));
-                LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordSuccess("office365Calendar.declineInvitation", startTime, safeTagMap("event_id", eventId));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.declineInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_DECLINE_INVITATION,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : ""));
+                    LOGGER.debug("→ Generated confirmation response for validation errors");
+                    telemetryHelper.recordSuccess("office365Calendar.declineInvitation", startTime, safeTagMap("event_id", eventId));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.declineInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("→ declineInvitation: Exception occurred - {}", cause.getMessage(), cause);
@@ -349,16 +378,18 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse tentativeInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to mark as tentative'")}) String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to mark as tentative'")}) String eventId,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.tentativeInvitation");
-            LOGGER.info("tentativeInvitation: eventId={}", eventId);
+            LOGGER.info("tentativeInvitation: eventId={}, allowRetry: {}", eventId, allowRetry);
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
-                            Validator.ValidationResource.EVENT_ID, eventId),
+                                    Validator.ValidationResource.EVENT_ID, eventId),
                             MeetingsArea.class, "tentativeInvitation");
 
             if (validationResults.isEmpty()) {
@@ -367,20 +398,28 @@ public final class MeetingsArea {
                 telemetryHelper.recordSuccess("office365Calendar.tentativeInvitation", startTime, safeTagMap("event_id", eventId));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.tentativeInvitation", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_TENTATIVE_INVITATION,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : ""));
-                telemetryHelper.recordSuccess("office365Calendar.tentativeInvitation", startTime, safeTagMap("event_id", eventId));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.tentativeInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_TENTATIVE_INVITATION,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : ""));
+                    telemetryHelper.recordSuccess("office365Calendar.tentativeInvitation", startTime, safeTagMap("event_id", eventId));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.tentativeInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in tentativeInvitation: {}", cause.getMessage());
@@ -398,7 +437,7 @@ public final class MeetingsArea {
     /**
      * Forwards the event to the specified attendees.
      *
-     * @param eventId the ID of the event to forward
+     * @param eventId       the ID of the event to forward
      * @param attendeeEmail the list of attendee emails
      * @return an extension response indicating success or error information
      */
@@ -411,16 +450,18 @@ public final class MeetingsArea {
     @Field(name = "IsForwarded", type = "Switch", required = false)
     public ExtensionResponse forwardEvent(
             @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to forward to additional attendees'")}) String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.forwardEvent");
-            LOGGER.info("forwardEvent: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+            LOGGER.info("forwardEvent: eventId={}, attendeeEmail={}, allowRetry: {}", eventId, attendeeEmail, allowRetry);
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
-                            Validator.ValidationResource.EVENT_ID, eventId),
+                                    Validator.ValidationResource.EVENT_ID, eventId),
                             MeetingsArea.class, "forwardEvent");
 
             if (validationResults.isEmpty()) {
@@ -430,22 +471,30 @@ public final class MeetingsArea {
                         safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
                 return new ExtensionResponseBuilder().success(Map.of("IsForwarded", true)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.forwardEvent", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_FORWARD_EVENT,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : "",
-                              Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
-                telemetryHelper.recordSuccess("office365Calendar.forwardEvent", startTime,
-                        safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.forwardEvent", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_FORWARD_EVENT,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : "",
+                                    Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+                    telemetryHelper.recordSuccess("office365Calendar.forwardEvent", startTime,
+                            safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.forwardEvent", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in forwardEvent: {}", cause.getMessage());
@@ -477,8 +526,8 @@ public final class MeetingsArea {
             @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String organizerEmail,
             @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {}) String title,
             @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {}) String location,
-            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {})  Long dateFrom,
-            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {})  Long dateTo,
+            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {}) Long dateFrom,
+            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {}) Long dateTo,
             @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
             @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
             @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this if the meeting lasts the entire day'")}, options = {}) Boolean isAllDay,
@@ -497,10 +546,12 @@ public final class MeetingsArea {
             @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many times the meeting should occur'")}, options = {}) Double numberedOccurrences,
             @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Upload files to attach to the meeting invitation'")}, options = {}) List<File> attachments,
             @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Add detailed description or agenda for the meeting'")}, options = {}) String details,
-            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this to create a Microsoft Teams meeting with video conferencing'")}, options = {}) Boolean isTeamsMeeting) {
+            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this to create a Microsoft Teams meeting with video conferencing'")}, options = {}) Boolean isTeamsMeeting,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info("→ scheduleMeeting: Starting meeting scheduling - title: '{}', location: '{}', dateFrom: {}, dateTo: {}",
-                title, location, dateFrom, dateTo);
+        LOGGER.info("→ scheduleMeeting: Starting meeting scheduling - title: '{}', location: '{}', dateFrom: {}, dateTo: {}, allowRetry: {}",
+                title, location, dateFrom, dateTo, allowRetry);
         LOGGER.debug("→ Additional parameters - timeZone: {}, recurrenceInterval: {}, daysOfWeek: {}, numberedOccurrences: {}, isTeamsMeeting: {}",
                 timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences, isTeamsMeeting);
 
@@ -560,7 +611,7 @@ public final class MeetingsArea {
                 LOGGER.debug("→ Validation passed, creating meeting via DAO");
                 LOGGER.debug("→ Converting {} attachments to Attachment objects", attachments != null ? attachments.size() : 0);
 
-                Meeting createdMeeting = meetingDao.addMeeting(organizerEmail,title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting);
+                Meeting createdMeeting = meetingDao.addMeeting(organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, catalogTypes.toAttachment(attachments), details, isTeamsMeeting);
                 LOGGER.debug("→ Meeting created successfully via DAO");
 
                 EventDetails eventDetails = CatalogTypes.fromEvent(createdMeeting);
@@ -569,38 +620,46 @@ public final class MeetingsArea {
                 LOGGER.info("→ scheduleMeeting: Successfully scheduled meeting: '{}'", title);
                 telemetryHelper.recordSuccess("office365Calendar.scheduleMeeting", startTime,
                         safeTagMap("title", title, "is_teams_meeting", String.valueOf(isTeamsMeeting),
-                                  "has_recurrence", String.valueOf(recurrence != null && !recurrence.equals("Never") && !recurrence.equals("Does Not Repeat"))));
+                                "has_recurrence", String.valueOf(recurrence != null && !recurrence.equals("Never") && !recurrence.equals("Does Not Repeat"))));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated state ID: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated state ID: {}", stateId);
 
-                // Store validation results and organizer email in state
-                Map<String, Object> stateData = new HashMap<>();
-                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
-                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
-                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
-                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                    // Store validation results and organizer email in state
+                    Map<String, Object> stateData = new HashMap<>();
+                    stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                    if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                        stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                        LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                    }
+                    errorHandlingStateManager.put(stateId, stateData);
+                    LOGGER.debug("→ Stored validation results and organizer email in error handling state manager");
+
+                    Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
+                    LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
+
+                    telemetryHelper.recordRetryPrompted("office365Calendar.scheduleMeeting", startTime,
+                            safeTagMap("title", title, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_SCHEDULE_MEETING,
+                            confirmationParams);
+                    LOGGER.debug("→ Generated confirmation response for validation errors");
+                    telemetryHelper.recordSuccess("office365Calendar.scheduleMeeting", startTime,
+                            safeTagMap("title", title, "is_teams_meeting", String.valueOf(isTeamsMeeting),
+                                    "has_recurrence", String.valueOf(recurrence != null && !recurrence.equals("Never") && !recurrence.equals("Does Not Repeat"))));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.scheduleMeeting", startTime,
+                            safeTagMap("title", title, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
-                errorHandlingStateManager.put(stateId, stateData);
-                LOGGER.debug("→ Stored validation results and organizer email in error handling state manager");
-
-                Map<String, Object> confirmationParams = createScheduleMeetingConfirmationParams(stateId, organizerEmail, title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, attachments, details, isTeamsMeeting);
-                LOGGER.debug("→ Created confirmation parameters with {} entries", confirmationParams.size());
-
-                telemetryHelper.recordRetryPrompted("office365Calendar.scheduleMeeting", startTime,
-                        safeTagMap("title", title, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_SCHEDULE_MEETING,
-                        confirmationParams);
-                LOGGER.debug("→ Generated confirmation response for validation errors");
-                telemetryHelper.recordSuccess("office365Calendar.scheduleMeeting", startTime,
-                        safeTagMap("title", title, "is_teams_meeting", String.valueOf(isTeamsMeeting),
-                                  "has_recurrence", String.valueOf(recurrence != null && !recurrence.equals("Never") && !recurrence.equals("Does Not Repeat"))));
-                return response;
             }
         } catch (Exception cause) {
             LOGGER.error("→ scheduleMeeting: Exception occurred - {}", cause.getMessage(), cause);
@@ -694,7 +753,7 @@ public final class MeetingsArea {
     /**
      * Adds attendees to the specified event.
      *
-     * @param eventId the ID of the event
+     * @param eventId               the ID of the event
      * @param requiredAttendeeEmail list of required attendee emails
      * @param optionalAttendeeEmail list of optional attendee emails
      * @return an extension response containing the updated event details or error information
@@ -709,11 +768,13 @@ public final class MeetingsArea {
     public ExtensionResponse addAttendees(
             @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to add attendees to'")}) String eventId,
             @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> requiredAttendeeEmail,
-            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail) {
+            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.addAttendees");
-            LOGGER.info("addAttendees: eventId={}, requiredAttendeeEmail={}, optionalAttendeeEmail={}", eventId, requiredAttendeeEmail, optionalAttendeeEmail);
+            LOGGER.info("addAttendees: eventId={}, requiredAttendeeEmail={}, optionalAttendeeEmail={}, allowRetry: {}", eventId, requiredAttendeeEmail, optionalAttendeeEmail, allowRetry);
 
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -742,27 +803,35 @@ public final class MeetingsArea {
                 EventDetails eventDetails = CatalogTypes.fromEvent(meetingDao.addAttendees(eventId, requiredAttendeeEmail, optionalAttendeeEmail));
                 telemetryHelper.recordSuccess("office365Calendar.addAttendees", startTime,
                         safeTagMap("event_id", eventId, "required_count", String.valueOf(requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0),
-                                  "optional_count", String.valueOf(optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0)));
+                                "optional_count", String.valueOf(optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0)));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.addAttendees", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_ADD_ATTENDEES,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : "",
-                              Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of(),
-                              Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of()));
-                telemetryHelper.recordSuccess("office365Calendar.addAttendees", startTime,
-                        safeTagMap("event_id", eventId, "required_count", String.valueOf(requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0),
-                                  "optional_count", String.valueOf(optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.addAttendees", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_ADD_ATTENDEES,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : "",
+                                    Constants.REQUIRED_ATTENDEE_EMAIL, requiredAttendeeEmail != null ? requiredAttendeeEmail : List.of(),
+                                    Constants.OPTIONAL_ATTENDEE_EMAIL, optionalAttendeeEmail != null ? optionalAttendeeEmail : List.of()));
+                    telemetryHelper.recordSuccess("office365Calendar.addAttendees", startTime,
+                            safeTagMap("event_id", eventId, "required_count", String.valueOf(requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0),
+                                    "optional_count", String.valueOf(optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.addAttendees", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in addAttendees: {}", cause.getMessage());
@@ -814,12 +883,14 @@ public final class MeetingsArea {
             @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false) String endRecurrence,
             @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
             @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
-            @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting) {
+            @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.updateEvent");
-            LOGGER.info("updateEvent: eventId={}, title={}, location={}, dateFrom={}, dateTo={}, timeZone={}, recurrenceInterval={}, daysOfWeek={}, numberedOccurrences={}",
-                    eventId, title, location, dateFrom, dateTo, timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences);
+            LOGGER.info("updateEvent: eventId={}, title={}, location={}, dateFrom={}, dateTo={}, timeZone={}, recurrenceInterval={}, daysOfWeek={}, numberedOccurrences={}, allowRetry={}",
+                    eventId, title, location, dateFrom, dateTo, timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences, allowRetry);
 
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -877,25 +948,33 @@ public final class MeetingsArea {
                         safeTagMap("event_id", eventId, "title", title));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                // Store validation results and organizer email in state
-                Map<String, Object> stateData = new HashMap<>();
-                stateData.put(Constants.VALIDATION_RESULTS, validationResults);
-                if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
-                    stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
-                    LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
-                }
-                errorHandlingStateManager.put(stateId, stateData);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    // Store validation results and organizer email in state
+                    Map<String, Object> stateData = new HashMap<>();
+                    stateData.put(Constants.VALIDATION_RESULTS, validationResults);
+                    if (organizerEmail != null && !organizerEmail.trim().isEmpty()) {
+                        stateData.put(Constants.ORGANIZER_EMAIL, organizerEmail);
+                        LOGGER.debug("→ Stored organizer email in state: {}", organizerEmail);
+                    }
+                    errorHandlingStateManager.put(stateId, stateData);
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.updateEvent", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_UPDATE_EVENT,
-                        createUpdateEventConfirmationParams(stateId, organizerEmail, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
-                telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime, safeTagMap("event_id", eventId));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.updateEvent", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_UPDATE_EVENT,
+                            createUpdateEventConfirmationParams(stateId, organizerEmail, eventId, title, location, dateFrom, dateTo, details, timeZone, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, isTeamsMeeting));
+                    telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime, safeTagMap("event_id", eventId));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.updateEvent", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in updateEvent: {}", cause.getMessage());
@@ -958,16 +1037,18 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.CHANGE_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse acceptInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to accept'")}) String eventId) {
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to accept'")}) String eventId,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.acceptInvitation");
-            LOGGER.info("acceptInvitation: eventId={}", eventId);
+            LOGGER.info("acceptInvitation: eventId={}, allowRetry: {}", eventId, allowRetry);
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
                     validationOrchestrator.validate(Map.of(
-                            Validator.ValidationResource.EVENT_ID, eventId),
+                                    Validator.ValidationResource.EVENT_ID, eventId),
                             MeetingsArea.class, "acceptInvitation");
 
             if (validationResults.isEmpty()) {
@@ -976,20 +1057,28 @@ public final class MeetingsArea {
                 telemetryHelper.recordSuccess("office365Calendar.acceptInvitation", startTime, safeTagMap("event_id", eventId));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.acceptInvitation", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_ACCEPT_INVITATION,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : ""));
-                telemetryHelper.recordSuccess("office365Calendar.acceptInvitation", startTime, safeTagMap("event_id", eventId));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.acceptInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_ACCEPT_INVITATION,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : ""));
+                    telemetryHelper.recordSuccess("office365Calendar.acceptInvitation", startTime, safeTagMap("event_id", eventId));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.acceptInvitation", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in acceptInvitation: {}", cause.getMessage());
@@ -1007,7 +1096,7 @@ public final class MeetingsArea {
     /**
      * Removes attendees from the specified event.
      *
-     * @param eventId the ID of the event
+     * @param eventId       the ID of the event
      * @param attendeeEmail list of attendee emails to remove
      * @return an extension response containing the updated event details or error information
      */
@@ -1020,11 +1109,13 @@ public final class MeetingsArea {
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse removeAttendee(
             @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to remove attendees from'")}) String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail) {
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.removeAttendee");
-            LOGGER.info("removeAttendee: eventId={}, attendeeEmail={}", eventId, attendeeEmail);
+            LOGGER.info("removeAttendee: eventId={}, attendeeEmail={}, allowRetry: {}", eventId, attendeeEmail, allowRetry);
 
             // Prepare validation parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -1055,22 +1146,30 @@ public final class MeetingsArea {
                         safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.removeAttendee", startTime,
-                        safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_REMOVE_ATTENDEE,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID, eventId != null ? eventId : "",
-                              Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
-                telemetryHelper.recordSuccess("office365Calendar.removeAttendee", startTime,
-                        safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.removeAttendee", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_REMOVE_ATTENDEE,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID, eventId != null ? eventId : "",
+                                    Constants.ATTENDEE_EMAIL, attendeeEmail != null ? attendeeEmail : List.of()));
+                    telemetryHelper.recordSuccess("office365Calendar.removeAttendee", startTime,
+                            safeTagMap("event_id", eventId, "attendee_count", String.valueOf(attendeeEmail != null ? attendeeEmail.size() : 0)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.removeAttendee", startTime,
+                            safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in removeAttendee: {}", cause.getMessage());
@@ -1089,13 +1188,13 @@ public final class MeetingsArea {
     /**
      * Retrieves free meeting slots based on the provided criteria.
      *
-     * @param dateFrom start date (epoch millis)
-     * @param dateTo end date (epoch millis)
+     * @param dateFrom            start date (epoch millis)
+     * @param dateTo              end date (epoch millis)
      * @param isOrganizerOptional whether organizer is optional
-     * @param requiredAttendee list of required attendee emails
-     * @param optionalAttendee list of optional attendee emails
-     * @param timeZone time zone (optional)
-     * @param meetingDuration meeting duration (optional)
+     * @param requiredAttendee    list of required attendee emails
+     * @param optionalAttendee    list of optional attendee emails
+     * @param timeZone            time zone (optional)
+     * @param meetingDuration     meeting duration (optional)
      * @return an extension response containing free slots or error response with validation prompts
      */
     @CatalogRequest(
@@ -1112,13 +1211,15 @@ public final class MeetingsArea {
             @Field.Desc(name = "Required Attendee", type = "[ Email ]") List<String> requiredAttendee,
             @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false) List<String> optionalAttendee,
             @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}) String timeZone,
-            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration) {
+            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getFreeSlots");
             LOGGER.info("→ GET FREE SLOTS START");
-            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, isOrganizerOptional={}, requiredAttendee={}, optionalAttendee={}, timeZone={}, meetingDuration={}",
-                dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration);
+            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, isOrganizerOptional={}, requiredAttendee={}, optionalAttendee={}, timeZone={}, meetingDuration={}, allowRetry: {}",
+                    dateFrom, dateTo, isOrganizerOptional, requiredAttendee, optionalAttendee, timeZone, meetingDuration, allowRetry);
 
             // Prepare validation parameters
             LOGGER.debug("→ Preparing validation parameters...");
@@ -1169,40 +1270,48 @@ public final class MeetingsArea {
                 LOGGER.info("→ GET FREE SLOTS SUCCESS END");
                 telemetryHelper.recordSuccess("office365Calendar.getFreeSlots", startTime,
                         safeTagMap("slots_found", String.valueOf(freeSlots != null ? freeSlots.size() : 0),
-                                  "required_attendees", String.valueOf(requiredAttendee != null ? requiredAttendee.size() : 0),
-                                  "optional_attendees", String.valueOf(optionalAttendee != null ? optionalAttendee.size() : 0)));
+                                "required_attendees", String.valueOf(requiredAttendee != null ? requiredAttendee.size() : 0),
+                                "optional_attendees", String.valueOf(optionalAttendee != null ? optionalAttendee.size() : 0)));
                 return response;
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.debug("→ Validation failed, preparing confirmation response...");
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated stateId: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.debug("→ Validation failed, preparing confirmation response...");
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated stateId: {}", stateId);
 
-                Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
-                LOGGER.debug("→ Storing state data: {}", stateData);
-                errorHandlingStateManager.put(stateId, stateData);
+                    Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
+                    LOGGER.debug("→ Storing state data: {}", stateData);
+                    errorHandlingStateManager.put(stateId, stateData);
 
-                Map<String, Object> confirmationParams = Map.of(
-                        Constants.STATE_ID, stateId,
-                        Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
-                        Constants.TO_DATE, dateTo != null ? dateTo : 0L,
-                        Constants.IS_ORGANIZER_OPTIONAL, isOrganizerOptional != null ? isOrganizerOptional : false,
-                        Constants.REQUIRED_ATTENDEE, requiredAttendee != null ? requiredAttendee : List.of(),
-                        Constants.OPTIONAL_ATTENDEE, optionalAttendee != null ? optionalAttendee : List.of(),
-                        Constants.TIME_ZONE, timeZone != null ? timeZone : "",
-                        Constants.MEETING_DURATION, meetingDuration != null ? meetingDuration : "");
-                LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
+                    Map<String, Object> confirmationParams = Map.of(
+                            Constants.STATE_ID, stateId,
+                            Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
+                            Constants.TO_DATE, dateTo != null ? dateTo : 0L,
+                            Constants.IS_ORGANIZER_OPTIONAL, isOrganizerOptional != null ? isOrganizerOptional : false,
+                            Constants.REQUIRED_ATTENDEE, requiredAttendee != null ? requiredAttendee : List.of(),
+                            Constants.OPTIONAL_ATTENDEE, optionalAttendee != null ? optionalAttendee : List.of(),
+                            Constants.TIME_ZONE, timeZone != null ? timeZone : "",
+                            Constants.MEETING_DURATION, meetingDuration != null ? meetingDuration : "");
+                    LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getFreeSlots", startTime,
-                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_FREE_SLOTS, confirmationParams);
-                LOGGER.info("→ GET FREE SLOTS VALIDATION FAILED END");
-                telemetryHelper.recordSuccess("office365Calendar.getFreeSlots", startTime,
-                        safeTagMap("required_attendee_count", String.valueOf(requiredAttendee != null ? requiredAttendee.size() : 0),
-                                  "optional_attendee_count", String.valueOf(optionalAttendee != null ? optionalAttendee.size() : 0)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getFreeSlots", startTime,
+                            safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_FREE_SLOTS, confirmationParams);
+                    LOGGER.info("→ GET FREE SLOTS VALIDATION FAILED END");
+                    telemetryHelper.recordSuccess("office365Calendar.getFreeSlots", startTime,
+                            safeTagMap("required_attendee_count", String.valueOf(requiredAttendee != null ? requiredAttendee.size() : 0),
+                                    "optional_attendee_count", String.valueOf(optionalAttendee != null ? optionalAttendee.size() : 0)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getFreeSlots", startTime,
+                            safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("→ GET FREE SLOTS EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
@@ -1222,10 +1331,10 @@ public final class MeetingsArea {
     /**
      * Retrieves scheduled meetings for the given date range and attendees.
      *
-     * @param dateFrom start date (epoch millis)
-     * @param dateTo end date (epoch millis)
+     * @param dateFrom  start date (epoch millis)
+     * @param dateTo    end date (epoch millis)
      * @param attendees list of attendee emails
-     * @param timeZone time zone (optional)
+     * @param timeZone  time zone (optional)
      * @return an extension response containing scheduled meetings or error response with validation prompts
      */
     @CatalogRequest(
@@ -1239,12 +1348,14 @@ public final class MeetingsArea {
             @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
             @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateTo,
             @Field.Desc(name = "Attendees", type = "[ Email ]") List<String> attendees,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone) {
+            @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getSchedules");
             LOGGER.info("→ GET SCHEDULES START");
-            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, attendees={}, timeZone={}", dateFrom, dateTo, attendees, timeZone);
+            LOGGER.info("→ Input parameters: dateFrom={}, dateTo={}, attendees={}, timeZone={}, allowRetry: {}", dateFrom, dateTo, attendees, timeZone, allowRetry);
 
             // Prepare validation parameters
             LOGGER.debug("→ Preparing validation parameters...");
@@ -1290,35 +1401,43 @@ public final class MeetingsArea {
                 LOGGER.info("→ GET SCHEDULES SUCCESS END");
                 telemetryHelper.recordSuccess("office365Calendar.getSchedules", startTime,
                         safeTagMap("schedules_count", String.valueOf(schedules != null ? schedules.size() : 0),
-                                  "attendees_count", String.valueOf(attendees != null ? attendees.size() : 0)));
+                                "attendees_count", String.valueOf(attendees != null ? attendees.size() : 0)));
                 return response;
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                LOGGER.debug("→ Validation failed, preparing confirmation response...");
-                String stateId = UUID.randomUUID().toString();
-                LOGGER.debug("→ Generated stateId: {}", stateId);
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.debug("→ Validation failed, preparing confirmation response...");
+                    String stateId = UUID.randomUUID().toString();
+                    LOGGER.debug("→ Generated stateId: {}", stateId);
 
-                Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
-                LOGGER.debug("→ Storing state data: {}", stateData);
-                errorHandlingStateManager.put(stateId, stateData);
+                    Map<String, Object> stateData = Map.of(Constants.VALIDATION_RESULTS, validationResults);
+                    LOGGER.debug("→ Storing state data: {}", stateData);
+                    errorHandlingStateManager.put(stateId, stateData);
 
-                Map<String, Object> confirmationParams = Map.of(
-                        Constants.STATE_ID, stateId,
-                        Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
-                        Constants.TO_DATE, dateTo != null ? dateTo : 0L,
-                        Constants.ATTENDEES, attendees != null ? attendees : List.of(),
-                        Constants.TIME_ZONE, timeZone != null ? timeZone : "");
-                LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
+                    Map<String, Object> confirmationParams = Map.of(
+                            Constants.STATE_ID, stateId,
+                            Constants.FROM_DATE, dateFrom != null ? dateFrom : 0L,
+                            Constants.TO_DATE, dateTo != null ? dateTo : 0L,
+                            Constants.ATTENDEES, attendees != null ? attendees : List.of(),
+                            Constants.TIME_ZONE, timeZone != null ? timeZone : "");
+                    LOGGER.debug("→ Confirmation parameters: {}", confirmationParams);
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getSchedules", startTime,
-                        safeTagMap("validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_SCHEDULES, confirmationParams);
-                LOGGER.info("→ GET SCHEDULES VALIDATION FAILED END");
-                telemetryHelper.recordSuccess("office365Calendar.getSchedules", startTime,
-                        safeTagMap("attendee_count", String.valueOf(attendees != null ? attendees.size() : 0)));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getSchedules", startTime,
+                            safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_SCHEDULES, confirmationParams);
+                    LOGGER.info("→ GET SCHEDULES VALIDATION FAILED END");
+                    telemetryHelper.recordSuccess("office365Calendar.getSchedules", startTime,
+                            safeTagMap("attendee_count", String.valueOf(attendees != null ? attendees.size() : 0)));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getSchedules", startTime,
+                            safeTagMap("validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("→ GET SCHEDULES EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
@@ -1349,11 +1468,13 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
     public ExtensionResponse getEvent(
-            @Field(name = "Event ID", type = "Text") String eventID) {
+            @Field(name = "Event ID", type = "Text") String eventID,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getEvent");
-            LOGGER.info("getEvent: eventID={}", eventID);
+            LOGGER.info("getEvent: eventID={}, allowRetry: {}", eventID, allowRetry);
 
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -1377,20 +1498,29 @@ public final class MeetingsArea {
                         safeTagMap("event_id", eventID));
                 return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    // Store validation results and call confirmation SubCatalogRequest
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getEvent", startTime,
-                        safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_EVENT,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
-                telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime, safeTagMap("event_id", eventID));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getEvent", startTime,
+                            safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_EVENT,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                    telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime, safeTagMap("event_id", eventID));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
+                            safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
@@ -1439,8 +1569,8 @@ public final class MeetingsArea {
      * Retrieves events for a given user within a date range.
      *
      * @param userEmail the user's email
-     * @param from start date (epoch millis)
-     * @param to end date (epoch millis)
+     * @param from      start date (epoch millis)
+     * @param to        end date (epoch millis)
      * @return an extension response containing events or error information
      */
     @CatalogRequest(
@@ -1453,11 +1583,13 @@ public final class MeetingsArea {
     public ExtensionResponse getEventsForAGivenUser(
             @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
-            @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to) {
+            @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getEventsForUser");
-            LOGGER.info("getEventsForAGivenUser: userEmail={}, from={}, to={}", userEmail, from, to);
+            LOGGER.info("getEventsForAGivenUser: userEmail={}, from={}, to={}, allowRetry: {}", userEmail, from, to, allowRetry);
 
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -1480,23 +1612,32 @@ public final class MeetingsArea {
                         safeTagMap("user_email", userEmail, "events_count", String.valueOf(events.size())));
                 return new ExtensionResponseBuilder().success(Map.of(Constants.EVENTS, events)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    // Store validation results and call confirmation SubCatalogRequest
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getEventsForUser", startTime,
-                        safeTagMap("user_email", userEmail, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_EVENTS_FOR_USER,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.USER_EMAIL, userEmail != null ? userEmail : "",
-                              Constants.FROM, from != null ? from : 0L,
-                              Constants.TO, to != null ? to : 0L));
-                telemetryHelper.recordSuccess("office365Calendar.getEventsForUser", startTime,
-                        safeTagMap("user_email", userEmail));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getEventsForUser", startTime,
+                            safeTagMap("user_email", userEmail, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_EVENTS_FOR_USER,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.USER_EMAIL, userEmail != null ? userEmail : "",
+                                    Constants.FROM, from != null ? from : 0L,
+                                    Constants.TO, to != null ? to : 0L));
+                    telemetryHelper.recordSuccess("office365Calendar.getEventsForUser", startTime,
+                            safeTagMap("user_email", userEmail));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getEventsForUser", startTime,
+                            safeTagMap("user_email", userEmail, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getEventsForAGivenUser: {}", cause.getMessage());
@@ -1516,7 +1657,7 @@ public final class MeetingsArea {
      * Retrieves all attachments for a specific meeting for a given user.
      *
      * @param userEmail the user's email
-     * @param eventID the event ID
+     * @param eventID   the event ID
      * @return an extension response containing attachments
      */
     @CatalogRequest(
@@ -1530,11 +1671,13 @@ public final class MeetingsArea {
             @Field.Text(name = "User Email", required = true, attributes = {
                     @Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
             @Field.Text(name = "Event ID", required = true, attributes = {
-                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID) {
+                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getAttachmentsForUser");
-            LOGGER.info("getAttachmentsForAGivenUser: userEmail={}, eventID={}", userEmail, eventID);
+            LOGGER.info("getAttachmentsForAGivenUser: userEmail={}, eventID={}, allowRetry: {}", userEmail, eventID, allowRetry);
 
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -1561,22 +1704,31 @@ public final class MeetingsArea {
                         safeTagMap("user_email", userEmail, "event_id", eventID, "attachments_count", String.valueOf(attachments.size())));
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    // Store validation results and call confirmation SubCatalogRequest
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getAttachmentsForUser", startTime,
-                        safeTagMap("user_email", userEmail, "event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.USER_EMAIL, userEmail != null ? userEmail : "",
-                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
-                telemetryHelper.recordSuccess("office365Calendar.getAttachmentsForUser", startTime,
-                        safeTagMap("user_email", userEmail, "event_id", eventID));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getAttachmentsForUser", startTime,
+                            safeTagMap("user_email", userEmail, "event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_ATTACHMENTS_FOR_USER,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.USER_EMAIL, userEmail != null ? userEmail : "",
+                                    Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                    telemetryHelper.recordSuccess("office365Calendar.getAttachmentsForUser", startTime,
+                            safeTagMap("user_email", userEmail, "event_id", eventID));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getAttachmentsForUser", startTime,
+                            safeTagMap("user_email", userEmail, "event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachmentsForAGivenUser: {}", cause.getMessage());
@@ -1606,11 +1758,13 @@ public final class MeetingsArea {
             type = CatalogRequest.Type.QUERY_SYSTEM)
     @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
     public ExtensionResponse getAttachments(
-            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID) {
+            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID,
+            @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getAttachments");
-            LOGGER.info("getAttachments: eventID={}", eventID);
+            LOGGER.info("getAttachments: eventID={}, allowRetry: {}", eventID, allowRetry);
 
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
@@ -1627,7 +1781,7 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get attachments operation
                 List<FileAttachment> fileAttachments = meetingDao.getAttachmentsForAuthenticatedUser(eventID);
-                 LOGGER.info("  → Attachments retrieved successfully");
+                LOGGER.info("  → Attachments retrieved successfully");
                 LOGGER.info("  → Number of attachments found: {}", fileAttachments.size());
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
                 LOGGER.info("  → Attachments converted to Krista File objects");
@@ -1636,20 +1790,29 @@ public final class MeetingsArea {
                         safeTagMap("event_id", eventID, "attachments_count", String.valueOf(attachments.size())));
                 return new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             } else {
-                // Store validation results and call confirmation SubCatalogRequest
-                String stateId = UUID.randomUUID().toString();
-                errorHandlingStateManager.put(stateId, Map.of(
-                        Constants.VALIDATION_RESULTS, validationResults));
+                // Check allowRetry flag
+                if (Boolean.TRUE.equals(allowRetry)) {
+                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    // Store validation results and call confirmation SubCatalogRequest
+                    String stateId = UUID.randomUUID().toString();
+                    errorHandlingStateManager.put(stateId, Map.of(
+                            Constants.VALIDATION_RESULTS, validationResults));
 
-                telemetryHelper.recordRetryPrompted("office365Calendar.getAttachments", startTime,
-                        safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                ExtensionResponse response = responseGenerator.generateConfirmationResponse(
-                        ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
-                        Constants.CONFIRM_REENTER_GET_ATTACHMENTS,
-                        Map.of(Constants.STATE_ID, stateId,
-                              Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
-                telemetryHelper.recordSuccess("office365Calendar.getAttachments", startTime, safeTagMap("event_id", eventID));
-                return response;
+                    telemetryHelper.recordRetryPrompted("office365Calendar.getAttachments", startTime,
+                            safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    ExtensionResponse response = responseGenerator.generateConfirmationResponse(
+                            ExtensionResponse.Error.ExceptionType.INPUT_ERROR, validationResults,
+                            Constants.CONFIRM_REENTER_GET_ATTACHMENTS,
+                            Map.of(Constants.STATE_ID, stateId,
+                                    Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
+                    telemetryHelper.recordSuccess("office365Calendar.getAttachments", startTime, safeTagMap("event_id", eventID));
+                    return response;
+                } else {
+                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
+                    telemetryHelper.recordSuccess("office365Calendar.getAttachments", startTime,
+                            safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
+                    return responseGenerator.generateValidationErrorResponse(validationResults);
+                }
             }
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachments: {}", cause.getMessage());

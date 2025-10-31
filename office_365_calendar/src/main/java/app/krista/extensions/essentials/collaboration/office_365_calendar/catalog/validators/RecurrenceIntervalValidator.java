@@ -49,16 +49,16 @@ public class RecurrenceIntervalValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter a valid positive number (1-365) for the recurrence interval.";
+        return "Please enter how often the meeting should repeat (between 1 and 365). For example, enter '1' for every occurrence, '2' for every other occurrence.";
     }
 
     @Override
     public String getConfirmationStepMessage(String intervalStr, Map<ValidationResource, String> context) {
-        return String.format("The provided recurrence interval: %s is invalid. Please enter a positive number between 1 and 365.", intervalStr);
+        return String.format("The recurrence interval '%s' is invalid. Please enter a whole number between 1 and 365.", intervalStr);
     }
 
     @Override
     public String getErrMessage(String intervalStr) {
-        return String.format("Invalid recurrence interval: %s. Must be a positive number between 1 and 365.", intervalStr);
+        return String.format("Invalid recurrence interval: '%s'. Please enter a whole number between 1 and 365.", intervalStr);
     }
 }

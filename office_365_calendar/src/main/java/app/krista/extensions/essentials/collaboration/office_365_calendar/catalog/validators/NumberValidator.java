@@ -48,16 +48,16 @@ public class NumberValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter a valid positive number (1-1000) for the number of meetings to retrieve.";
+        return "Please enter how many meetings you'd like to retrieve (between 1 and 1000).";
     }
 
     @Override
     public String getConfirmationStepMessage(String numberStr, Map<ValidationResource, String> context) {
-        return String.format("The provided number of meetings: %s is invalid. Please enter a positive number between 1 and 1000.", numberStr);
+        return String.format("The number '%s' is invalid. Please enter a whole number between 1 and 1000.", numberStr);
     }
 
     @Override
     public String getErrMessage(String numberStr) {
-        return String.format("Invalid number of meetings: %s. Must be a positive number between 1 and 1000.", numberStr);
+        return String.format("Invalid number: '%s'. Please enter a whole number between 1 and 1000.", numberStr);
     }
 }

@@ -368,7 +368,7 @@ public class MeetingDaoImpl implements MeetingDao {
             return eventDetails;
         } catch (GraphServiceException | IOException cause) {
             LOGGER.error("→ getMeetings: Failed to retrieve meetings - {}", cause.getMessage(), cause);
-            throw new IllegalStateException("Failed to get upcoming meetings " + cause.getMessage());
+            throw new IllegalStateException(Constants.FAILED_TO_GET_UPCOMING_MEETINGS + cause.getMessage());
         }
     }
 
@@ -1227,7 +1227,7 @@ public class MeetingDaoImpl implements MeetingDao {
             return result;
         } catch (ParseException parseException) {
             LOGGER.error("→ getDateInMilliSecond: Failed to parse date: {} - {}", dateToParse.dateTime, parseException.getMessage(), parseException);
-            throw new IllegalStateException("Date :" + dateToParse.dateTime + " can't be parsed. " + parseException.getMessage(), parseException.getCause());
+            throw new IllegalStateException("Unable to parse the date '" + dateToParse.dateTime + "'. Please ensure the date is in a valid format. " + parseException.getMessage(), parseException.getCause());
         }
     }
 
@@ -1250,7 +1250,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
 
     public ExtensionResponse getAttachmentsForAuthenticatedUserWithErrorHandling(String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
-        String message = " Details entered are not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
+        String message = "The information provided is not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForAuthenticatedUserWithValidation");
         try {
             List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
@@ -1487,7 +1487,7 @@ public class MeetingDaoImpl implements MeetingDao {
                 processEventPages(nextPage, currentUser, eventDetails);
             } catch (GraphServiceException e) {
                 LOGGER.error("→ processEventPages: Failed to process next page - {}", e.getMessage(), e);
-                throw new IllegalStateException("Failed to retrieve next page of events: " + e.getMessage(), e);
+                throw new IllegalStateException("Unable to retrieve the next page of events. Please try again or contact support if the issue persists. " + e.getMessage(), e);
             }
         } else {
             LOGGER.debug("→ processEventPages: No more pages to process");

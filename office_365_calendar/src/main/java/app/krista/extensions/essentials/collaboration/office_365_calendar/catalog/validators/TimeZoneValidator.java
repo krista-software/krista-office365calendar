@@ -47,12 +47,12 @@ public class TimeZoneValidator implements Validator {
 
     @Override
     public String getConfirmationStepMessage(String timeZone, Map<ValidationResource, String> context) {
-        return String.format("The time zone '%s' is not recognized. Please use a standard time zone identifier such as 'America/New_York', 'Europe/London', 'Asia/Tokyo', or 'UTC'.", timeZone);
+        return String.format("The time zone '%s' is not recognized. Would you like to try a different time zone? Examples: 'America/New_York', 'Europe/London', 'Asia/Tokyo', or 'UTC'.", timeZone);
     }
 
     @Override
     public String getErrMessage(String timeZone) {
-        return String.format("Invalid time zone: %s. Please use a standard time zone identifier (e.g., 'America/New_York', 'Europe/London', 'UTC').", timeZone);
+        return String.format("Invalid time zone: '%s'. Please use a standard time zone identifier (e.g., 'America/New_York', 'Europe/London', 'UTC').", timeZone);
     }
 
     /**

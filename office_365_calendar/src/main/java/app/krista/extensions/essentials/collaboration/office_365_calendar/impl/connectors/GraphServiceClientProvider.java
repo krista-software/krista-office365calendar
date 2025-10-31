@@ -199,7 +199,7 @@ public final class GraphServiceClientProvider {
 
         } catch (Exception cause) {
             LOGGER.error("→ getGraphServiceClientWithClientCredentials: Error creating GraphServiceClient with client credentials - {}", cause.getMessage(), cause);
-            throw new RuntimeException("Error creating GraphServiceClient with client credentials", cause);
+            throw new RuntimeException("Unable to connect to Office 365 using the provided credentials. Please verify your client ID and secret are correct.", cause);
         }
     }
 
@@ -287,7 +287,7 @@ public final class GraphServiceClientProvider {
                 } else if (PUBLIC.equals(office365CalendarAttributes.getAuthType())) {
                     authority = Constants.ORG_AUTHORITY;
                 } else {
-                    throw new IllegalArgumentException("No authentication type found.");
+                    throw new IllegalArgumentException(Constants.UNSUPPORTED_AUTH);
                 }
                 LOGGER.debug("→ Built authority URL: {}", authority);
 
@@ -369,7 +369,7 @@ public final class GraphServiceClientProvider {
             LOGGER.debug("→ Added authContextId field to exception details: {}", authContextId);
         }
 
-        String message = reAuthentication ? "Refresh Token is no longer valid. Please reauthorize yourself " : Constants.AUTHORIZATION_PROMPT;
+        String message = reAuthentication ? "Your session has expired. Please sign in again to continue." : Constants.AUTHORIZATION_PROMPT;
         LOGGER.debug("→ createMustAuthorizationException: Created exception with message: {}", message);
 
         return new MustAuthorizeException(message, details);
@@ -574,7 +574,7 @@ public final class GraphServiceClientProvider {
 
             if (accessToken == null || accessToken.isEmpty() || accessToken.isBlank()) {
                 LOGGER.error("→ GraphServiceClientAuthenticationProvider: Empty access token provided: {}", accessToken);
-                throw new IllegalArgumentException("Empty access token provided " + accessToken);
+                throw new IllegalArgumentException("Authentication failed: No valid access token was provided. Please sign in again.");
             }
 
             this.accessToken = accessToken;

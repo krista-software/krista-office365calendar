@@ -49,16 +49,16 @@ public class NumberedOccurrencesValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter a valid positive number (1-999) for the numbered occurrences.";
+        return "Please enter how many times the meeting should occur (between 1 and 999).";
     }
 
     @Override
     public String getConfirmationStepMessage(String occurrencesStr, Map<ValidationResource, String> context) {
-        return String.format("The provided numbered occurrences: %s is invalid. Please enter a positive number between 1 and 999.", occurrencesStr);
+        return String.format("The number '%s' is invalid. Please enter a whole number between 1 and 999 for the number of occurrences.", occurrencesStr);
     }
 
     @Override
     public String getErrMessage(String occurrencesStr) {
-        return String.format("Invalid numbered occurrences: %s. Must be a positive number between 1 and 999.", occurrencesStr);
+        return String.format("Invalid number of occurrences: '%s'. Please enter a whole number between 1 and 999.", occurrencesStr);
     }
 }

@@ -184,6 +184,9 @@ public final class Constants {
     public static final String CONFIRM_REENTER_GET_NEXT_UPCOMING_MEETINGS = "confirmReenterGetNextUpcomingMeetings";
     public static final String NUMBER_OF_MEETING = "Number of meeting";
 
+    // Allow Retry Feature Constant
+    public static final String ENABLE_ERROR_HANDLING = "Allow Retry";
+
     // Retry Configuration Constants
     public static final int DEFAULT_MAX_RETRY_ATTEMPTS = 3;
     public static final long DEFAULT_INITIAL_DELAY_MS = 1000L; // 1 second

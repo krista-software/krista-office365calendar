@@ -63,17 +63,17 @@ public class EventIdValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter a valid event ID. You can find this in your calendar event details.";
+        return "Please enter a valid Event ID. You can find the Event ID in your calendar event details or by using the 'Get Meetings' request.";
     }
 
     @Override
     public String getConfirmationStepMessage(String eventId, Map<ValidationResource, String> context) {
-        return String.format("The event with ID '%s' could not be found. Please verify the event ID is correct and that you have permission to access this event.", eventId);
+        return String.format("We couldn't find an event with ID '%s'. This event may not exist or you may not have access to it. Would you like to try a different Event ID?", eventId);
     }
 
     @Override
     public String getErrMessage(String eventId) {
-        return String.format("Event not found: %s. Please check the event ID and ensure you have access to this event.", eventId);
+        return String.format("Event ID '%s' not found. Please verify the Event ID and try again. Tip: Use 'Get Meetings' to view available events and their IDs.", eventId);
     }
 }
 
