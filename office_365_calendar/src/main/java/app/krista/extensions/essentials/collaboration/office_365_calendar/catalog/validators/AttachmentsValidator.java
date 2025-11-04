@@ -113,16 +113,16 @@ public class AttachmentsValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please attach files with valid extensions only. Supported formats: PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR.";
+        return "Please attach files with supported formats. Supported: Documents (PDF, DOC, DOCX, RTF, TXT), Spreadsheets (XLS, XLSX, CSV), Presentations (PPT, PPTX), Images (PNG, JPG, JPEG, GIF, BMP, TIF, TIFF), Archives (ZIP, RAR).";
     }
 
     @Override
     public String getConfirmationStepMessage(String attachmentsStr, Map<ValidationResource, String> context) {
-        return "Please attach files with valid extensions only. Supported formats: PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR.";
+        return "One or more files have unsupported formats. Would you like to attach different files? Supported formats: Documents (PDF, DOC, DOCX, RTF, TXT), Spreadsheets (XLS, XLSX, CSV), Presentations (PPT, PPTX), Images (PNG, JPG, JPEG, GIF, BMP, TIF, TIFF), Archives (ZIP, RAR).";
     }
 
     @Override
     public String getErrMessage(String attachmentsStr) {
-        return String.format("Invalid attachments: %s. Only files with supported extensions are allowed (PDF, DOC, DOCX, RTF, TXT, XLS, XLSX, CSV, PPT, PPTX, PNG, JPG, JPEG, GIF, BMP, TIF, TIFF, ZIP, RAR).", attachmentsStr);
+        return "Invalid file attachments. Please use supported file formats: Documents (PDF, DOC, DOCX, RTF, TXT), Spreadsheets (XLS, XLSX, CSV), Presentations (PPT, PPTX), Images (PNG, JPG, JPEG, GIF, BMP, TIF, TIFF), Archives (ZIP, RAR).";
     }
 }

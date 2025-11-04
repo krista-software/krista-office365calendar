@@ -156,12 +156,38 @@ public class ExtensionResponseGenerator {
      * @return an {@link ExtensionResponse} informing all participants about the missing fields
      */
     public ExtensionResponse generateFetchDenyResponse(ExtensionResponse.Error.ExceptionType exceptionType, List<ValidationOrchestrator.ValidationResult> validationResults, String subCatalogRequestName, Map<String, Object> state) {
-        StringJoiner stepMessage = new StringJoiner(", ", "Updated value for ", " were not provided.");
+        StringJoiner stepMessage = new StringJoiner(", ", "The following required fields were not provided: ", ". Please provide these values to continue.");
         StringBuilder errMessage = new StringBuilder();
         for (ValidationOrchestrator.ValidationResult validationResult : validationResults) {
             stepMessage.add("'" + validationResult.fetchFieldName() + "'");
             errMessage.append(validationResult.errMessage()).append("\n");
         }
         return new ExtensionResponseBuilder().result(ExtensionResponse.Result.FAILURE).error(errMessage.toString(), exceptionType).remediationActions(List.of(RemediationActionFactory.createInformActionALLParticipants(stepMessage.toString(), List.of())), subCatalogRequestName).state(state).build();
+    }
+
+    /**
+     * Generates a direct validation error response without retry option.
+     * This method is used when the "Allow Retry" feature is disabled. It returns a simple
+     * error message without remediation actions, preventing the interactive retry flow.
+     *
+     * @param validationResults a list of validation results indicating what failed
+     * @return an {@link ExtensionResponse} with a direct error message without retry prompts
+     */
+    public ExtensionResponse generateValidationErrorResponse(List<ValidationOrchestrator.ValidationResult> validationResults) {
+        LOGGER.info("→ Generating direct validation error response (no retry) for {} validation results", validationResults.size());
+
+        // Build error message from validation results
+        StringBuilder errMessage = new StringBuilder();
+        for (ValidationOrchestrator.ValidationResult result : validationResults) {
+            errMessage.append(result.errMessage()).append("\n");
+            LOGGER.debug("→ Validation error: {}", result.errMessage());
+        }
+        // Return simple failure response without remediation
+        ExtensionResponse response = new ExtensionResponseBuilder()
+                .result(ExtensionResponse.Result.FAILURE)
+                .error(errMessage.toString().trim(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR)
+                .build();
+        LOGGER.info("→ Direct validation error response generated successfully");
+        return response;
     }
 }

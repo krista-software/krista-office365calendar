@@ -33,16 +33,16 @@ public class ToDateValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please enter valid date range where 'From' date is before 'To' date.";
+        return "Please select an end date that is after or equal to the start date.";
     }
 
     @Override
     public String getConfirmationStepMessage(String dateRange, Map<ValidationResource, String> context) {
-        return "The provided date range is invalid. The 'From' date must be before the 'To' date. Please check your dates.";
+        return "The 'To' date must be after or equal to the 'From' date. Would you like to adjust your date range?";
     }
 
     @Override
     public String getErrMessage(String dateRange) {
-        return "Invalid date range: 'From' date must be before 'To' date.";
+        return "Invalid date range: The 'To' date must be after or equal to the 'From' date. Please select a valid date range.";
     }
 }

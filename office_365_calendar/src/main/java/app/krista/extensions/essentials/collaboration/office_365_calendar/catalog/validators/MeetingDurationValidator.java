@@ -120,24 +120,24 @@ public class MeetingDurationValidator implements Validator {
 
     @Override
     public String getFetchStepMessage() {
-        return "Please provide a valid meeting duration in format like '30M' (30 minutes), '1H' (1 hour), or '2H30M' (2 hours 30 minutes). Duration must be between 15 minutes and 8 hours.";
+        return "Please enter the meeting duration. Examples: '30M' for 30 minutes, '1H' for 1 hour, or '2H30M' for 2 hours 30 minutes. Duration must be between 15 minutes and 8 hours.";
     }
 
     @Override
     public String getConfirmationStepMessage(String meetingDuration, Map<ValidationResource, String> context) {
         if (meetingDuration == null || meetingDuration.trim().isEmpty()) {
-            return "Meeting duration is not specified. Please provide a valid duration in format like '30M', '1H', or '2H30M'.";
+            return "Meeting duration is required. Would you like to enter a duration? Examples: '30M' for 30 minutes, '1H' for 1 hour, or '2H30M' for 2 hours 30 minutes.";
         }
-        
-        return "The meeting duration '" + meetingDuration + "' is invalid. Please provide a valid duration in format like '30M' (30 minutes), '1H' (1 hour), or '2H30M' (2 hours 30 minutes). Duration must be between 15 minutes and 8 hours.";
+
+        return "The duration '" + meetingDuration + "' is invalid. Would you like to try again? Please use format like '30M' (30 minutes), '1H' (1 hour), or '2H30M' (2 hours 30 minutes). Duration must be between 15 minutes and 8 hours.";
     }
 
     @Override
     public String getErrMessage(String meetingDuration) {
         if (meetingDuration == null || meetingDuration.trim().isEmpty()) {
-            return "Invalid meeting duration: duration is required.";
+            return "Meeting duration is required. Please enter a valid duration.";
         }
-        
-        return "Invalid meeting duration format: '" + meetingDuration + "'. Expected format like '30M', '1H', or '2H30M'. Duration must be between 15 minutes and 8 hours.";
+
+        return "Invalid duration format: '" + meetingDuration + "'. Please use format like '30M', '1H', or '2H30M'. Duration must be between 15 minutes and 8 hours.";
     }
 }

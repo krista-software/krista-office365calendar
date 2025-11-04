@@ -36,5 +36,6 @@
   * [Get Attachments For A Given User](pages/GetAttachmentsForAGivenUser.md)
 
 * **Additional Resources**
+  * [Error Messages](pages/ErrorMessages.md)
   * [Release Notes](pages/releaseNotes.md)
 
