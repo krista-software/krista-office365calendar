@@ -96,7 +96,7 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 
 ### Extension Information
 
-- **Version**: 2.0.20
+- **Version**: 2.0.21
 - **Krista Service APIs Java**: 1.0.115
 - **Global Catalog Version**: GC-2025.11.1
 
