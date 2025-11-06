@@ -1,6 +1,6 @@
 # Release Notes - Office 365 Calendar Extension
 
-## Version 2.0.19
+## Version 2.0.21
 **Release Date**: October 19, 2025
 
 ### What's New
