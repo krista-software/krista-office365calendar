@@ -237,8 +237,7 @@ public final class GraphServiceClientProvider {
         if (userId.startsWith(Constants.WS_CONTACT)) {
             return userId;
         } else {
-            String key = userId + Constants.UNDER_SCORE + office365CalendarAttributes.getClientId() + Constants.UNDER_SCORE + office365CalendarAttributes.getAuthType();
-            return key;
+            return userId + Constants.UNDER_SCORE + office365CalendarAttributes.getClientId() + Constants.UNDER_SCORE + office365CalendarAttributes.getAuthType();
         }
     }
 
@@ -251,8 +250,7 @@ public final class GraphServiceClientProvider {
      * @return a configured GraphServiceClient instance
      */
     public GraphServiceClient<Request> getGraphServiceClient(String userId, String refreshToken) {
-        GraphServiceClient<Request> result = getGraphServiceClient(userId, refreshToken, RetryConfiguration.defaultConfiguration());
-        return result;
+        return getGraphServiceClient(userId, refreshToken, RetryConfiguration.defaultConfiguration());
     }
 
     /**
@@ -515,7 +513,7 @@ public final class GraphServiceClientProvider {
             }
             LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
 
-            GraphServiceClient<Request> client = getGraphServiceClient(userId, refreshToken);
+            GraphServiceClient<Request> client = getGraphServiceClient(refreshTokenStoreKey, refreshToken);
             LOGGER.debug("→ getGraphServiceClientForUsers: Successfully created GraphServiceClient for userId: {}", userId);
             return client;
         } catch (RuntimeException cause) {

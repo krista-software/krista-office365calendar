@@ -1,9 +1,10 @@
 # Release Notes - Office 365 Calendar Extension
 
-## Version 2.0.21
+## Version 2.0.22
 **Release Date**: October 19, 2025
 
 ### What's New
+- Fixed reauthentication issues (KE-2729)
 - Fixed incorrect callback URL format in documentation
 - Corrected broken image links in setup guides
 - Updated Microsoft Entra ID configuration instructions
