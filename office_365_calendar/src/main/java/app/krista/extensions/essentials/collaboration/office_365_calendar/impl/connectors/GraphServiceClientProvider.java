@@ -215,15 +215,14 @@ public final class GraphServiceClientProvider {
             String userId = getUserId(useEmail);
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
             LOGGER.debug("→ Retrieved userId: {}", userId);
-            String s = refreshTokenStore.get(refreshTokenStoreKey);
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
-                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
+                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", refreshTokenStoreKey);
                 throw createMustAuthorizationException(refreshTokenStoreKey, false);
             }
-            LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
+            LOGGER.debug("→ Retrieved refresh token for userId: {}", refreshTokenStoreKey);
 
-            GraphServiceClient<Request> client = getGraphServiceClient(userId, refreshToken);
+            GraphServiceClient<Request> client = getGraphServiceClient(refreshTokenStoreKey, refreshToken);
             LOGGER.debug("→ getGraphServiceClient(useEmail={}): Successfully created GraphServiceClient for userId: {}", useEmail, userId);
             return client;
         } catch (RuntimeException cause) {
@@ -504,17 +503,17 @@ public final class GraphServiceClientProvider {
         try {
             String userId = getUserId(useEmail);
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
-            LOGGER.debug("→ Retrieved userId: {}", userId);
+            LOGGER.debug("→ Retrieved userId: {}", refreshTokenStoreKey);
             LOGGER.info("getGraphServiceClientForUsers method - calling refreshTokenStore.getAllKeyValuePairsAsString()");
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
-                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", userId);
+                LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", refreshTokenStoreKey);
                 throw createMustAuthorizationException(refreshTokenStoreKey, false);
             }
-            LOGGER.debug("→ Retrieved refresh token for userId: {}", userId);
+            LOGGER.debug("→ Retrieved refresh token for userId: {}", refreshTokenStoreKey);
 
             GraphServiceClient<Request> client = getGraphServiceClient(refreshTokenStoreKey, refreshToken);
-            LOGGER.debug("→ getGraphServiceClientForUsers: Successfully created GraphServiceClient for userId: {}", userId);
+            LOGGER.debug("→ getGraphServiceClientForUsers: Successfully created GraphServiceClient for userId: {}", refreshTokenStoreKey);
             return client;
         } catch (RuntimeException cause) {
             LOGGER.error("→ getGraphServiceClientForUsers: Runtime exception occurred - {}", cause.getMessage(), cause);
