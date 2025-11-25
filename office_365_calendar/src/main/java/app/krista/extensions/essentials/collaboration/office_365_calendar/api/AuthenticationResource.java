@@ -299,8 +299,7 @@ public final class AuthenticationResource {
         LOGGER.info("→ testConnection: Processing test connection request");
 
         Office365CalendarAttributes office365CalendarAttributes = Office365CalendarAttributes.create(authPayload, baseRoutingUrl);
-        String result = testConnectionService.testConnection(office365CalendarAttributes);
-        return result;
+        return testConnectionService.testConnection(office365CalendarAttributes);
     }
 
     /**
