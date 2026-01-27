@@ -156,23 +156,23 @@ public class MeetingDaoImpl implements MeetingDao {
      */
     @Override
     public Meeting getMeetingById(String id) throws IOException {
-        Meeting meeting = null;
-        try {
-            LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
-            Validators.validateString(id, Constants.MEETING_ID);
-            LOGGER.debug("→ Meeting ID validation passed");
+        LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
+        Validators.validateString(id, Constants.MEETING_ID);
+        LOGGER.debug("→ Meeting ID validation passed");
 
+        try {
             Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
             LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
-             meeting = new MeetingImpl(event);
             LOGGER.info("→ getMeetingById: Successfully retrieved meeting: {}", event.subject);
-        }catch(Exception e)
-        {
-            return meeting;
+            return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ getMeetingById: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
+            return null;
         }
-
-
-        return meeting;
     }
 
     /**
@@ -189,12 +189,19 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(id, Constants.MEETING_ID);
         LOGGER.debug("→ Meeting ID validation passed");
 
-        Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
-        LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
-
-        Meeting meeting = new MeetingImpl(event);
-        LOGGER.info("→ getMeetingByIdDelegated: Successfully retrieved meeting: {}", event.subject);
-        return meeting;
+        try {
+            Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
+            LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+            LOGGER.info("→ getMeetingByIdDelegated: Successfully retrieved meeting: {}", event.subject);
+            return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ getMeetingByIdDelegated: Event with ID {} not found or error occurred for delegate {} ({}), returning null", id, delegateEmail, errorMessage);
+            return null;
+        }
     }
 
     /**
@@ -925,13 +932,19 @@ public class MeetingDaoImpl implements MeetingDao {
             CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(delegateEmail);
             Event event = calendarRequestBuilderDelegated.events(id).buildRequest().get();
             calendarRequestBuilderDelegated.events(id).buildRequest().delete();
+            LOGGER.info("→ cancelMeeting(delegated): Successfully cancelled meeting for delegate {}", delegateEmail);
             return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ cancelMeeting(delegated): Event with ID {} not found or error occurred for delegate {} ({}), returning null", id, delegateEmail, errorMessage);
+            return null;
         } catch (ClientException | IOException cause) {
-            LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
-           // throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
-
+            LOGGER.info("→ cancelMeeting(delegated): Error occurred - {}, returning null", cause.getMessage());
+            return null;
         }
-        return new MeetingImpl(new Event());
     }
 
     // Overload: update in organizer's delegated calendar
@@ -1060,9 +1073,16 @@ public class MeetingDaoImpl implements MeetingDao {
 
             LOGGER.info("→ cancelMeeting: Successfully cancelled meeting: {}", event.subject);
             return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ cancelMeeting: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
+            return null;
         } catch (ClientException | IOException cause) {
-            LOGGER.error("→ cancelMeeting: Failed to cancel meeting with ID: {} - {}", id, cause.getMessage(), cause);
-            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+            LOGGER.info("→ cancelMeeting: Error occurred - {}, returning null", cause.getMessage());
+            return null;
         }
     }
 

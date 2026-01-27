@@ -1,5 +1,10 @@
 # Release Notes - Office 365 Calendar Extension
 
+## Version 2.0.24
+**Release Date**: January, 2026
+**Global Catalog Version**: GC-2026.1.4
+### What's New
+**[KE-2893](https://antbrains.atlassian.net/browse/KE-2893)** Enhance O365 Calendar extension to return NULL when EventID is not found (instead of error)
 ## Version 2.0.23
 **Release Date**: October 19, 2025
 
