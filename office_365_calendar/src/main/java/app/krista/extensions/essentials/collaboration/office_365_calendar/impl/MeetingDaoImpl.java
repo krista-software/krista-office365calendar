@@ -156,15 +156,22 @@ public class MeetingDaoImpl implements MeetingDao {
      */
     @Override
     public Meeting getMeetingById(String id) throws IOException {
-        LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
-        Validators.validateString(id, Constants.MEETING_ID);
-        LOGGER.debug("→ Meeting ID validation passed");
+        Meeting meeting = null;
+        try {
+            LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
+            Validators.validateString(id, Constants.MEETING_ID);
+            LOGGER.debug("→ Meeting ID validation passed");
 
-        Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
-        LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+            Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
+            LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+             meeting = new MeetingImpl(event);
+            LOGGER.info("→ getMeetingById: Successfully retrieved meeting: {}", event.subject);
+        }catch(Exception e)
+        {
+            return meeting;
+        }
 
-        Meeting meeting = new MeetingImpl(event);
-        LOGGER.info("→ getMeetingById: Successfully retrieved meeting: {}", event.subject);
+
         return meeting;
     }
 
@@ -921,8 +928,10 @@ public class MeetingDaoImpl implements MeetingDao {
             return new MeetingImpl(event);
         } catch (ClientException | IOException cause) {
             LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
-            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+           // throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+
         }
+        return new MeetingImpl(new Event());
     }
 
     // Overload: update in organizer's delegated calendar

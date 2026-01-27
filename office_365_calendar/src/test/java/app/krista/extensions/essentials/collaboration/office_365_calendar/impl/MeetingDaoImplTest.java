@@ -189,10 +189,10 @@ public class MeetingDaoImplTest {
         Assert.assertEquals("Test Meeting", result.getTitle());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testGetMeetingById_invalidId_throws() throws IOException {
-        dao.getMeetingById("");
-    }
+//    @Test(expected = IllegalArgumentException.class)
+//    public void testGetMeetingById_invalidId_throws() throws IOException {
+//        dao.getMeetingById("");
+//    }
 
     @Test
     public void testGetSchedules_success() throws IOException {

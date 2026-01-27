@@ -98,18 +98,15 @@ public final class MeetingsArea {
             LOGGER.debug("→ Created validation parameters map");
 
             // Add delegate email to validation context if provided
-            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
-                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
-            }
+//            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+//                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
+//                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+//            }
 
-            // Validate Event ID (required)
-            if (eventId != null && !eventId.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
-                LOGGER.debug("→ Added EVENT_ID to validation parameters");
-            } else {
-                LOGGER.warn("→ Event ID is null or empty");
-            }
+            // Note: Event ID validation is intentionally skipped for cancelEvent
+            // We want to allow non-existent Event IDs and return null instead of validation errors
+            // This allows users to handle missing events gracefully in their workflows
+            LOGGER.debug("→ Event ID validation skipped - will handle non-existent events by returning null");
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
@@ -120,8 +117,15 @@ public final class MeetingsArea {
                 // Validation passed, perform the cancel event operation
                 LOGGER.debug("→ Validation passed, proceeding with event cancellation");
                 Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
-                LOGGER.debug("→ Event cancelled successfully via DAO");
 
+                if (cancelledMeeting == null) {
+                    LOGGER.info("→ cancelEvent: Event with ID {} not found, returning success with null Event Details", eventId);
+                    telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime,
+                            safeTagMap("event_id", eventId, "event_found", "false"));
+                    return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, new EventDetails())).build();
+                }
+
+                LOGGER.debug("→ Event cancelled successfully via DAO");
                 EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
                 LOGGER.debug("→ Converted cancelled meeting to EventDetails");
 
@@ -1479,10 +1483,10 @@ public final class MeetingsArea {
             // Validate input parameters
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
-            // Validate Event ID (required)
-            if (eventID != null && !eventID.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
-            }
+            // Note: Event ID validation is intentionally skipped for getEvent
+            // We want to allow non-existent Event IDs and return null instead of validation errors
+            // This allows users to handle missing events gracefully in their workflows
+            LOGGER.debug("→ Event ID validation skipped - will handle non-existent events by returning null");
 
             // Validate input parameters using dynamic field attribute extraction
             List<ValidationOrchestrator.ValidationResult> validationResults =
@@ -1493,6 +1497,14 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get event operation
                 Meeting meeting = meetingDao.getMeetingById(eventID);
+                if(meeting==null)
+                {
+                    LOGGER.info("→ getEvent: Event with ID {} not found, returning success with null Event Details", eventID);
+                    telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
+                            safeTagMap("event_id", eventID, "event_found", "false"));
+                    return new ExtensionResponseBuilder().success(Map.of("Event Details",new EventDetails() )).build();
+
+                }
                 EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
                 telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
                         safeTagMap("event_id", eventID));
