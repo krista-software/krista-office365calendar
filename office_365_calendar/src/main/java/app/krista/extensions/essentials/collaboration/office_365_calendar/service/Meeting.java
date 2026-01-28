@@ -65,4 +65,6 @@ public interface Meeting {
      * @return meeting organizer's email
      */
     String getOrganizer();
+
+
 }

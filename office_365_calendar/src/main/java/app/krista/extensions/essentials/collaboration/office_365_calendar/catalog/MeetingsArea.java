@@ -22,10 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.TelemetryHelper.safeTagMap;
@@ -90,48 +90,54 @@ public final class MeetingsArea {
                     attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}, allowRetry: {}", eventId, allowRetry);
+        if (Boolean.TRUE.equals(allowRetry)) {
+            try {
 
-        try {
-            telemetryHelper.incrementCount("office365Calendar.cancelEvent");
-            // Validate input parameters
-            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
-            LOGGER.debug("→ Created validation parameters map");
+                telemetryHelper.incrementCount("office365Calendar.cancelEvent");
+                // Validate input parameters
+                Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+                LOGGER.debug("→ Created validation parameters map");
 
-            // Add delegate email to validation context if provided
-            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
-                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
-            }
+                // Add delegate email to validation context if provided
+                if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
+                    validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
+                    LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
+                }
 
-            // Validate Event ID (required)
-            if (eventId != null && !eventId.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
-                LOGGER.debug("→ Added EVENT_ID to validation parameters");
-            } else {
-                LOGGER.warn("→ Event ID is null or empty");
-            }
+                // Validate Event ID (required)
+                if (eventId != null && !eventId.trim().isEmpty()) {
+                    validationParams.put(Validator.ValidationResource.EVENT_ID, eventId);
+                    LOGGER.debug("→ Added EVENT_ID to validation parameters");
+                } else {
+                    LOGGER.warn("→ Event ID is null or empty");
+                }
 
-            // Validate input parameters using dynamic field attribute extraction
-            List<ValidationOrchestrator.ValidationResult> validationResults =
-                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "cancelEvent");
-            LOGGER.debug("→ Validation completed with {} results", validationResults.size());
+                // Validate input parameters using dynamic field attribute extraction
+                List<ValidationOrchestrator.ValidationResult> validationResults =
+                        validationOrchestrator.validate(validationParams, MeetingsArea.class, "cancelEvent");
+                LOGGER.debug("→ Validation completed with {} results", validationResults.size());
 
-            if (validationResults.isEmpty()) {
-                // Validation passed, perform the cancel event operation
-                LOGGER.debug("→ Validation passed, proceeding with event cancellation");
-                Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
-                LOGGER.debug("→ Event cancelled successfully via DAO");
+                if (validationResults.isEmpty()) {
+                    // Validation passed, perform the cancel event operation
+                    LOGGER.debug("→ Validation passed, proceeding with event cancellation");
+                    Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
 
-                EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
-                LOGGER.debug("→ Converted cancelled meeting to EventDetails");
+                    if (cancelledMeeting == null) {
+                        LOGGER.info("→ cancelEvent: Event with ID {} not found, returning success with null Event Details", eventId);
+                        telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime,
+                                safeTagMap("event_id", eventId, "event_found", "false"));
+                        return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, new EventDetails())).build();
+                    }
 
-                LOGGER.info("→ cancelEvent: Successfully cancelled event: {}", eventId);
-                telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
-                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
-            } else {
-                // Check allowRetry flag
-                if (Boolean.TRUE.equals(allowRetry)) {
-                    LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
+                    LOGGER.debug("→ Event cancelled successfully via DAO");
+
+                    EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+                    LOGGER.debug("→ Converted cancelled meeting to EventDetails");
+
+                    LOGGER.info("→ cancelEvent: Successfully cancelled event: {}", eventId);
+                    telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
+                    return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
+                } else {
                     LOGGER.warn("→ Validation failed with {} errors, storing state for confirmation", validationResults.size());
                     String stateId = UUID.randomUUID().toString();
                     LOGGER.debug("→ Generated state ID: {}", stateId);
@@ -152,23 +158,36 @@ public final class MeetingsArea {
                     LOGGER.debug("→ Generated confirmation response for validation errors");
                     telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
                     return response;
-                } else {
-                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
-                    telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId, "validation_count", String.valueOf(validationResults.size())));
-                    return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
+            } catch (Exception cause) {
+                LOGGER.error("→ cancelEvent: Exception occurred - {}", cause.getMessage(), cause);
+                telemetryHelper.recordError("office365Calendar.cancelEvent", startTime, cause, safeTagMap("event_id", eventId));
+                ExtensionResponse.Error error = new ExtensionResponse.Error(
+                        "Error occurred in cancel event: " + cause.getMessage(),
+                        System.currentTimeMillis(),
+                        ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                        ""
+                );
+                LOGGER.debug("→ Created error response for exception");
+                return new ExtensionResponseBuilder().failure(error).build();
             }
-        } catch (Exception cause) {
-            LOGGER.error("→ cancelEvent: Exception occurred - {}", cause.getMessage(), cause);
-            telemetryHelper.recordError("office365Calendar.cancelEvent", startTime, cause, safeTagMap("event_id", eventId));
-            ExtensionResponse.Error error = new ExtensionResponse.Error(
-                    "Error occurred in cancel event: " + cause.getMessage(),
-                    System.currentTimeMillis(),
-                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
-                    ""
-            );
-            LOGGER.debug("→ Created error response for exception");
-            return new ExtensionResponseBuilder().failure(error).build();
+        } else {
+            Meeting cancelledMeeting = meetingDao.cancelMeeting(eventId, delegateEmail);
+
+            if (cancelledMeeting == null) {
+                LOGGER.info("→ cancelEvent: Event with ID {} not found, returning success with null Event Details", eventId);
+                telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime,
+                        safeTagMap("event_id", eventId, "event_found", "false"));
+                return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, new EventDetails())).build();
+            }
+            LOGGER.debug("→ Event cancelled successfully via DAO");
+
+            EventDetails eventDetails = CatalogTypes.fromEvent(cancelledMeeting);
+            LOGGER.debug("→ Converted cancelled meeting to EventDetails");
+
+            LOGGER.info("→ cancelEvent: Successfully cancelled event: {}", eventId);
+            telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
+            return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
         }
     }
 
@@ -1472,34 +1491,40 @@ public final class MeetingsArea {
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
                     attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
         long startTime = System.currentTimeMillis();
-        try {
-            telemetryHelper.incrementCount("office365Calendar.getEvent");
-            LOGGER.info("getEvent: eventID={}, allowRetry: {}", eventID, allowRetry);
+        if (Boolean.TRUE.equals(allowRetry)) {
+            try {
+                telemetryHelper.incrementCount("office365Calendar.getEvent");
+                LOGGER.info("getEvent: eventID={}, allowRetry: {}", eventID, allowRetry);
 
-            // Validate input parameters
-            Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
+                // Validate input parameters
+                Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
 
-            // Validate Event ID (required)
-            if (eventID != null && !eventID.trim().isEmpty()) {
-                validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
-            }
+                // Validate Event ID (required)
+                if (eventID != null && !eventID.trim().isEmpty()) {
+                    validationParams.put(Validator.ValidationResource.EVENT_ID, eventID);
+                }
 
-            // Validate input parameters using dynamic field attribute extraction
-            List<ValidationOrchestrator.ValidationResult> validationResults =
-                    validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEvent");
+                // Validate input parameters using dynamic field attribute extraction
+                List<ValidationOrchestrator.ValidationResult> validationResults =
+                        validationOrchestrator.validate(validationParams, MeetingsArea.class, "getEvent");
 
-            LOGGER.debug("First Validation Result: {}", validationResults);
+                LOGGER.debug("First Validation Result: {}", validationResults);
 
-            if (validationResults.isEmpty()) {
-                // Validation passed, perform the get event operation
-                Meeting meeting = meetingDao.getMeetingById(eventID);
-                EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
-                telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
-                        safeTagMap("event_id", eventID));
-                return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-            } else {
-                // Check allowRetry flag
-                if (Boolean.TRUE.equals(allowRetry)) {
+                if (validationResults.isEmpty()) {
+                    // Validation passed, perform the get event operation
+                    Meeting meeting = meetingDao.getMeetingById(eventID);
+                    if (meeting == null) {
+                        LOGGER.info("→ getEvent: Event with ID {} not found, returning success with null Event Details", eventID);
+                        telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
+                                safeTagMap("event_id", eventID, "event_found", "false"));
+                        return new ExtensionResponseBuilder().success(Map.of("Event Details", new EventDetails())).build();
+
+                    }
+                    EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+                    telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
+                            safeTagMap("event_id", eventID));
+                    return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
+                } else {
                     LOGGER.debug("→ Allow Retry is enabled, generating confirmation response");
                     // Store validation results and call confirmation SubCatalogRequest
                     String stateId = UUID.randomUUID().toString();
@@ -1515,24 +1540,33 @@ public final class MeetingsArea {
                                     Constants.EVENT_ID_FIELD, eventID != null ? eventID : ""));
                     telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime, safeTagMap("event_id", eventID));
                     return response;
-                } else {
-                    LOGGER.debug("→ Allow Retry is disabled, returning direct validation error");
-                    telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
-                            safeTagMap("event_id", eventID, "validation_count", String.valueOf(validationResults.size())));
-                    return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
+
+            } catch (Exception cause) {
+                LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
+                telemetryHelper.recordError("office365Calendar.getEvent", startTime, cause,
+                        safeTagMap("event_id", eventID));
+                ExtensionResponse.Error error = new ExtensionResponse.Error(
+                        "Error occurred in get event: " + cause.getMessage(),
+                        System.currentTimeMillis(),
+                        ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
+                        ""
+                );
+                return new ExtensionResponseBuilder().failure(error).build();
             }
-        } catch (Exception cause) {
-            LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
-            telemetryHelper.recordError("office365Calendar.getEvent", startTime, cause,
+        } else {
+            Meeting meeting = meetingDao.getMeetingById(eventID);
+            if (meeting == null) {
+                LOGGER.info("→ getEvent: Event with ID {} not found, returning success with null Event Details", eventID);
+                telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
+                        safeTagMap("event_id", eventID, "event_found", "false"));
+                return new ExtensionResponseBuilder().success(Map.of("Event Details", new EventDetails())).build();
+
+            }
+            EventDetails eventDetails = CatalogTypes.fromEvent(meeting);
+            telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
                     safeTagMap("event_id", eventID));
-            ExtensionResponse.Error error = new ExtensionResponse.Error(
-                    "Error occurred in get event: " + cause.getMessage(),
-                    System.currentTimeMillis(),
-                    ExtensionResponse.Error.ExceptionType.SYSTEM_ERROR,
-                    ""
-            );
-            return new ExtensionResponseBuilder().failure(error).build();
+            return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
         }
     }
 
@@ -1827,4 +1861,65 @@ public final class MeetingsArea {
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
+
+    @CatalogRequest(
+            id = "localDomainRequest_a9483149-0a01-4f0f-b7a8-5ed475dc5571",
+            name = "Check Public Auth Expiry",
+            area = "Meetings",
+            description = "Checks if public authentication is expiring within one month",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Boolean(name = "Success", required = false)
+    @Field.Text(name = "Message", required = true, attributes = {
+            @Attribute(name = "visualWidth", value = "S")}, options = {})
+
+    public ExtensionResponse checkPublicAuthExpiry() {
+
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            String expiryDateStr = meetingDao.loadPublicConfig();
+
+            if (expiryDateStr == null || expiryDateStr.trim().isEmpty()) {
+                result.put("Success", false);
+                result.put("Message", "Expiry date is not configured");
+                return new ExtensionResponseBuilder().success(result).build();
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yyyy");
+            sdf.setLenient(false);
+
+            Date expiryDate = sdf.parse(expiryDateStr);
+
+            Calendar now = Calendar.getInstance();
+            Date currentDate = now.getTime();
+
+            Calendar oneMonthLater = Calendar.getInstance();
+            oneMonthLater.add(Calendar.MONTH, 1);
+            Date oneMonthFromNow = oneMonthLater.getTime();
+
+            boolean isExpiringSoon =
+                    !expiryDate.before(currentDate) &&
+                            !expiryDate.after(oneMonthFromNow);
+
+            result.put("Success", isExpiringSoon);
+            result.put(
+                    "Message",
+                    isExpiringSoon
+                            ? "Public authentication expires within one month"
+                            : "Public authentication is valid for more than one month"
+            );
+
+        } catch (Exception e) {
+            // Fail-safe behavior (no exception thrown)
+            result.put("Success", false);
+            result.put("Message", "Unable to determine public authentication expiry");
+        }
+
+        return new ExtensionResponseBuilder()
+                .success(result)
+                .build();
+    }
+
+
+
 }

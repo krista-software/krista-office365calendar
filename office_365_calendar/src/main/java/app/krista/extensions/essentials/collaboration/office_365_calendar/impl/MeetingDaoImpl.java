@@ -40,6 +40,7 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.Duration;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -155,23 +156,32 @@ public class MeetingDaoImpl implements MeetingDao {
      * @throws IOException if there is an error retrieving the event
      */
     @Override
-    public Meeting getMeetingById(String id) throws IOException {
+    public Meeting getMeetingById(String id) {
         LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
         Validators.validateString(id, Constants.MEETING_ID);
         LOGGER.debug("→ Meeting ID validation passed");
 
-        Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
-        LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
-
-        Meeting meeting = new MeetingImpl(event);
-        LOGGER.info("→ getMeetingById: Successfully retrieved meeting: {}", event.subject);
-        return meeting;
+        try {
+            Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
+            LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+            LOGGER.info("→ getMeetingById: Successfully retrieved meeting: {}", event.subject);
+            return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ getMeetingById: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
      * Retrieves a meeting by its ID from the Office 365 calendar using delegated access.
      *
-     * @param id the Office 365 Calendar event ID
+     * @param id            the Office 365 Calendar event ID
      * @param delegateEmail email of the user to delegate to, can be null or blank for current user
      * @return the Meeting object for the specified event
      * @throws IOException if there is an error retrieving the event
@@ -182,12 +192,19 @@ public class MeetingDaoImpl implements MeetingDao {
         Validators.validateString(id, Constants.MEETING_ID);
         LOGGER.debug("→ Meeting ID validation passed");
 
-        Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
-        LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
-
-        Meeting meeting = new MeetingImpl(event);
-        LOGGER.info("→ getMeetingByIdDelegated: Successfully retrieved meeting: {}", event.subject);
-        return meeting;
+        try {
+            Event event = getCalendarRequestBuilderDelegated(delegateEmail).events(id).buildRequest().get();
+            LOGGER.debug("→ Retrieved event from Graph API: {}", event.subject);
+            LOGGER.info("→ getMeetingByIdDelegated: Successfully retrieved meeting: {}", event.subject);
+            return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.info("→ getMeetingByIdDelegated: Event with ID {} not found or error occurred for delegate {} ({}), returning null", id, delegateEmail, errorMessage);
+            return null;
+        }
     }
 
     /**
@@ -718,7 +735,6 @@ public class MeetingDaoImpl implements MeetingDao {
             }
 
 
-
             LOGGER.info("→ addMeeting: Successfully scheduled meeting '{}' with ID: {}", title, newEvent.id);
             return new MeetingImpl(newEvent);
         } catch (GraphServiceException | IOException cause) {
@@ -756,8 +772,6 @@ public class MeetingDaoImpl implements MeetingDao {
             throw new IllegalStateException(Constants.FAILED_TO_SCHEDULE_MEETING + cause.getMessage());
         }
     }
-
-
 
 
     /**
@@ -918,10 +932,18 @@ public class MeetingDaoImpl implements MeetingDao {
             CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(delegateEmail);
             Event event = calendarRequestBuilderDelegated.events(id).buildRequest().get();
             calendarRequestBuilderDelegated.events(id).buildRequest().delete();
+            LOGGER.info("→ cancelMeeting(delegated): Successfully cancelled meeting for delegate {}", delegateEmail);
             return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.error("→ cancelMeeting(delegated): Event with ID {} not found or error occurred for delegate {} ({}), returning null", id, delegateEmail, errorMessage);
+            return null;
         } catch (ClientException | IOException cause) {
-            LOGGER.error("→ cancelMeeting(delegated): Failed - {}", cause.getMessage(), cause);
-            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+            LOGGER.error("→ cancelMeeting(delegated): Error occurred - {}, returning null", cause.getMessage());
+            return null;
         }
     }
 
@@ -941,7 +963,8 @@ public class MeetingDaoImpl implements MeetingDao {
             CalendarRequestBuilder calendarRequestBuilderDelegated = getCalendarRequestBuilderDelegated(organizerEmail);
             Event oldEvent = calendarRequestBuilderDelegated.events(id)
                     .buildRequest()
-                    .get();;
+                    .get();
+            ;
 
             SimpleDateFormat sfd = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
             Date date = sfd.parse(Objects.requireNonNull(Objects.requireNonNull(oldEvent).start).dateTime);
@@ -1051,9 +1074,16 @@ public class MeetingDaoImpl implements MeetingDao {
 
             LOGGER.info("→ cancelMeeting: Successfully cancelled meeting: {}", event.subject);
             return new MeetingImpl(event);
+        } catch (GraphServiceException e) {
+            String errorMessage = "";
+            if (e.getError() != null && e.getError().error != null) {
+                errorMessage = e.getError().error.message;
+            }
+            LOGGER.error("→ cancelMeeting: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
+            return null;
         } catch (ClientException | IOException cause) {
-            LOGGER.error("→ cancelMeeting: Failed to cancel meeting with ID: {} - {}", id, cause.getMessage(), cause);
-            throw new IllegalStateException(Constants.FAILED_TO_CANCEL_EVENT + cause.getMessage());
+            LOGGER.error("→ cancelMeeting: Error occurred - {}, returning null", cause.getMessage());
+            return null;
         }
     }
 
@@ -1189,6 +1219,7 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ getCalendarRequestBuilder: Calendar request builder created successfully");
         return builder;
     }
+
     /**
      * Creates a calendar request builder for delegated operations.
      * If delegateEmail is provided and not blank, creates a delegated request builder for that user.
@@ -1248,15 +1279,14 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
 
-
     public ExtensionResponse getAttachmentsForAuthenticatedUserWithErrorHandling(String eventID, ValidationOrchestrator validationOrchestrator, CatalogTypes catalogTypes, ErrorHandlingStateManager errorHandlingStateManager) {
         String message = "The information provided is not valid. " + Constants.FAILED_TO_GET_EVENT_ATTACHMENTS;
         ExtensionResponse.Error error = new ExtensionResponse.Error(message, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, "MeetingDaoImpl -> getAttachmentsForAuthenticatedUserWithValidation");
         try {
             List<ValidationOrchestrator.ValidationResult> validationResults = validationOrchestrator.validate(
-                Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)),
-                app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
-                "getAttachmentsForAuthenticatedUser");
+                    Map.of(Validator.ValidationResource.EVENT_ID, Validators.getNullOrEmptyDefault(eventID)),
+                    app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.MeetingsArea.class,
+                    "getAttachmentsForAuthenticatedUser");
             if (validationResults.isEmpty()) {
                 List<FileAttachment> fileAttachments = getAttachmentsForAuthenticatedUser(eventID);
                 List<File> attachments = catalogTypes.toKristaFilList(fileAttachments);
@@ -1280,9 +1310,6 @@ public class MeetingDaoImpl implements MeetingDao {
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
-
-
-
 
 
     /**
@@ -1458,8 +1485,8 @@ public class MeetingDaoImpl implements MeetingDao {
      * Helper method to process event pages recursively with proper pagination handling
      *
      * @param eventCollection The current page of events
-     * @param currentUser The current user
-     * @param eventDetails The list to populate with meeting details
+     * @param currentUser     The current user
+     * @param eventDetails    The list to populate with meeting details
      */
     private void processEventPages(EventCollectionPage eventCollection, User currentUser, List<Meeting> eventDetails) {
         if (eventCollection == null) {
@@ -1471,8 +1498,8 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ processEventPages: Processing page with {} events", eventCollection.getCurrentPage().size());
         for (Event event : eventCollection.getCurrentPage()) {
             if (currentUser != null &&
-                MeetingDaoHelper.isUpcomingEvent(event) &&
-                MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                    MeetingDaoHelper.isUpcomingEvent(event) &&
+                    MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
                 eventDetails.add(new MeetingImpl(event));
                 LOGGER.debug("→ Added unaccepted event: {}", event.subject);
             }
@@ -1494,5 +1521,15 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    public String loadPublicConfig() {
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(inputStream);
+            return properties.getProperty("public.expiryDate");
+
+        } catch (IOException cause) {
+            throw new RuntimeException("Failed to load public configuration file.", cause);
+        }
+    }
 
 }

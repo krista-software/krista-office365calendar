@@ -2,9 +2,31 @@ plugins {
     id 'java'
     id "com.github.node-gradle.node" version "3.1.0"
     id 'maven-publish'
+    id 'jacoco'
+    id("io.github.surpsg.code-lines") version "0.0.1"
+    id("org.sonarqube") version "6.3.1.5724"
 }
 
 apply plugin: 'java-library'
+
+codeLinesStat {
+    sourceFilters.skipBlankLines = true
+    fileExtensions = ['java']
+}
+
+sonar {
+    properties {
+        property("sonar.projectName", "SonarScanner for Krista Global Catalog (office365calendar with JaCoCo code coverage)")
+        property("sonar.projectKey", "sonar-scanner-office365calendar")
+        property("sonar.sources", "src/main/java")
+        property("sonar.tests", "src/test/java")
+        property("sonar.java.binaries", "build/classes/java/main")
+        property("sonar.java.test.binaries", "build/classes/java/test")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+        property("sonar.junit.reportPaths", "build/test-results/test")
+    }
+}
+
 group = 'app.krista.extensions.essentials.collaboration'
 
 /*
@@ -109,8 +131,6 @@ publishing {
 // Remove deprecated configuration modification
 
 test {
-
-
     // Add these settings to help diagnose test issues
     testLogging {
         events = ["passed", "skipped", "failed"]
@@ -125,6 +145,8 @@ test {
 
     // Increase memory if needed
     maxHeapSize = "1G"
+
+    finalizedBy jacocoTestReport // Generate coverage report after tests run
 }
 
 dependencies {
@@ -389,10 +411,31 @@ tasks.named('test') {
     dependsOn tasks.named('createMockitoExtensions')
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+    dependsOn test // Tests are required to run before generating the report
+    reports {
+        xml.required = true // Required for SonarQube
+        html.required = true // Nice to have for local viewing
+        csv.required = false
+    }
+}
+
+// Make sonar task depend on jacocoTestReport
+tasks.named('sonar') {
+    dependsOn jacocoTestReport
+}
+
 // Make sure the jar task doesn't depend on test
 tasks.named('jar') {
     // Remove dependency on test if it exists
     // Keep other dependencies
     dependsOn tasks.named('generateReleaseProperties')
     dependsOn tasks.named('buildAndCopyUI')
+    jar {
+        outputs.upToDateWhen { false }
+    }
 }
