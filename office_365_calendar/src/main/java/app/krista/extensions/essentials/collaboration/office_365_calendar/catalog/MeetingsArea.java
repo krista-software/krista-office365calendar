@@ -1877,7 +1877,7 @@ public final class MeetingsArea {
         Map<String, Object> result = new HashMap<>();
 
         try {
-            String expiryDateStr = loadPublicConfig();
+            String expiryDateStr = meetingDao.loadPublicConfig();
 
             if (expiryDateStr == null || expiryDateStr.trim().isEmpty()) {
                 result.put("Success", false);
@@ -1921,14 +1921,5 @@ public final class MeetingsArea {
     }
 
 
-    private String loadPublicConfig() {
-        Properties properties = new Properties();
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
-            properties.load(inputStream);
-            return properties.getProperty("public.expiryDate");
 
-        } catch (IOException cause) {
-            throw new RuntimeException("Failed to load public configuration file.", cause);
-        }
-    }
 }

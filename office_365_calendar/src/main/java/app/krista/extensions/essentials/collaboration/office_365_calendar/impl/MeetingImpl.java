@@ -3,11 +3,14 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import com.microsoft.graph.models.*;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 /**
  * Implementation of the {@link Meeting} interface that wraps a Microsoft Graph {@link Event} object.
@@ -105,4 +108,6 @@ public class MeetingImpl implements Meeting {
         }
         return null;
     }
+
+
 }

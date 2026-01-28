@@ -202,6 +202,14 @@ public final class Constants {
     public static final String USER_AUTHENTICATED_SUCCESSFULLY_SAVE_THE_CHANGES = "Authentication successful! Please save your changes to complete the setup.";
     public static final String EMPTY_STRING = "";
 
+    // Health Check and Setup Constants
+    public static final String SUCCESS = "SUCCESS";
+    public static final String SYSTEM_ERROR = "SYSTEM_ERROR";
+    public static final String INPUT_ERROR = "INPUT_ERROR";
+    public static final String REGEX_PATTERN = "^[a-zA-Z0-9_-]+$";
+    public static final java.time.Instant START_TIME = java.time.Instant.now();
+    public static final java.util.List<String> timeZones = java.util.Arrays.asList(java.util.TimeZone.getAvailableIDs());
+
     private Constants() {
     }
 }

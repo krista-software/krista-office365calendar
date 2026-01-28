@@ -232,4 +232,6 @@ public interface MeetingDao {
      * @return {@link List} of {@link Attachment}
      */
     List<FileAttachment> getAttachmentsForAuthenticatedUser(String eventId);
+
+    String  loadPublicConfig();
 }

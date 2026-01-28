@@ -40,6 +40,7 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.Duration;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -1520,5 +1521,15 @@ public class MeetingDaoImpl implements MeetingDao {
         }
     }
 
+    public String loadPublicConfig() {
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(inputStream);
+            return properties.getProperty("public.expiryDate");
+
+        } catch (IOException cause) {
+            throw new RuntimeException("Failed to load public configuration file.", cause);
+        }
+    }
 
 }

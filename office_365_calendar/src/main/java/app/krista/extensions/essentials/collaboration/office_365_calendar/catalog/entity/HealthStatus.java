@@ -1,0 +1,81 @@
+package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity;
+
+import app.krista.extension.impl.anno.*;
+
+@Domain(id = "catEntryDomain_5fa2fc97-4b17-44cf-b98f-aa91a459a091",
+        name = "Collaboration",
+        ecosystemId = "catEntryEcosystem_84b53163-327b-4b1b-8c96-9334d292f9f5",
+        ecosystemName = "Essentials",
+        ecosystemVersion = "2329f537-825e-4037-8a7e-cdc1f223419c")
+@Entity(name = "Health Status", id = "localDomainEntity_72b8095a-12e4-4b21-bfdd-f2009756081d", primaryKey = "Extension Name", supportStore = false, options = {})
+public class HealthStatus {
+
+    public HealthStatus() {
+    }
+
+    @Field.Text(name = "Extension Name", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Name of the extension reporting health status'")}, options = {})
+    public String extensionName;
+
+    @Field(name = "Current Memory Usage MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current memory usage in megabytes'")}, options = {})
+    public Double currentMemoryUsageMB;
+
+    @Field(name = "Available Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Available memory in megabytes'")}, options = {})
+    public Double availableMemoryMB;
+
+    @Field(name = "Total Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Total memory allocated in megabytes'")}, options = {})
+    public Double totalMemoryMB;
+
+    @Field(name = "CPU Usage Percentage", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current CPU usage as a percentage'")}, options = {})
+    public Double cPUUsagePercentage;
+
+    @Field(name = "Active Threads", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active threads'")}, options = {})
+    public Double activeThreads;
+
+    @Field(name = "Uptime Hours", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'System uptime in hours'")}, options = {})
+    public Double uptimeHours;
+
+    @Field.Text(name = "System Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Overall system status (HEALTHY, DEGRADED, UNHEALTHY)'")}, options = {})
+    public String systemStatus;
+
+    @Field.Text(name = "Database Connection Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Status of database connectivity'")}, options = {})
+    public String databaseConnectionStatus;
+
+    @Field(name = "Active Connections", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active database connections'")}, options = {})
+    public Double activeConnections;
+
+    @Field.Text(name = "Last Health Check Time", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Timestamp of the last health check'")}, options = {})
+    public String lastHealthCheckTime;
+
+    /**
+     * Builder method to populate HealthStatus with system metrics.
+     * This method allows fluent configuration of all health status fields.
+     *
+     * @param extensionName Name of the extension
+     * @param usedMemory Used memory in MB
+     * @param availableMemory Available memory in MB
+     * @param maxMemory Total memory in MB
+     * @param cpuUsage CPU usage percentage
+     * @param threadCount Number of active threads
+     * @param uptimeHours Uptime in hours
+     * @param systemStatus Overall system status
+     * @return This HealthStatus instance for method chaining
+     */
+    public HealthStatus buildWithMetrics(String extensionName, double usedMemory, double availableMemory,
+                                       double maxMemory, double cpuUsage, double threadCount,
+                                       double uptimeHours, String systemStatus) {
+        this.extensionName = extensionName;
+        this.currentMemoryUsageMB = usedMemory;
+        this.availableMemoryMB = availableMemory;
+        this.totalMemoryMB = maxMemory;
+        this.cPUUsagePercentage = cpuUsage;
+        this.activeThreads = threadCount;
+        this.uptimeHours = uptimeHours;
+        this.systemStatus = systemStatus;
+        this.databaseConnectionStatus = null;
+        this.activeConnections = null;
+        this.lastHealthCheckTime = String.valueOf(System.currentTimeMillis());
+        return this;
+    }
+
+}
+
