@@ -155,7 +155,7 @@ public class MeetingDaoImpl implements MeetingDao {
      * @throws IOException if there is an error retrieving the event
      */
     @Override
-    public Meeting getMeetingById(String id) throws IOException {
+    public Meeting getMeetingById(String id) {
         LOGGER.info("→ getMeetingById: Retrieving meeting with ID: {}", id);
         Validators.validateString(id, Constants.MEETING_ID);
         LOGGER.debug("→ Meeting ID validation passed");
@@ -171,6 +171,8 @@ public class MeetingDaoImpl implements MeetingDao {
                 errorMessage = e.getError().error.message;
             }
             LOGGER.info("→ getMeetingById: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
+            return null;
+        } catch (Exception e) {
             return null;
         }
     }
