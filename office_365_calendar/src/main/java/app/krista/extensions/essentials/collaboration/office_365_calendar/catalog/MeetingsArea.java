@@ -22,15 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.TelemetryHelper.safeTagMap;
@@ -1868,32 +1863,72 @@ public final class MeetingsArea {
     }
 
     @CatalogRequest(
-            id = "catEntryRequest_a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            id = "localDomainRequest_a9483149-0a01-4f0f-b7a8-5ed475dc5571",
             name = "Check Public Auth Expiry",
-            description = "Checks if public authentication is expiring within one month"
-    )
+            area = "Meetings",
+            description = "Checks if public authentication is expiring within one month",
+            type = CatalogRequest.Type.QUERY_SYSTEM)
+    @Field.Boolean(name = "Success", required = false)
+    @Field.Text(name = "Message", required = true, attributes = {
+            @Attribute(name = "visualWidth", value = "S")}, options = {})
+
     public ExtensionResponse checkPublicAuthExpiry() {
-        Properties props = new Properties();
-        InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties");
-        props.load(input);
 
-        String expiryDateStr = props.getProperty("public.expiryDate");
-        SimpleDateFormat sdf = new SimpleDateFormat("M/d/yyyy");
-        Date expiryDate = sdf.parse(expiryDateStr);
+        Map<String, Object> result = new HashMap<>();
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.MONTH, 1);
-        Date oneMonthFromNow = cal.getTime();
+        try {
+            String expiryDateStr = loadPublicConfig();
 
-        boolean isExpiringSoon = expiryDate.before(oneMonthFromNow);
-        String message = isExpiringSoon ?
-            "Public authentication expires within one month" :
-            "Public authentication is valid for more than one month";
+            if (expiryDateStr == null || expiryDateStr.trim().isEmpty()) {
+                result.put("Success", false);
+                result.put("Message", "Expiry date is not configured");
+                return new ExtensionResponseBuilder().success(result).build();
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yyyy");
+            sdf.setLenient(false);
+
+            Date expiryDate = sdf.parse(expiryDateStr);
+
+            Calendar now = Calendar.getInstance();
+            Date currentDate = now.getTime();
+
+            Calendar oneMonthLater = Calendar.getInstance();
+            oneMonthLater.add(Calendar.MONTH, 1);
+            Date oneMonthFromNow = oneMonthLater.getTime();
+
+            boolean isExpiringSoon =
+                    !expiryDate.before(currentDate) &&
+                            !expiryDate.after(oneMonthFromNow);
+
+            result.put("Success", isExpiringSoon);
+            result.put(
+                    "Message",
+                    isExpiringSoon
+                            ? "Public authentication expires within one month"
+                            : "Public authentication is valid for more than one month"
+            );
+
+        } catch (Exception e) {
+            // Fail-safe behavior (no exception thrown)
+            result.put("Success", false);
+            result.put("Message", "Unable to determine public authentication expiry");
+        }
 
         return new ExtensionResponseBuilder()
-            .success()
-            .withAttribute("Success", isExpiringSoon)
-            .withAttribute("Message", message)
-            .build();
+                .success(result)
+                .build();
+    }
+
+
+    private String loadPublicConfig() {
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
+            properties.load(inputStream);
+            return  properties.getProperty("public.expiryDate");
+
+        } catch (IOException cause) {
+            throw new RuntimeException("Failed to load public configuration file.", cause);
+        }
     }
 }

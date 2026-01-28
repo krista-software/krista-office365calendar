@@ -395,4 +395,7 @@ tasks.named('jar') {
     // Keep other dependencies
     dependsOn tasks.named('generateReleaseProperties')
     dependsOn tasks.named('buildAndCopyUI')
+    jar {
+        outputs.upToDateWhen { false }
+    }
 }
