@@ -1925,7 +1925,7 @@ public final class MeetingsArea {
         Properties properties = new Properties();
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.properties")) {
             properties.load(inputStream);
-            return  properties.getProperty("public.expiryDate");
+            return properties.getProperty("public.expiryDate");
 
         } catch (IOException cause) {
             throw new RuntimeException("Failed to load public configuration file.", cause);
