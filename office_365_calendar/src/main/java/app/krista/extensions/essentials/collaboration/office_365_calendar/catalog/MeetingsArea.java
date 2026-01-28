@@ -97,12 +97,6 @@ public final class MeetingsArea {
             Map<Validator.ValidationResource, String> validationParams = new HashMap<>();
             LOGGER.debug("→ Created validation parameters map");
 
-            // Add delegate email to validation context if provided
-//            if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
-//                validationParams.put(Validator.ValidationResource.DELEGATE_EMAIL, delegateEmail);
-//                LOGGER.debug("→ Added DELEGATE_EMAIL to validation parameters");
-//            }
-
             // Note: Event ID validation is intentionally skipped for cancelEvent
             // We want to allow non-existent Event IDs and return null instead of validation errors
             // This allows users to handle missing events gracefully in their workflows
@@ -1497,12 +1491,11 @@ public final class MeetingsArea {
             if (validationResults.isEmpty()) {
                 // Validation passed, perform the get event operation
                 Meeting meeting = meetingDao.getMeetingById(eventID);
-                if(meeting==null)
-                {
+                if (meeting == null) {
                     LOGGER.info("→ getEvent: Event with ID {} not found, returning success with null Event Details", eventID);
                     telemetryHelper.recordSuccess("office365Calendar.getEvent", startTime,
                             safeTagMap("event_id", eventID, "event_found", "false"));
-                    return new ExtensionResponseBuilder().success(Map.of("Event Details",new EventDetails() )).build();
+                    return new ExtensionResponseBuilder().success(Map.of("Event Details", new EventDetails())).build();
 
                 }
                 EventDetails eventDetails = CatalogTypes.fromEvent(meeting);

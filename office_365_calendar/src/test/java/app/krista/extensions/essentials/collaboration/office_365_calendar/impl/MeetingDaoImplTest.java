@@ -3,9 +3,6 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
-import app.krista.model.base.DateRange;
-import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.requests.*;
@@ -189,10 +186,10 @@ public class MeetingDaoImplTest {
         Assert.assertEquals("Test Meeting", result.getTitle());
     }
 
-//    @Test(expected = IllegalArgumentException.class)
-//    public void testGetMeetingById_invalidId_throws() throws IOException {
-//        dao.getMeetingById("");
-//    }
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetMeetingById_invalidId_throws() throws IOException {
+        dao.getMeetingById("");
+    }
 
     @Test
     public void testGetSchedules_success() throws IOException {
@@ -928,7 +925,7 @@ public class MeetingDaoImplTest {
             // Assert
             Assert.assertTrue("Expected message about empty attendees list",
                     e.getMessage().contains("Attendees list cannot be null or empty") ||
-                    e.getMessage().contains("attendees"));
+                            e.getMessage().contains("attendees"));
         } catch (Exception e) {
             // The actual implementation might throw different exception before validation
             Assert.assertTrue("Expected IllegalArgumentException or similar validation exception, got: " + e.getClass().getSimpleName(),
@@ -950,7 +947,7 @@ public class MeetingDaoImplTest {
             // Assert
             Assert.assertTrue("Expected message about null attendees list",
                     e.getMessage().contains("Attendees list cannot be null or empty") ||
-                    e.getMessage().contains("attendees"));
+                            e.getMessage().contains("attendees"));
         } catch (Exception e) {
             // The actual implementation might throw NullPointerException before validation
             Assert.assertTrue("Expected IllegalArgumentException or NullPointerException, got: " + e.getClass().getSimpleName(),
@@ -1588,8 +1585,8 @@ public class MeetingDaoImplTest {
             // Accept any exception related to invalid duration format
             Assert.assertTrue("Expected exception related to invalid duration, got: " + e.getClass().getSimpleName(),
                     e instanceof DatatypeConfigurationException ||
-                    e instanceof IllegalArgumentException ||
-                    e instanceof RuntimeException);
+                            e instanceof IllegalArgumentException ||
+                            e instanceof RuntimeException);
         }
     }
 
@@ -1605,7 +1602,7 @@ public class MeetingDaoImplTest {
         } catch (IllegalArgumentException e) {
             Assert.assertTrue("Expected message about null meeting duration",
                     e.getMessage().contains("Meeting duration cannot be null or empty") ||
-                    e.getMessage().contains("duration"));
+                            e.getMessage().contains("duration"));
         } catch (Exception e) {
             // The actual implementation might throw NullPointerException before validation
             Assert.assertTrue("Expected IllegalArgumentException or NullPointerException, got: " + e.getClass().getSimpleName(),
@@ -1625,7 +1622,7 @@ public class MeetingDaoImplTest {
         } catch (IllegalArgumentException e) {
             Assert.assertTrue("Expected message about empty meeting duration",
                     e.getMessage().contains("Meeting duration cannot be null or empty") ||
-                    e.getMessage().contains("duration"));
+                            e.getMessage().contains("duration"));
         } catch (Exception e) {
             // The actual implementation might throw NullPointerException before validation
             Assert.assertTrue("Expected IllegalArgumentException or NullPointerException, got: " + e.getClass().getSimpleName(),
