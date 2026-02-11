@@ -370,7 +370,7 @@ This guide provides a comprehensive reference for all error messages in the Offi
 If you continue to experience issues after following these troubleshooting steps:
 
 1. Check the [Release Notes](pages/releaseNotes.md) for known issues
-2. Review the specific operation documentation (e.g., [Schedule Meeting](ScheduleMeeting.md), [Get Events](GetEventsForAGivenUser.md))
+2. Review the specific operation documentation (e.g., [Schedule Meeting](pages/ScheduleMeeting.md), [Get Events](pages/GetEventsForAGivenUser.md))
 3. Contact your system administrator
 4. Reach out to Krista support with:
    - The exact error message
