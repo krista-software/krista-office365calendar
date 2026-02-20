@@ -2,10 +2,7 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar;
 
 import app.krista.extension.authorization.RequestAuthenticator;
 import app.krista.extension.executor.Invoker;
-import app.krista.extension.impl.anno.Extension;
-import app.krista.extension.impl.anno.InvokerRequest;
-import app.krista.extension.impl.anno.Java;
-import app.krista.extension.impl.anno.StaticResource;
+import app.krista.extension.impl.anno.*;
 import app.krista.extension.request.RoutingInfo;
 import app.krista.extension.request.protos.http.HttpProtocol;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
@@ -17,8 +14,9 @@ import javax.inject.Inject;
 import java.util.Map;
 
 @Java(version = Java.Version.JAVA_21)
-@Extension(version = "2.0.24", name = "Office 365 Calendar")
+@Extension(version = "2.0.25", name = "Office 365 Calendar")
 @StaticResource(path = "docs", file = "docs")
+@ChangeLog(file = "resources/docs/pages/releaseNotes.md")
 public final class Office365CalendarExtension {
 
     private final Office365CalendarRequestAuthenticator requestAuthenticator;

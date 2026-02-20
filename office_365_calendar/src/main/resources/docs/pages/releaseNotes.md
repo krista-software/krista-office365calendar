@@ -1,5 +1,9 @@
 # Release Notes - Office 365 Calendar Extension
-
+## Version 2.0.25
+**Release Date**: February, 2026
+**Global Catalog Version**: GC-2026.02.03
+### What's New
+**Added change log support
 ## Version 2.0.24
 **Release Date**: January, 2026
 **Global Catalog Version**: GC-2026.02.02
