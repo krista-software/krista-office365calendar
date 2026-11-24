@@ -18,6 +18,7 @@
 
 package app.krista.extensions.essentials.collaboration.office_365_calendar.api;
 
+import app.krista.extensions.essentials.collaboration.office_365_calendar.mcp.CalendarMcpSetupResource;
 import org.jvnet.hk2.annotations.ContractsProvided;
 import org.jvnet.hk2.annotations.Service;
 
@@ -32,6 +33,7 @@ public class Office365CalendarApplication extends Application {
 
     @Override
     public Set<Class<?>> getClasses() {
-        return Set.of(AuthenticationResource.class);
+        return Set.of(AuthenticationResource.class, Office365CalendarAuditResource.class,
+                CalendarMcpSetupResource.class);
     }
 }

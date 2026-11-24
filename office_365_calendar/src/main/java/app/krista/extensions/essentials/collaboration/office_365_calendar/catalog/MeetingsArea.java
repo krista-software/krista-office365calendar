@@ -18,6 +18,7 @@
 
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog;
 
+import app.krista.extension.authorization.MustAuthorizeException;
 import app.krista.extension.executor.ExtensionResponse;
 import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extension.impl.anno.Attribute;
@@ -30,6 +31,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.catalo
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.Validator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.audit.Office365CalendarAuditService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.TelemetryHelper;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
@@ -40,8 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -71,21 +71,43 @@ public final class MeetingsArea {
     private final ErrorHandlingStateManager errorHandlingStateManager;
     private final ExtensionResponseGenerator responseGenerator;
     private final TelemetryHelper telemetryHelper;
+    private final Office365CalendarAuditService auditService;
+    private final String invokerId;
 
     @Inject
-    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager, ExtensionResponseGenerator responseGenerator, TelemetryHelper telemetryHelper) {
+    public MeetingsArea(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ValidationOrchestrator validationOrchestrator, ErrorHandlingStateManager errorHandlingStateManager, ExtensionResponseGenerator responseGenerator, TelemetryHelper telemetryHelper, Office365CalendarAuditService auditService, app.krista.extension.executor.Invoker invoker) {
 
         this.meetingDao = meetingDao;
-
         this.catalogTypes = catalogTypes;
-
         this.validationOrchestrator = validationOrchestrator;
-
         this.errorHandlingStateManager = errorHandlingStateManager;
-
         this.responseGenerator = responseGenerator;
-
         this.telemetryHelper = telemetryHelper;
+        this.auditService = auditService;
+        this.invokerId = invoker.getInvokerId();
+    }
+
+    /** Wraps a catalog request with audit recording (duration + log capture). */
+    private ExtensionResponse audited(String catalogName, java.util.function.Supplier<ExtensionResponse> action) {
+        auditService.startRequest();
+        try {
+            ExtensionResponse response = action.get();
+            if (response != null && response.getResult() == ExtensionResponse.Result.FAILURE) {
+                auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", catalogName, null, null, null);
+            } else {
+                auditService.record(invokerId, "CATALOG_REQUEST_SUCCESS", "success", catalogName, null, null, null);
+            }
+            return response;
+        } catch (MustAuthorizeException e) {
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", catalogName,
+                    e.getMessage(), e.getClass().getSimpleName(), null);
+            throw e;
+        } catch (Exception e) {
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", catalogName,
+                    e.getMessage(), e.getClass().getSimpleName(), null);
+            if (e instanceof RuntimeException) throw (RuntimeException) e;
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -100,12 +122,17 @@ public final class MeetingsArea {
             description = "Cancels an existing calendar event by providing the event ID. This will remove the event from all attendees' calendars and send cancellation notifications.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false,
+            description = "Metadata of the cancelled calendar event returned after a successful cancellation. Contains the event title, location, date range, attendees, and other details of the event that was removed from all attendees' calendars.")
     public ExtensionResponse cancelEvent(
-            @Field.Text(name = "Delegate Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String delegateEmail,
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")}) String eventId,
+            @Field.Text(name = "Delegate Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Email address of the delegated user on whose behalf the event cancellation is performed. Required only when using service-to-service authentication to act as another user. Example: 'delegate@company.com'.") String delegateEmail,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to cancel'")},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to cancel. This ID is returned when creating or retrieving events. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Cancel Event", () -> {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ cancelEvent: Starting event cancellation for eventId: {}, allowRetry: {}", eventId, allowRetry);
         if (Boolean.TRUE.equals(allowRetry)) {
@@ -177,7 +204,9 @@ public final class MeetingsArea {
                     telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
                     return response;
                 }
-            } catch (Exception cause) {
+            } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
                 LOGGER.error("→ cancelEvent: Exception occurred - {}", cause.getMessage(), cause);
                 telemetryHelper.recordError("office365Calendar.cancelEvent", startTime, cause, safeTagMap("event_id", eventId));
                 ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -207,6 +236,7 @@ public final class MeetingsArea {
             telemetryHelper.recordSuccess("office365Calendar.cancelEvent", startTime, safeTagMap("event_id", eventId));
             return new ExtensionResponseBuilder().success(Map.of(Constants.EVENT_DETAILS, eventDetails)).build();
         }
+        });
     }
 
     @NotNull
@@ -231,12 +261,16 @@ public final class MeetingsArea {
             name = "Get Next Upcoming Meetings",
             description = "Retrieves a specified number of upcoming meetings from your calendar, ordered chronologically by start time. Useful for getting a quick overview of your next scheduled events.",
             area = "Meetings",
-            type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+            type = CatalogRequest.Type.QUERY_SYSTEM, tool = true)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false,
+            description = "Ordered list of upcoming calendar event entities, sorted chronologically by start time. Each entity contains the event title, location, date range, attendees, and other meeting metadata.")
     public ExtensionResponse getNextUpcomingMeetings(
-            @Field(name = "Number of meeting", type = "Number", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many upcoming meetings to retrieve (e.g., 5 for next 5 meetings)'")}) Double numberOfMeeting,
+            @Field(name = "Number of meeting", type = "Number", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many upcoming meetings to retrieve (e.g., 5 for next 5 meetings)'")},
+                    description = "Maximum number of upcoming meetings to retrieve from the calendar, starting from the current date/time. Must be a positive integer. Example: 5 returns the next 5 scheduled meetings.") Double numberOfMeeting,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Next Upcoming Meetings", () -> {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ getNextUpcomingMeetings: Starting retrieval for numberOfMeeting: {}, allowRetry: {}", numberOfMeeting, allowRetry);
 
@@ -302,7 +336,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("→ getNextUpcomingMeetings: Exception occurred - {}", cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.getNextUpcomingMeetings", startTime, cause,
                     safeTagMap("requested_count", String.valueOf(numberOfMeeting)));
@@ -315,6 +351,7 @@ public final class MeetingsArea {
             LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -329,11 +366,15 @@ public final class MeetingsArea {
             description = "Declines a meeting invitation for a specific event. This will update your response status to 'Declined' and notify the meeting organizer of your decision.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the declined calendar event returned after successfully declining the invitation. Contains the event title, location, date range, and attendee information reflecting the updated response status.")
     public ExtensionResponse declineInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to decline'")}) String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to decline'")},
+                    description = "Unique Microsoft Graph event identifier of the meeting invitation to decline. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Decline Invitation", () -> {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ declineInvitation: Starting invitation decline for eventId: {}, allowRetry: {}", eventId, allowRetry);
 
@@ -387,7 +428,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("→ declineInvitation: Exception occurred - {}", cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.declineInvitation", startTime, cause, safeTagMap("event_id", eventId));
             ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -399,6 +442,7 @@ public final class MeetingsArea {
             LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -413,11 +457,15 @@ public final class MeetingsArea {
             description = "Marks your response to a meeting invitation as 'Tentative', indicating you might attend but are not certain. This notifies the organizer of your provisional acceptance.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the tentatively accepted calendar event returned after a successful operation. Contains the event title, location, date range, attendees, and other meeting details reflecting the updated tentative response status.")
     public ExtensionResponse tentativeInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to mark as tentative'")}) String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to mark as tentative'")},
+                    description = "Unique Microsoft Graph event identifier of the meeting invitation to mark as tentative. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Tentative Invitation", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.tentativeInvitation");
@@ -458,7 +506,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in tentativeInvitation: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.tentativeInvitation", startTime, cause, safeTagMap("event_id", eventId));
             ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -469,6 +519,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -484,12 +535,17 @@ public final class MeetingsArea {
             description = "Forwards an existing calendar event to additional attendees. The specified recipients will receive meeting invitations with all the original event details.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field(name = "IsForwarded", type = "Switch", required = false)
+    @Field(name = "IsForwarded", type = "Switch", required = false,
+            description = "Boolean flag indicating whether the event was successfully forwarded to the specified attendees. Returns true on successful forward operation.")
     public ExtensionResponse forwardEvent(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to forward to additional attendees'")}) String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event you want to forward to additional attendees'")},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to forward. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]",
+                    description = "List of email addresses for attendees to forward the event invitation to. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> attendeeEmail,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Forward Event", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.forwardEvent");
@@ -533,7 +589,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in forwardEvent: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.forwardEvent", startTime, cause,
                     safeTagMap("event_id", eventId));
@@ -545,6 +603,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -557,40 +616,76 @@ public final class MeetingsArea {
             name = "Schedule Meeting",
             description = "Creates a new calendar meeting with comprehensive details including title, location, date/time, attendees, recurrence patterns, reminders, and file attachments. Supports both regular and Teams meetings.",
             area = "Meetings",
-            type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+            type = CatalogRequest.Type.CHANGE_SYSTEM, tool = true)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the newly scheduled calendar event returned after a successful creation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse scheduleMeeting(
-            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String organizerEmail,
-            @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {}) String title,
-            @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {}) String location,
-            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {}) Long dateFrom,
-            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {}) Long dateTo,
-            @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
-            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
-            @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this if the meeting lasts the entire day'")}, options = {}) Boolean isAllDay,
-            @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the time zone for the meeting (e.g., EST, PST, UTC)'")}, options = {}) String timeZone,
-            @Field.PickOne(name = "Reminder", values = {"None", "Don't remind me", "At event start", "At time of event", "5 minutes before", "15 minutes before", "30 minutes before", "1 hour before", "2 hours before", "4 hours before", "12 hours before", "1 day before", "1 week before"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose when you want to be reminded about this meeting'")}, options = {}) String reminder,
-            @Field.PickOne(name = "Recurrence", values = {"Never", "Does Not Repeat", "Daily", "Weekly", "Monthly", "Yearly"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select how often this meeting should repeat'")}, options = {}) String recurrence,
-            @Field(name = "Recurrence Interval", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the interval for recurrence (e.g., 2 for every 2 weeks)'")}, options = {}) Double recurrenceInterval,
-            @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false) List<String> daysOfWeek,
-            @Field.PickOne(name = "Recurrence Type", values = {"Absolute recurrence", "Relative recurrence"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose between absolute (specific date) or relative (e.g., first Monday) recurrence'")}, options = {}) String recurrenceType,
-            @Field(name = "Day Of Month", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the day of the month for monthly recurrence (1-31)'")}, options = {}) Double dayOfMonth,
-            @Field.PickOne(name = "Repeat Index", values = {"First", "Second", "Third", "Fourth", "Last"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select which occurrence in the month (e.g., first Monday, last Friday)'")}, options = {}) String repeatIndex,
-            @Field.PickOne(name = "Repeat Day", values = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose the day of the week for weekly recurrence'")}, options = {}) String repeatDay,
-            @Field.PickOne(name = "Repeat Month", values = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the month for yearly recurrence'")}, options = {}) String repeatMonth,
-            @Field.PickOne(name = "End Recurrence", values = {"End date", "Numbered occurrences", "No end"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose how the recurring meeting should end'")}, options = {}) String endRecurrence,
-            @Field.Date(name = "End Date", required = false, includeTimeOfDay = true, allowPast = false, allowToday = false, allowFuture = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the date when the recurring meeting should stop'")}, options = {}) Long endDate,
-            @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many times the meeting should occur'")}, options = {}) Double numberedOccurrences,
-            @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Upload files to attach to the meeting invitation'")}, options = {}) List<File> attachments,
-            @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Add detailed description or agenda for the meeting'")}, options = {}) String details,
-            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this to create a Microsoft Teams meeting with video conferencing'")}, options = {}) Boolean isTeamsMeeting,
+            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Email address of the meeting organizer. Required only when using service-to-service authentication to schedule a meeting on behalf of another user. Example: 'organizer@company.com'.") String organizerEmail,
+            @Field.Text(name = "Title", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter a descriptive title for your meeting'")}, options = {},
+                    description = "Subject line of the calendar event displayed to all attendees. Should be concise and descriptive of the meeting purpose.") String title,
+            @Field.Text(name = "Location", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the meeting location (room, address, or virtual meeting link)'")}, options = {},
+                    description = "Physical location or virtual meeting room for the event. Can be a room name, street address, or conference link. Example: 'Conference Room A' or 'Building 5, Floor 3'.") String location,
+            @Field.Date(name = "Date From", required = true, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the start date and time for your meeting'")}, options = {},
+                    description = "Start date and time of the meeting as an epoch timestamp in milliseconds. The time component is included for precise scheduling.") Long dateFrom,
+            @Field.Date(name = "Date to", required = false, includeTimeOfDay = true, allowToday = true, allowFuture = true, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the end date and time for your meeting'")}, options = {},
+                    description = "End date and time of the meeting as an epoch timestamp in milliseconds. Must be after the start date. If omitted, a default duration may apply.") Long dateTo,
+            @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false,
+                    description = "List of email addresses for required attendees to invite to the meeting. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> requiredAttendeeEmail,
+            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false,
+                    description = "List of email addresses for optional attendees to invite to the meeting. These attendees are not required to attend. Each entry must be a valid email address. Example: ['observer@company.com'].") List<String> optionalAttendeeEmail,
+            @Field.Boolean(name = "Is All Day", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this if the meeting lasts the entire day'")}, options = {},
+                    description = "Indicates whether this is an all-day event. Set to true to create an event spanning the entire day without specific start/end times.") Boolean isAllDay,
+            @Field.Text(name = "Time Zone", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the time zone for the meeting (e.g., EST, PST, UTC)'")}, options = {},
+                    description = "IANA time zone identifier for the meeting times. Example: 'America/New_York', 'Europe/London', 'Asia/Tokyo'. If omitted, the organizer's default time zone is used.") String timeZone,
+            @Field.PickOne(name = "Reminder", values = {"None", "Don't remind me", "At event start", "At time of event", "5 minutes before", "15 minutes before", "30 minutes before", "1 hour before", "2 hours before", "4 hours before", "12 hours before", "1 day before", "1 week before"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose when you want to be reminded about this meeting'")}, options = {},
+                    description = "Reminder notification timing relative to the meeting start. Select when you want to be alerted before the event begins, or choose 'None' to disable reminders.") String reminder,
+            @Field.PickOne(name = "Recurrence", values = {"Never", "Does Not Repeat", "Daily", "Weekly", "Monthly", "Yearly"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select how often this meeting should repeat'")}, options = {},
+                    description = "Recurrence frequency pattern for the meeting. Select 'Never' or 'Does Not Repeat' for one-time events, or choose a frequency (Daily, Weekly, Monthly, Yearly) for recurring meetings.") String recurrence,
+            @Field(name = "Recurrence Interval", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the interval for recurrence (e.g., 2 for every 2 weeks)'")}, options = {},
+                    description = "Numeric interval between recurring meeting occurrences. For example, set to 2 with weekly recurrence to repeat every 2 weeks. Must be a positive integer.") Double recurrenceInterval,
+            @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false,
+                    description = "List of day names for weekly recurrence patterns specifying which days the meeting repeats. Valid values: 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'. Example: ['Monday', 'Wednesday', 'Friday'].") List<String> daysOfWeek,
+            @Field.PickOne(name = "Recurrence Type", values = {"Absolute recurrence", "Relative recurrence"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose between absolute (specific date) or relative (e.g., first Monday) recurrence'")}, options = {},
+                    description = "Determines how the monthly or yearly recurrence date is calculated. 'Absolute recurrence' uses a fixed day of the month (e.g., the 15th). 'Relative recurrence' uses a positional pattern (e.g., the first Monday).") String recurrenceType,
+            @Field(name = "Day Of Month", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify the day of the month for monthly recurrence (1-31)'")}, options = {},
+                    description = "Specific day of the month for absolute monthly or yearly recurrence. Must be between 1 and 31. Used only when Recurrence Type is 'Absolute recurrence'.") Double dayOfMonth,
+            @Field.PickOne(name = "Repeat Index", values = {"First", "Second", "Third", "Fourth", "Last"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select which occurrence in the month (e.g., first Monday, last Friday)'")}, options = {},
+                    description = "Ordinal position within the month for relative recurrence patterns. For example, 'First' Monday or 'Last' Friday. Used only when Recurrence Type is 'Relative recurrence'.") String repeatIndex,
+            @Field.PickOne(name = "Repeat Day", values = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose the day of the week for weekly recurrence'")}, options = {},
+                    description = "Day of the week for relative recurrence patterns. Combined with Repeat Index to specify patterns like 'Second Tuesday'. Used only when Recurrence Type is 'Relative recurrence'.") String repeatDay,
+            @Field.PickOne(name = "Repeat Month", values = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the month for yearly recurrence'")}, options = {},
+                    description = "Specific month of the year for yearly recurrence patterns. Determines which month the recurring event falls in when recurrence is set to 'Yearly'.") String repeatMonth,
+            @Field.PickOne(name = "End Recurrence", values = {"End date", "Numbered occurrences", "No end"}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Choose how the recurring meeting should end'")}, options = {},
+                    description = "Determines how the recurring meeting series terminates. 'End date' stops on a specific date, 'Numbered occurrences' stops after a set number of meetings, 'No end' continues indefinitely.") String endRecurrence,
+            @Field.Date(name = "End Date", required = false, includeTimeOfDay = true, allowPast = false, allowToday = false, allowFuture = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Select the date when the recurring meeting should stop'")}, options = {},
+                    description = "Final date for the recurring meeting series as an epoch timestamp in milliseconds. After this date, no further occurrences are created. Used only when End Recurrence is set to 'End date'.") Long endDate,
+            @Field(name = "Numbered Occurrences", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specify how many times the meeting should occur'")}, options = {},
+                    description = "Total number of meeting occurrences before the recurring series ends. Must be a positive integer. Used only when End Recurrence is set to 'Numbered occurrences'.") Double numberedOccurrences,
+            @Field.File(name = "Attachments", multipleFileUpload = true, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Upload files to attach to the meeting invitation'")}, options = {},
+                    description = "List of files to attach to the meeting invitation. Supports multiple file uploads. Attached files are included in the meeting invitation sent to all attendees.") List<File> attachments,
+            @Field(name = "Details", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Add detailed description or agenda for the meeting'")}, options = {},
+                    description = "Rich text body content of the meeting invitation. Use this field to provide a detailed agenda, discussion topics, preparation notes, or any other relevant information for attendees.") String details,
+            @Field.Boolean(name = "Is Teams Meeting", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Check this to create a Microsoft Teams meeting with video conferencing'")}, options = {},
+                    description = "Indicates whether to create a Microsoft Teams online meeting with video conferencing capabilities. Set to true to generate a Teams meeting link that is automatically included in the invitation.") Boolean isTeamsMeeting,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Schedule Meeting", () -> {
         long startTime = System.currentTimeMillis();
         LOGGER.info("→ scheduleMeeting: Starting meeting scheduling - title: '{}', location: '{}', dateFrom: {}, dateTo: {}, allowRetry: {}",
                 title, location, dateFrom, dateTo, allowRetry);
         LOGGER.debug("→ Additional parameters - timeZone: {}, recurrenceInterval: {}, daysOfWeek: {}, numberedOccurrences: {}, isTeamsMeeting: {}",
                 timeZone, recurrenceInterval, daysOfWeek, numberedOccurrences, isTeamsMeeting);
+        // TZ-TRACE (KE-3527): grep "TZ-TRACE" to follow start/end epochs end-to-end. This line shows the
+        // RAW input as received from the Krista input fields, before any processing. "asRequestedZone" is
+        // the true local time the epoch represents in the Time Zone you passed - if that isn't the time you
+        // intended, the epoch created upstream (date picker / Event.From Date) is wrong, not the extension.
+        LOGGER.info("TZ-TRACE [1-input] scheduleMeeting fields: dateFromEpoch={} dateToEpoch={} timeZoneField='{}' | " +
+                        "fromAsUTC={} fromAsRequestedZone={} toAsUTC={} toAsRequestedZone={}",
+                dateFrom, dateTo, timeZone,
+                traceZone(dateFrom, "UTC"), traceZone(dateFrom, timeZone),
+                traceZone(dateTo, "UTC"), traceZone(dateTo, timeZone));
 
         try {
             telemetryHelper.incrementCount("office365Calendar.scheduleMeeting");
@@ -698,7 +793,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("→ scheduleMeeting: Exception occurred - {}", cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.scheduleMeeting", startTime, cause,
                     safeTagMap("title", title));
@@ -710,6 +807,23 @@ public final class MeetingsArea {
             );
             LOGGER.debug("→ Created error response for exception");
             return new ExtensionResponseBuilder().failure(error).build();
+        }
+        });
+    }
+
+    /**
+     * TZ-TRACE helper (KE-3527): renders an epoch in the given zone for debug logging. Null-safe and never
+     * throws (bad/blank zone falls back to UTC) so it can never break the schedule flow.
+     */
+    private static String traceZone(Long epoch, String zone) {
+        if (epoch == null) {
+            return "null";
+        }
+        try {
+            String z = (zone != null && !zone.trim().isEmpty()) ? zone.trim() : "UTC";
+            return java.time.Instant.ofEpochMilli(epoch).atZone(java.time.ZoneId.of(z)).toString();
+        } catch (RuntimeException cause) {
+            return java.time.Instant.ofEpochMilli(epoch).atZone(java.time.ZoneId.of("UTC")) + " (zone '" + zone + "' invalid)";
         }
     }
 
@@ -766,11 +880,13 @@ public final class MeetingsArea {
             name = "Get All Unaccepted Events",
             description = "Retrieves all meeting invitations that you have not yet responded to (neither accepted, declined, nor marked as tentative). Helps you manage pending meeting requests.",
             area = "Meetings",
-            type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+            type = CatalogRequest.Type.QUERY_SYSTEM, tool = true)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false,
+            description = "List of unaccepted calendar event entities that have not yet been responded to. Each entity contains the event title, location, date range, attendees, and other meeting metadata for pending invitations.")
     public List<EventDetails> getAllUnacceptedEvents() {
         long startTime = System.currentTimeMillis();
         LOGGER.info("getAllUnacceptedEvents: Retrieving all unaccepted events");
+        auditService.startRequest();
         try {
             telemetryHelper.incrementCount("office365Calendar.getAllUnacceptedEvents");
             List<Meeting> unacceptedMeetings = meetingDao.getUnAcceptedMeetings();
@@ -779,11 +895,18 @@ public final class MeetingsArea {
             LOGGER.info("getAllUnacceptedEvents: Successfully converted to {} event details", eventDetails.size());
             telemetryHelper.recordSuccess("office365Calendar.getAllUnacceptedEvents", startTime,
                     safeTagMap("unaccepted_count", String.valueOf(eventDetails.size())));
+            auditService.record(invokerId, "CATALOG_REQUEST_SUCCESS", "success", "Get All Unaccepted Events", null, null, null);
             return eventDetails;
+        } catch (MustAuthorizeException cause) {
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", "Get All Unaccepted Events",
+                    cause.getMessage(), cause.getClass().getSimpleName(), null);
+            throw cause;
         } catch (Exception cause) {
             LOGGER.error("Error occurred in getAllUnacceptedEvents: {}", cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.getAllUnacceptedEvents", startTime, cause, safeTagMap());
-            throw cause;
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", "Get All Unaccepted Events", cause.getMessage(), cause.getClass().getSimpleName(), null);
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            throw new RuntimeException(cause);
         }
     }
 
@@ -801,13 +924,19 @@ public final class MeetingsArea {
             description = "Adds new attendees to an existing calendar event. You can specify both required and optional attendees who will receive meeting invitations for the event.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the updated calendar event returned after successfully adding attendees. Contains the event title, location, date range, attendees, and other meeting details reflecting the newly added participants.")
     public ExtensionResponse addAttendees(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to add attendees to'")}) String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> requiredAttendeeEmail,
-            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to add attendees to'")},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to add attendees to. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]",
+                    description = "List of email addresses for required attendees to add to the event. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> requiredAttendeeEmail,
+            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false,
+                    description = "List of email addresses for optional attendees to add to the event. These attendees are not required to attend. Each entry must be a valid email address. Example: ['observer@company.com'].") List<String> optionalAttendeeEmail,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Add Attendees", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.addAttendees");
@@ -870,7 +999,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in addAttendees: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.addAttendees", startTime, cause,
                     safeTagMap("event_id", eventId));
@@ -882,6 +1013,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -895,34 +1027,61 @@ public final class MeetingsArea {
             description = "Modifies an existing calendar event with new details such as title, location, date/time, attendees, recurrence settings, and other meeting properties. All attendees will be notified of the changes.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the updated calendar event returned after a successful modification. Contains the event title, location, date range, attendees, and other meeting details reflecting all applied changes.")
     public ExtensionResponse updateEvent(
-            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String organizerEmail,
-            @Field(name = "Event Id", type = "Text") String eventId,
-            @Field(name = "Title", type = "Text", required = false) String title,
-            @Field(name = "Location", type = "Text", required = false) String location,
-            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long dateFrom,
-            @Field(name = "Date to", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long dateTo,
-            @Field(name = "Details", type = "RichText", required = false) String details,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
-            @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false) List<String> requiredAttendeeEmail,
-            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false) List<String> optionalAttendeeEmail,
-            @Field(name = "Is All Day", type = "Switch", required = false) Boolean isAllDay,
-            @Field.Desc(name = "Reminder", type = "PickOne(None|At event start|5 minutes before|15 minutes before|30 minutes before|1 hour before|2 hours before|4 hours before|1 day before|1 week before)", required = false) String reminder,
-            @Field.Desc(name = "Recurrence", type = "PickOne(Does Not Repeat|Daily|Weekly|Monthly|Yearly)", required = false) String recurrence,
-            @Field(name = "Recurrence Interval", type = "Number", required = false) Double recurrenceInterval,
-            @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false) List<String> daysOfWeek,
-            @Field.Desc(name = "Recurrence Type", type = "PickOne(Absolute recurrence|Relative recurrence)", required = false) String recurrenceType,
-            @Field(name = "Day Of Month", type = "Number", required = false) Double dayOfMonth,
-            @Field.Desc(name = "Repeat Index", type = "PickOne(First|Second|Third|Fourth|Last)", required = false) String repeatIndex,
-            @Field.Desc(name = "Repeat Day", type = "PickOne(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)", required = false) String repeatDay,
-            @Field.Desc(name = "Repeat Month", type = "PickOne(January|February|March|April|May|June|July|August|September|October|November|December)", required = false) String repeatMonth,
-            @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false) String endRecurrence,
-            @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false) Long endDate,
-            @Field(name = "Numbered Occurrences", type = "Number", required = false) Double numberedOccurrences,
-            @Field(name = "Is Teams Meeting", type = "Switch", required = false) Boolean isTeamsMeeting,
+            @Field.Text(name = "Organizer Email", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Email address of the meeting organizer. Required only when using service-to-service authentication to update a meeting on behalf of another user. Example: 'organizer@company.com'.") String organizerEmail,
+            @Field(name = "Event Id", type = "Text",
+                    description = "Unique Microsoft Graph event identifier of the calendar event to update. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
+            @Field(name = "Title", type = "Text", required = false,
+                    description = "Updated subject line of the calendar event. If provided, replaces the existing title displayed to all attendees.") String title,
+            @Field(name = "Location", type = "Text", required = false,
+                    description = "Updated physical location or virtual meeting room for the event. If provided, replaces the existing location. Example: 'Conference Room B'.") String location,
+            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false,
+                    description = "Updated start date and time of the meeting as an epoch timestamp in milliseconds. If provided, replaces the existing start time.") Long dateFrom,
+            @Field(name = "Date to", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false,
+                    description = "Updated end date and time of the meeting as an epoch timestamp in milliseconds. Must be after the start date if both are provided.") Long dateTo,
+            @Field(name = "Details", type = "RichText", required = false,
+                    description = "Updated rich text body content of the meeting. If provided, replaces the existing description, agenda, or notes for the event.") String details,
+            @Field(name = "Time Zone", type = "Text", required = false,
+                    description = "Updated IANA time zone identifier for the meeting times. Example: 'America/New_York', 'Europe/London'. If provided, replaces the existing time zone setting.") String timeZone,
+            @Field.Desc(name = "Required Attendee Email", type = "[ Email ]", required = false,
+                    description = "Updated list of email addresses for required attendees. If provided, replaces the existing required attendee list. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> requiredAttendeeEmail,
+            @Field.Desc(name = "Optional Attendee Email", type = "[ Email ]", required = false,
+                    description = "Updated list of email addresses for optional attendees. If provided, replaces the existing optional attendee list. Each entry must be a valid email address. Example: ['observer@company.com'].") List<String> optionalAttendeeEmail,
+            @Field(name = "Is All Day", type = "Switch", required = false,
+                    description = "Updated all-day event flag. Set to true to convert the event to an all-day event, or false to set specific start/end times.") Boolean isAllDay,
+            @Field.Desc(name = "Reminder", type = "PickOne(None|At event start|5 minutes before|15 minutes before|30 minutes before|1 hour before|2 hours before|4 hours before|1 day before|1 week before)", required = false,
+                    description = "Updated reminder notification timing relative to the meeting start. Select when you want to be alerted before the event begins, or choose 'None' to disable reminders.") String reminder,
+            @Field.Desc(name = "Recurrence", type = "PickOne(Does Not Repeat|Daily|Weekly|Monthly|Yearly)", required = false,
+                    description = "Updated recurrence frequency pattern for the meeting. Select 'Does Not Repeat' to remove recurrence, or choose a frequency (Daily, Weekly, Monthly, Yearly) for recurring meetings.") String recurrence,
+            @Field(name = "Recurrence Interval", type = "Number", required = false,
+                    description = "Updated numeric interval between recurring meeting occurrences. For example, set to 2 with weekly recurrence to repeat every 2 weeks. Must be a positive integer.") Double recurrenceInterval,
+            @Field.Desc(name = "Days Of Week", type = "[ Text ]", required = false,
+                    description = "Updated list of day names for weekly recurrence patterns. Valid values: 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'. Example: ['Monday', 'Wednesday', 'Friday'].") List<String> daysOfWeek,
+            @Field.Desc(name = "Recurrence Type", type = "PickOne(Absolute recurrence|Relative recurrence)", required = false,
+                    description = "Updated recurrence calculation method. 'Absolute recurrence' uses a fixed day of the month. 'Relative recurrence' uses a positional pattern (e.g., the first Monday).") String recurrenceType,
+            @Field(name = "Day Of Month", type = "Number", required = false,
+                    description = "Updated specific day of the month for absolute monthly or yearly recurrence. Must be between 1 and 31. Used only when Recurrence Type is 'Absolute recurrence'.") Double dayOfMonth,
+            @Field.Desc(name = "Repeat Index", type = "PickOne(First|Second|Third|Fourth|Last)", required = false,
+                    description = "Updated ordinal position within the month for relative recurrence patterns. For example, 'First' Monday or 'Last' Friday.") String repeatIndex,
+            @Field.Desc(name = "Repeat Day", type = "PickOne(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)", required = false,
+                    description = "Updated day of the week for relative recurrence patterns. Combined with Repeat Index to specify patterns like 'Second Tuesday'.") String repeatDay,
+            @Field.Desc(name = "Repeat Month", type = "PickOne(January|February|March|April|May|June|July|August|September|October|November|December)", required = false,
+                    description = "Updated month of the year for yearly recurrence patterns. Determines which month the recurring event falls in.") String repeatMonth,
+            @Field.Desc(name = "End Recurrence", type = "PickOne(End date|Numbered occurrences|No end)", required = false,
+                    description = "Updated termination method for the recurring meeting series. 'End date' stops on a specific date, 'Numbered occurrences' stops after a set count, 'No end' continues indefinitely.") String endRecurrence,
+            @Field(name = "End Date", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false,
+                    description = "Updated final date for the recurring meeting series as an epoch timestamp in milliseconds. Used only when End Recurrence is set to 'End date'.") Long endDate,
+            @Field(name = "Numbered Occurrences", type = "Number", required = false,
+                    description = "Updated total number of meeting occurrences before the recurring series ends. Must be a positive integer. Used only when End Recurrence is set to 'Numbered occurrences'.") Double numberedOccurrences,
+            @Field(name = "Is Teams Meeting", type = "Switch", required = false,
+                    description = "Updated flag indicating whether the event should include a Microsoft Teams online meeting link. Set to true to add Teams conferencing, or false to remove it.") Boolean isTeamsMeeting,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Update Event", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.updateEvent");
@@ -1013,7 +1172,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in updateEvent: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.updateEvent", startTime, cause,
                     safeTagMap("event_id", eventId));
@@ -1025,6 +1186,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -1072,11 +1234,15 @@ public final class MeetingsArea {
             description = "Accepts a meeting invitation for a specific event. This will update your response status to 'Accepted' and add the event to your calendar, notifying the organizer of your acceptance.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the accepted calendar event returned after successfully accepting the invitation. Contains the event title, location, date range, attendees, and other meeting details reflecting the updated acceptance status.")
     public ExtensionResponse acceptInvitation(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to accept'")}) String eventId,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event invitation you want to accept'")},
+                    description = "Unique Microsoft Graph event identifier of the meeting invitation to accept. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Accept Invitation", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.acceptInvitation");
@@ -1117,7 +1283,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in acceptInvitation: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.acceptInvitation", startTime, cause, safeTagMap("event_id", eventId));
             ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -1128,6 +1296,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -1143,12 +1312,17 @@ public final class MeetingsArea {
             description = "Removes specified attendees from an existing calendar event. The removed attendees will be notified that they are no longer invited to the meeting.",
             area = "Meetings",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the updated calendar event returned after successfully removing attendees. Contains the event title, location, date range, and remaining attendee list reflecting the removed participants.")
     public ExtensionResponse removeAttendee(
-            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to remove attendees from'")}) String eventId,
-            @Field.Desc(name = "Attendee Email", type = "[ Email ]") List<String> attendeeEmail,
+            @Field(name = "Event Id", type = "Text", attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Enter the unique identifier of the event to remove attendees from'")},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to remove attendees from. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventId,
+            @Field.Desc(name = "Attendee Email", type = "[ Email ]",
+                    description = "List of email addresses for attendees to remove from the event. Each entry must be a valid email address of a current attendee. Example: ['john@company.com', 'jane@company.com'].") List<String> attendeeEmail,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Remove Attendee", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.removeAttendee");
@@ -1208,7 +1382,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in removeAttendee: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.removeAttendee", startTime, cause,
                     safeTagMap("event_id", eventId));
@@ -1220,6 +1396,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -1239,18 +1416,28 @@ public final class MeetingsArea {
             name = "Get Free Slots",
             description = "Analyzes calendars of specified attendees to find available time slots for scheduling a meeting. Returns suggested meeting times based on everyone's availability within the given date range.",
             area = "Meetings",
-            type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
+            type = CatalogRequest.Type.QUERY_SYSTEM , tool = true)
+    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false,
+            description = "List of suggested meeting time slots with availability details. Each slot includes the proposed time range, per-attendee availability status, confidence score, organizer availability, and the reason for the suggestion.")
     public ExtensionResponse getFreeSlots(
-            @Field.Date(name = "Date From", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateFrom,
-            @Field.Date(name = "Date To", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Long dateTo,
-            @Field.Boolean(name = "Is Organizer Optional", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) Boolean isOrganizerOptional,
-            @Field.Desc(name = "Required Attendee", type = "[ Email ]") List<String> requiredAttendee,
-            @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false) List<String> optionalAttendee,
-            @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")}) String timeZone,
-            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")}) String meetingDuration,
+            @Field.Date(name = "Date From", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "Start date of the date range to search for free meeting slots, as an epoch timestamp in milliseconds. Must not be in the past.") Long dateFrom,
+            @Field.Date(name = "Date To", required = true, showHowManyDaysInViewer = 60, allowPast = false, attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "End date of the date range to search for free meeting slots, as an epoch timestamp in milliseconds. Must be after Date From and must not be in the past.") Long dateTo,
+            @Field.Boolean(name = "Is Organizer Optional", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "Indicates whether the meeting organizer's availability is optional when finding free slots. Set to true to find slots even when the organizer is busy; set to false to require the organizer to be available.") Boolean isOrganizerOptional,
+            @Field.Desc(name = "Required Attendee", type = "[ Email ]",
+                    description = "List of email addresses for required attendees whose calendars must be checked for availability. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> requiredAttendee,
+            @Field.Desc(name = "Optional Attendee", type = "[ Email ]", required = false,
+                    description = "List of email addresses for optional attendees whose calendars will be checked for availability but are not required to be free. Each entry must be a valid email address. Example: ['observer@company.com'].") List<String> optionalAttendee,
+            @Field.Text(name = "Time Zone", attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "IANA time zone identifier used for interpreting the date range and displaying results. Example: 'America/New_York', 'Europe/London', 'Asia/Tokyo'.") String timeZone,
+            @Field.Text(name = "Meeting Duration", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "Desired meeting duration in ISO 8601 duration format. Determines the length of each suggested free slot. Example: 'PT1H' for 1 hour, 'PT30M' for 30 minutes.") String meetingDuration,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Free Slots", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getFreeSlots");
@@ -1350,7 +1537,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("→ GET FREE SLOTS EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.getFreeSlots", startTime, cause, safeTagMap());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -1363,6 +1552,7 @@ public final class MeetingsArea {
             LOGGER.error("→ GET FREE SLOTS EXCEPTION END");
             return response;
         }
+        });
     }
 
     /**
@@ -1380,14 +1570,21 @@ public final class MeetingsArea {
             description = "Get list of scheduled meetings for the given date and attendees",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
+    @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false,
+            description = "List of attendee schedule entries for the specified date range. Each entry contains the attendee's email and their scheduled meeting times with availability status (e.g., Busy, Free, Tentative).")
     public ExtensionResponse getSchedules(
-            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateFrom,
-            @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true")) Long dateTo,
-            @Field.Desc(name = "Attendees", type = "[ Email ]") List<String> attendees,
-            @Field(name = "Time Zone", type = "Text", required = false) String timeZone,
+            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"),
+                    description = "Start date and time of the date range to retrieve schedules for, as an epoch timestamp in milliseconds. The time component is included for precise queries.") Long dateFrom,
+            @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"),
+                    description = "End date and time of the date range to retrieve schedules for, as an epoch timestamp in milliseconds. Must be after Date From.") Long dateTo,
+            @Field.Desc(name = "Attendees", type = "[ Email ]",
+                    description = "List of email addresses for attendees whose schedules should be retrieved. Each entry must be a valid email address. Example: ['john@company.com', 'jane@company.com'].") List<String> attendees,
+            @Field(name = "Time Zone", type = "Text", required = false,
+                    description = "IANA time zone identifier used for interpreting the date range and displaying schedule results. Example: 'America/New_York', 'Europe/London'.") String timeZone,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Schedules", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getSchedules");
@@ -1476,7 +1673,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("→ GET SCHEDULES EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             telemetryHelper.recordError("office365Calendar.getSchedules", startTime, cause, safeTagMap());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
@@ -1489,6 +1688,7 @@ public final class MeetingsArea {
             LOGGER.error("→ GET SCHEDULES EXCEPTION END");
             return response;
         }
+        });
     }
 
     /**
@@ -1503,11 +1703,15 @@ public final class MeetingsArea {
             description = "Get Event details for the given Event ID",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false,
+            description = "Metadata of the retrieved calendar event. Contains the event title, location, date range, attendees, and other meeting details for the specified event ID.")
     public ExtensionResponse getEvent(
-            @Field(name = "Event ID", type = "Text") String eventID,
+            @Field(name = "Event ID", type = "Text",
+                    description = "Unique Microsoft Graph event identifier of the calendar event to retrieve. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventID,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Event", () -> {
         long startTime = System.currentTimeMillis();
         if (Boolean.TRUE.equals(allowRetry)) {
             try {
@@ -1560,7 +1764,9 @@ public final class MeetingsArea {
                     return response;
                 }
 
-            } catch (Exception cause) {
+            } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
                 LOGGER.error("Error occurred in getEvent: {}", cause.getMessage());
                 telemetryHelper.recordError("office365Calendar.getEvent", startTime, cause,
                         safeTagMap("event_id", eventID));
@@ -1586,6 +1792,7 @@ public final class MeetingsArea {
                     safeTagMap("event_id", eventID));
             return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
         }
+        });
     }
 
     /**
@@ -1597,23 +1804,39 @@ public final class MeetingsArea {
     @CatalogRequest(
             id = "localDomainRequest_c5aabea7-b876-471a-964c-37c154a1a5fe",
             name = "Search Events",
-            description = "Get all the events that matches with given search keys",
+            description = "Search calendar events by keyword. When Date From and/or Date To are provided, returns up to 1000 events in that window with recurring meetings expanded into individual instances, filtered by the keyword on subject and body preview. Without a date range, returns up to 25 most recent matches across the entire mailbox (Microsoft Graph hard limit) — pass Date From/Date To when scoping to a specific period such as today, this week, or last month.",
             area = "Meetings",
-            type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Search Results", type = "[ { Event ID: Text, Event Title: Text, Scheduled Time: DateTimeRange } ]", required = false)
+            type = CatalogRequest.Type.QUERY_SYSTEM, tool = true)
+    @Field.Desc(name = "Search Results", type = "[ { Event ID: Text, Event Title: Text, Scheduled Time: DateTimeRange } ]", required = false,
+            description = "List of calendar events matching the search criteria. Each result contains the event ID, title, and scheduled time range for quick identification and retrieval.")
     public List<Map<String, Object>> searchEvents(
-            @Field(name = "Search Terms", type = "Text", required = false) String searchTerms) {
+            @Field(name = "Search Terms", type = "Text", required = false,
+                    description = "Keyword or phrase to search for in event subjects and body previews. The search is case-insensitive. Example: 'quarterly review' or 'project planning'.") String searchTerms,
+            @Field(name = "Date From", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false,
+                    description = "Start date and time of the date range to scope the search, as an epoch timestamp in milliseconds. When provided with Date To, enables expanded results up to 1000 events with recurring instances.") Long dateFrom,
+            @Field(name = "Date To", type = "Date", attributes = @Attribute(name = "includeTimeOfDay", value = "true"), required = false,
+                    description = "End date and time of the date range to scope the search, as an epoch timestamp in milliseconds. Must be after Date From. When omitted, results are limited to 25 most recent matches.") Long dateTo) {
         long startTime = System.currentTimeMillis();
+        auditService.startRequest();
         try {
             telemetryHelper.incrementCount("office365Calendar.searchEvents");
-            List<Map<String, Object>> results = meetingDao.getQueryResults(searchTerms);
+            List<Map<String, Object>> results = meetingDao.getQueryResults(searchTerms, dateFrom, dateTo);
             telemetryHelper.recordSuccess("office365Calendar.searchEvents", startTime,
-                    safeTagMap("search_terms", searchTerms, "results_count", String.valueOf(results != null ? results.size() : 0)));
+                    safeTagMap("search_terms", searchTerms,
+                            "date_range", (dateFrom != null || dateTo != null) ? "true" : "false",
+                            "results_count", String.valueOf(results != null ? results.size() : 0)));
+            auditService.record(invokerId, "CATALOG_REQUEST_SUCCESS", "success", "Search Events", null, null, null);
             return results;
+        } catch (MustAuthorizeException cause) {
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", "Search Events",
+                    cause.getMessage(), cause.getClass().getSimpleName(), null);
+            throw cause;
         } catch (Exception cause) {
             telemetryHelper.recordError("office365Calendar.searchEvents", startTime, cause,
                     safeTagMap("search_terms", searchTerms));
-            throw cause;
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", "Search Events", cause.getMessage(), cause.getClass().getSimpleName(), null);
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            throw new RuntimeException(cause);
         }
     }
 
@@ -1631,13 +1854,19 @@ public final class MeetingsArea {
             description = "This request will return the events scheduled for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
+    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false,
+            description = "List of calendar event entities scheduled for the specified user within the given date range. Each entity contains the event title, location, date range, attendees, and other meeting metadata.")
     public ExtensionResponse getEventsForAGivenUser(
-            @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
-            @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long from,
-            @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {}) Long to,
+            @Field(name = "User Email", type = "Email", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Email address of the user whose calendar events to retrieve. Requires service-to-service authentication with appropriate permissions to access the user's calendar. Example: 'user@company.com'.") String userEmail,
+            @Field.Date(name = "From", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Start date and time of the date range to retrieve events for, as an epoch timestamp in milliseconds. Supports past, present, and future dates.") Long from,
+            @Field.Date(name = "To", required = true, includeTimeOfDay = true, showHowManyDaysInViewer = 60, allowPast = true, allowToday = true, allowFuture = true, defaultTimeSpan = 1, attributes = {@Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "End date and time of the date range to retrieve events for, as an epoch timestamp in milliseconds. Must be after the From date.") Long to,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Events For A Given User", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getEventsForUser");
@@ -1691,7 +1920,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in getEventsForAGivenUser: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.getEventsForUser", startTime, cause,
                     safeTagMap("user_email", userEmail));
@@ -1703,6 +1934,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -1718,14 +1950,19 @@ public final class MeetingsArea {
             description = "This request will return all attachments for a specific meeting for a given user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false,
+            description = "List of file attachments associated with the specified meeting event for the given user. Each entry contains the file content and metadata retrieved from the calendar event.")
     public ExtensionResponse getAttachmentsForAGivenUser(
             @Field.Text(name = "User Email", required = true, attributes = {
-                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String userEmail,
+                    @Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Email address of the user whose meeting attachments to retrieve. Requires service-to-service authentication with appropriate permissions. Example: 'user@company.com'.") String userEmail,
             @Field.Text(name = "Event ID", required = true, attributes = {
-                    @Attribute(name = "visualWidth", value = "S")}, options = {}) String eventID,
+                    @Attribute(name = "visualWidth", value = "S")}, options = {},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to retrieve attachments from. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventID,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Attachments For A Given User", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getAttachmentsForUser");
@@ -1782,7 +2019,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachmentsForAGivenUser: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.getAttachmentsForUser", startTime, cause,
                     safeTagMap("user_email", userEmail, "event_id", eventID));
@@ -1794,6 +2033,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     /**
@@ -1808,11 +2048,15 @@ public final class MeetingsArea {
             description = "This request will return all attachments for a specific meeting for a current logged in user given that the setup is done using a system account.",
             area = "Meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false,
+            description = "List of file attachments associated with the specified meeting event for the currently authenticated user. Each entry contains the file content and metadata retrieved from the calendar event.")
     public ExtensionResponse getAttachments(
-            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")}) String eventID,
+            @Field.Text(name = "Event ID", required = true, attributes = {@Attribute(name = "visualWidth", value = "S")},
+                    description = "Unique Microsoft Graph event identifier of the calendar event to retrieve attachments from. This ID is obtained from event listings or search results. Example: 'AAMkAGI1AAAt9AHjAAA='.") String eventID,
             @Field.Boolean(name = Constants.ENABLE_ERROR_HANDLING, required = false,
-                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")}) Boolean allowRetry) {
+                    attributes = {@Attribute(name = "toolTip", value = "'Enable to allow re-entry of values if validation fails'")},
+                    description = "Controls whether the system prompts the user to re-enter invalid input values when validation fails. Set to true to enable interactive error correction flow; set to false to return validation errors directly without re-entry prompts.") Boolean allowRetry) {
+        return audited("Get Attachments", () -> {
         long startTime = System.currentTimeMillis();
         try {
             telemetryHelper.incrementCount("office365Calendar.getAttachments");
@@ -1866,7 +2110,9 @@ public final class MeetingsArea {
                     return responseGenerator.generateValidationErrorResponse(validationResults);
                 }
             }
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+                throw cause;
+                        } catch (Exception cause) {
             LOGGER.error("Error occurred in getAttachments: {}", cause.getMessage());
             telemetryHelper.recordError("office365Calendar.getAttachments", startTime, cause,
                     safeTagMap("event_id", eventID));
@@ -1878,6 +2124,7 @@ public final class MeetingsArea {
             );
             return new ExtensionResponseBuilder().failure(error).build();
         }
+        });
     }
 
     @CatalogRequest(
@@ -1886,11 +2133,14 @@ public final class MeetingsArea {
             area = "Meetings",
             description = "Checks if public authentication is expiring within one month",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Boolean(name = "Success", required = false)
+    @Field.Boolean(name = "Success", required = false,
+            description = "Indicates whether the public authentication credential is expiring within one month. Returns true if expiry is imminent and action is needed; returns false if the credential is valid for more than one month or cannot be determined.")
     @Field.Text(name = "Message", required = true, attributes = {
-            @Attribute(name = "visualWidth", value = "S")}, options = {})
+            @Attribute(name = "visualWidth", value = "S")}, options = {},
+            description = "Human-readable status message describing the public authentication expiry state. Provides details on whether the credential is expiring soon, still valid, or if the expiry could not be determined.")
 
     public ExtensionResponse checkPublicAuthExpiry() {
+        return audited("Check Public Auth Expiry", () -> {
 
         Map<String, Object> result = new HashMap<>();
 
@@ -1927,6 +2177,8 @@ public final class MeetingsArea {
                             : "Public authentication is valid for more than one month"
             );
 
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             // Fail-safe behavior (no exception thrown)
             result.put("Success", false);
@@ -1936,6 +2188,7 @@ public final class MeetingsArea {
         return new ExtensionResponseBuilder()
                 .success(result)
                 .build();
+        });
     }
 
 

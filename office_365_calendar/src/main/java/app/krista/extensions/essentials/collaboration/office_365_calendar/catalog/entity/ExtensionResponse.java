@@ -32,16 +32,20 @@ public class ExtensionResponse {
     public ExtensionResponse() {
     }
 
-    @Field.Text(name = "Message", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'A detailed message describing the extension\\'s response'")}, options = {})
+    @Field.Text(name = "Message", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'A detailed message describing the extension\\'s response'")}, options = {},
+            description = "Human-readable summary message describing the outcome of the extension operation. Contains success confirmation or a descriptive error message explaining what went wrong during execution.")
     public String message;
 
-    @Field(name = "Technical Detailed Error Report", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Provides error details to assist the technical team in troubleshooting'")}, options = {})
+    @Field(name = "Technical Detailed Error Report", type = "RichText", required = false, attributes = {@Attribute(name = "visualWidth", value = "L"), @Attribute(name = "toolTip", value = "'Provides error details to assist the technical team in troubleshooting'")}, options = {},
+            description = "Rich-text formatted technical error report containing stack traces, exception details, and diagnostic information. Intended for developers and support teams to troubleshoot failures. Empty or null when the operation succeeds.")
     public String technicalDetailedErrorReport;
 
-    @Field.PickOne(name = "Response Type", values = {}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specifies the type of exception to aid in categorizing and handling errors'")}, options = {})
+    @Field.PickOne(name = "Response Type", values = {}, required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Specifies the type of exception to aid in categorizing and handling errors'")}, options = {},
+            description = "Classification of the exception or response outcome. Used to categorize errors for routing and handling. Possible values include SYSTEM_ERROR, INPUT_ERROR, and LOGIC_ERROR. Null when the operation succeeds.")
     public String responseType;
 
-    @Field(name = "Time Taken In Seconds", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Indicates the total duration of the operation, measured in seconds'")}, options = {})
+    @Field(name = "Time Taken In Seconds", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Indicates the total duration of the operation, measured in seconds'")}, options = {},
+            description = "Total wall-clock duration of the extension operation measured in seconds as a decimal number. Useful for performance monitoring and SLA tracking. Example: 2.35 means the operation took 2.35 seconds.")
     public Double timeTakenInSeconds;
 
 }

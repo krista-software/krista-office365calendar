@@ -1,8 +1,0 @@
-{
-  "short_name": "Authentication",
-  "name": "Office 365 Calendar Extension Authentication",
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
-}

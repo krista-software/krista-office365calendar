@@ -21,6 +21,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.catal
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.attributes.FieldAttributeProviderRegistry;
 import app.krista.model.field.NamedField;
 import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +38,8 @@ import java.util.Map;
  * </p>
  */
 public class NamedFieldFactory {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(NamedFieldFactory.class);
 
     /**
      * Creates a text field with the specified name.
@@ -480,7 +484,7 @@ public class NamedFieldFactory {
         // Create the list field attributes
         Map<String, Object> listAttributes = new HashMap<>();
         listAttributes.put("field", fieldMapJson);
-        System.out.println("List Attributes:");
+        LOGGER.debug("List Attributes:");
 
         return new NamedField(fieldName, FieldTypes.LIST_FIELD_LOGICAL_NAME, listAttributes, Map.of());
     }
@@ -527,7 +531,7 @@ public class NamedFieldFactory {
      * @return a map containing default attributes for the field type
      */
     public static Map<String, Object> getDefaultAttributesForFieldType(String fieldType) {
-        System.out.println("→ NamedFieldFactory: Getting default attributes for field type: " + fieldType);
+        LOGGER.debug("→ NamedFieldFactory: Getting default attributes for field type: {}", fieldType);
         return FieldAttributeProviderRegistry.getDefaultAttributes(fieldType);
     }
 

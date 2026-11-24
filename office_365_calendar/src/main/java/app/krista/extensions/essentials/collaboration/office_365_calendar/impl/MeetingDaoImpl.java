@@ -85,26 +85,40 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
 public class MeetingDaoImpl implements MeetingDao {
 
     public static final int MAX_SIZE = 25;
-    private final GraphServiceClientProvider clientProvider;
-    private final Office365CalendarAttributes office365CalendarAttributes;
+    private final GraphServiceClientProviderFactory factory;
+    private GraphServiceClientProvider clientProvider;
+    private Office365CalendarAttributes office365CalendarAttributes;
     public static Logger LOGGER = LoggerFactory.getLogger(MeetingDaoImpl.class);
 
     @Inject
     public MeetingDaoImpl(GraphServiceClientProviderFactory clientProviderFactory) {
-        this(clientProviderFactory.create(), clientProviderFactory.create().getOffice365CalendarAttributes());
+        this.factory = clientProviderFactory;
+        this.clientProvider = null;
+        this.office365CalendarAttributes = null;
         LOGGER.info("MeetingDaoImpl initialized successfully with factory");
     }
 
     public MeetingDaoImpl(GraphServiceClientProvider clientProvider, Office365CalendarAttributes office365CalendarAttributes) {
+        this.factory = null;
         this.clientProvider = clientProvider;
         this.office365CalendarAttributes = office365CalendarAttributes;
+    }
+
+    private GraphServiceClientProvider resolveClientProvider() {
+        if (clientProvider != null) return clientProvider;
+        return factory.create(); // throws MustAuthorizeException if not authenticated
+    }
+
+    private Office365CalendarAttributes resolveAttributes() {
+        if (office365CalendarAttributes != null) return office365CalendarAttributes;
+        return factory.create().getOffice365CalendarAttributes();
     }
 
     /**
      * Helper method to get effective timezone, defaulting to UTC if null or empty
      */
     private String getEffectiveTimeZone() {
-        String timeZone = office365CalendarAttributes.getTimeZone();
+        String timeZone = resolveAttributes().getTimeZone();
         return (timeZone != null && !timeZone.trim().isEmpty()) ? timeZone : "UTC";
     }
 
@@ -191,7 +205,9 @@ public class MeetingDaoImpl implements MeetingDao {
             }
             LOGGER.info("→ getMeetingById: Event with ID {} not found or error occurred ({}), returning null", id, errorMessage);
             return null;
-        } catch (Exception e) {
+        } catch (MustAuthorizeException e) {
+            throw e;
+                } catch (Exception e) {
             return null;
         }
     }
@@ -243,11 +259,10 @@ public class MeetingDaoImpl implements MeetingDao {
             List<Meeting> eventDetails = new ArrayList<>();
             if (eventCollection != null) {
                 LOGGER.debug("→ Processing {} events from collection", eventCollection.getCurrentPage().size());
+                String currentUserMail = resolveCurrentUserMail();
+                LOGGER.debug("→ Resolved current user mail: {}", currentUserMail);
                 for (Event event : eventCollection.getCurrentPage()) {
-                    User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
-                    LOGGER.debug("→ Retrieved current user: {}", currentUser != null ? currentUser.mail : "null");
-
-                    if (currentUser != null && MeetingDaoHelper.isUpcomingEvent(event) && MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                    if (currentUserMail != null && MeetingDaoHelper.isUpcomingEvent(event) && MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUserMail)) {
                         eventDetails.add(new MeetingImpl(event));
                         LOGGER.debug("→ Added unaccepted event: {}", event.subject);
                     }
@@ -383,10 +398,24 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ Number of meetings validation passed");
 
             List<Meeting> eventDetails = new ArrayList<>();
-            String dateTime = buildDateTimeTimeZone(System.currentTimeMillis(), null, getEffectiveTimeZone()).dateTime;
-            LOGGER.debug("→ Built filter dateTime: {}", dateTime);
+            // KE-3238: Use calendarView instead of events().$filter — calendarView returns both organizer
+            // and attendee events with UTC-bounded, chronologically ordered results. The previous
+            // events().$filter approach excluded attendee events (stored in organizer's timezone)
+            // and had no $orderby, so $top picked by internal index rather than start time.
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of(Constants.UTC));
+            ZonedDateTime farFuture = now.plusYears(1);
+            List<QueryOption> queryOptions = Arrays.asList(
+                    new QueryOption("startDateTime", now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)),
+                    new QueryOption("endDateTime", farFuture.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)),
+                    new QueryOption(Constants.ORDER_BY, "start/dateTime asc"),
+                    new QueryOption(Constants.TOP, String.valueOf(numberOfMeetings))
+            );
+            LOGGER.debug("→ Built calendarView query options: startDateTime={}, endDateTime={}, top={}", now, farFuture, numberOfMeetings);
 
-            EventCollectionPage eventCollPage = getCalendarRequestBuilder().events().buildRequest().filter("start/dateTime ge '" + dateTime + "'").top(numberOfMeetings).get();
+            EventCollectionPage eventCollPage = getCalendarRequestBuilder()
+                    .calendarView()
+                    .buildRequest(queryOptions)
+                    .get();
             LOGGER.debug("→ Retrieved event collection page from Graph API");
 
             if (eventCollPage != null && !eventCollPage.getCurrentPage().isEmpty()) {
@@ -408,17 +437,44 @@ public class MeetingDaoImpl implements MeetingDao {
     }
 
     /**
-     * Searches for events matching the given query string.
+     * Searches for events matching the given query string, optionally within a date range.
+     * <p>
+     * When {@code fromDate} or {@code toDate} is provided, results are sourced from
+     * {@code /me/calendar/calendarView} which expands recurring instances and supports up to 1000
+     * events per page. The {@code queryString} is then applied as an in-memory case-insensitive
+     * {@code contains} filter on subject and body preview. Server-side {@code $filter=contains(subject,...)}
+     * is intentionally avoided due to a Microsoft-documented HTTP 500 bug when events have null subjects.
+     * <p>
+     * When no date range is provided, falls back to {@code /search/query} (the EVENT entity in
+     * Microsoft Search), which is hard-capped at 25 results per page by Microsoft Graph.
      *
-     * @param queryString the search query
+     * @param queryString the search query; may be null or blank when a date range is provided
+     * @param fromDate    optional lower bound (epoch millis)
+     * @param toDate      optional upper bound (epoch millis)
      * @return a list of maps containing event ID, title, and scheduled time
      */
     @Override
-    public List<Map<String, Object>> getQueryResults(String queryString) {
-        LOGGER.info("→ getQueryResults: Searching for events with query: '{}'", queryString);
+    public List<Map<String, Object>> getQueryResults(String queryString, Long fromDate, Long toDate) {
+        LOGGER.info("→ getQueryResults: query='{}', fromDate={}, toDate={}", queryString, fromDate, toDate);
 
-        Validators.validateString(queryString, "query text");
-        LOGGER.debug("→ Query string validation passed");
+        resolveClientProvider(); // verify authentication before input validation
+
+        if (fromDate != null && toDate != null && fromDate > toDate) {
+            LOGGER.error("→ getQueryResults: fromDate {} is after toDate {}", fromDate, toDate);
+            throw new IllegalArgumentException(Constants.THE_TO_DATE_MUST_BE_GREATER_THAN_THE_FROM_DATE);
+        }
+
+        // KE-3244: When dates are provided, route to calendarView — Microsoft's canonical date-range
+        // endpoint for events. This expands recurring instances and supports $top=1000 vs. the 25-cap
+        // on /search/query. Without dates, fall back to /search/query for full-mailbox relevance search.
+        if (fromDate != null || toDate != null) {
+            return getDateBoundedSearchResults(queryString, fromDate, toDate);
+        }
+
+        if (queryString == null || queryString.isBlank()) {
+            LOGGER.debug("→ Query string is null or blank and no date range provided, returning empty results");
+            return new ArrayList<>();
+        }
 
         List<Map<String, Object>> searchHits = new ArrayList<>();
         LinkedList<SearchRequest> requests = getSearchRequests(queryString);
@@ -444,8 +500,71 @@ public class MeetingDaoImpl implements MeetingDao {
         return searchHits;
     }
 
+    private static final long ONE_YEAR_MILLIS = 365L * 24L * 60L * 60L * 1000L;
+
+    private List<Map<String, Object>> getDateBoundedSearchResults(String queryString, Long fromDate, Long toDate) {
+        long effectiveFrom = fromDate != null ? fromDate : (toDate - ONE_YEAR_MILLIS);
+        long effectiveTo = toDate != null ? toDate : (fromDate + ONE_YEAR_MILLIS);
+        LOGGER.debug("→ getDateBoundedSearchResults: calendarView from={} to={} filter='{}'",
+                effectiveFrom, effectiveTo, queryString);
+
+        List<Option> options = getTimeRangeQueryOptions(effectiveFrom, effectiveTo);
+
+        EventCollectionPage page;
+        try {
+            page = getCalendarRequestBuilder()
+                    .calendarView()
+                    .buildRequest(options)
+                    .select("id,subject,start,end,bodyPreview")
+                    .get();
+        } catch (GraphServiceException cause) {
+            String errorMessage = cause.getError() != null && cause.getError().error != null
+                    ? cause.getError().error.message : cause.getMessage();
+            LOGGER.error("→ getDateBoundedSearchResults: Graph error - {}", errorMessage, cause);
+            throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
+        } catch (IOException cause) {
+            LOGGER.error("→ getDateBoundedSearchResults: I/O error - {}", cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + cause.getMessage(), cause);
+        }
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        if (page != null && page.getCurrentPage() != null) {
+            for (Event event : page.getCurrentPage()) {
+                if (matchesSearchTerms(event, queryString)) {
+                    results.add(buildSearchHitFromEvent(event));
+                }
+            }
+        }
+        LOGGER.info("→ getDateBoundedSearchResults: {} matching events in window", results.size());
+        return results;
+    }
+
+    private static boolean matchesSearchTerms(Event event, String queryString) {
+        if (queryString == null || queryString.isBlank()) {
+            return true;
+        }
+        String needle = queryString.toLowerCase();
+        String subject = event.subject != null ? event.subject.toLowerCase() : "";
+        String bodyPreview = event.bodyPreview != null ? event.bodyPreview.toLowerCase() : "";
+        return subject.contains(needle) || bodyPreview.contains(needle);
+    }
+
+    private Map<String, Object> buildSearchHitFromEvent(Event event) {
+        Map<String, Object> hit = new HashMap<>();
+        hit.put("Event ID", event.id);
+        hit.put("Event Title", event.subject);
+        long startTime = event.start != null ? getDateInMilliSecond(event.start) : 0L;
+        long endTime = event.end != null ? getDateInMilliSecond(event.end) : 0L;
+        hit.put("Scheduled Time", new DateRange(startTime, endTime));
+        return hit;
+    }
+
     /**
      * Retrieves events for a given user within a specified date range.
+     * <p>
+     * Uses the cached system-level GraphServiceClient to avoid redundant token
+     * acquisition on every call (see {@code GraphServiceClientProvider} caching).
+     * </p>
      *
      * @param userEmail the user's email address
      * @param fromDate  start date (epoch millis)
@@ -454,13 +573,14 @@ public class MeetingDaoImpl implements MeetingDao {
      */
     @Override
     public List<Meeting> getEventsForUser(String userEmail, Long fromDate, Long toDate) {
+
         LOGGER.info("→ getEventsForUser: Retrieving events for user {} from {} to {}", userEmail, fromDate, toDate);
 
         try {
             List<Option> options = getTimeRangeQueryOptions(fromDate, toDate);
             LOGGER.debug("→ Created time range query options");
 
-            EventCollectionPage eventCollection = clientProvider.getGraphServiceClientForSystem()
+            EventCollectionPage eventCollection = resolveClientProvider().getGraphServiceClientForSystem()
                     .users(userEmail)
                     .calendarView()
                     .buildRequest(options)
@@ -470,26 +590,33 @@ public class MeetingDaoImpl implements MeetingDao {
 
             List<Meeting> eventDetails = new ArrayList<>();
             while (eventCollection != null) {
+
                 LOGGER.debug("→ Processing event page with {} events", eventCollection.getCurrentPage().size());
                 for (Event event : eventCollection.getCurrentPage()) {
                     eventDetails.add(new MeetingImpl(event));
-                    LOGGER.debug("→ Added event: {}", event.subject);
                 }
-                eventCollection = eventCollection.getNextPage() != null ? eventCollection.getNextPage().buildRequest().get() : null;
-                if (eventCollection != null) {
-                    LOGGER.debug("→ Retrieved next page of events");
-                }
+                eventCollection = eventCollection.getNextPage() != null
+                        ? eventCollection.getNextPage().buildRequest().get()
+                        : null;
             }
 
             LOGGER.info("→ getEventsForUser: Successfully retrieved {} events for user {}", eventDetails.size(), userEmail);
             return eventDetails;
+        } catch (MustAuthorizeException | IllegalArgumentException | NullPointerException cause) {
+
+            throw cause;
         } catch (GraphServiceException cause) {
+
             String errorMessage = "";
             if (cause.getError() != null && cause.getError().error != null) {
                 errorMessage = cause.getError().error.message;
             }
             LOGGER.error("→ getEventsForUser: Failed to retrieve events for user {} - {}", userEmail, errorMessage, cause);
             throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + errorMessage, cause);
+        } catch (Exception cause) {
+
+            LOGGER.error("→ getEventsForUser: Unexpected error for user {} - {}", userEmail, cause.getMessage(), cause);
+            throw new IllegalStateException(Constants.FAILED_TO_GET_USER_EVENTS + cause.getMessage(), cause);
         }
     }
 
@@ -551,7 +678,7 @@ public class MeetingDaoImpl implements MeetingDao {
     private SearchEntityQueryCollectionPage getSearchEntityQueryCollectionPage(LinkedList<SearchRequest> requestsList) throws IOException {
         LOGGER.debug("→ getSearchEntityQueryCollectionPage: Executing search query with {} requests", requestsList.size());
 
-        SearchEntityQueryCollectionPage result = clientProvider.getGraphServiceClient()
+        SearchEntityQueryCollectionPage result = resolveClientProvider().getGraphServiceClient()
                 .search()
                 .query(SearchEntityQueryParameterSet
                         .newBuilder()
@@ -617,7 +744,7 @@ public class MeetingDaoImpl implements MeetingDao {
         Duration slotDuration = DatatypeFactory.newInstance().newDuration(Constants.PT + meetingDuration);
 
         MeetingTimeSuggestionsResult meetingTimeSuggestionsResult;
-        meetingTimeSuggestionsResult = clientProvider.getUserRequestBuilder(false, null)
+        meetingTimeSuggestionsResult = resolveClientProvider().getUserRequestBuilder(false, null)
                 .findMeetingTimes(UserFindMeetingTimesParameterSet
                         .newBuilder()
                         .withAttendees(attendeesList)
@@ -732,16 +859,31 @@ public class MeetingDaoImpl implements MeetingDao {
         try {
             String selectedTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : getEffectiveTimeZone();
             LOGGER.debug("→ Selected timezone: {}", selectedTimeZone);
+            // TZ-TRACE [2-resolve]: the event timeZone that was passed vs. the extension's effective/default
+            // zone (getEffectiveTimeZone(), = configured Time Zone, defaults to UTC). The bug appears only
+            // when these differ; both are logged so a mismatch is obvious.
+            LOGGER.info("TZ-TRACE [2-resolve] addMeeting: requestedTimeZone='{}' effectiveTimeZone='{}' selectedTimeZone='{}'",
+                    timeZone, getEffectiveTimeZone(), selectedTimeZone);
 
             Event event = getEvent(title, location, dateFrom, dateTo, requiredAttendeeEmail, optionalAttendeeEmail, isAllDay, timeZone, reminder, recurrence, recurrenceInterval, daysOfWeek, recurrenceType, dayOfMonth, repeatIndex, repeatDay, repeatMonth, endRecurrence, endDate, numberedOccurrences, details, true, isTeamsMeeting);
             LOGGER.debug("→ Created event object with {} required attendees and {} optional attendees",
                     requiredAttendeeEmail != null ? requiredAttendeeEmail.size() : 0,
                     optionalAttendeeEmail != null ? optionalAttendeeEmail.size() : 0);
+            // TZ-TRACE [3-payload] the exact Graph start/end being POSTed (built by buildDateTimeTimeZone).
+            // dateTime must be the local wall-clock in timeZone; they must agree. Compare with [1-input].
+            LOGGER.info("TZ-TRACE [3-payload] POST -> start.dateTime='{}' start.timeZone='{}' | end.dateTime='{}' end.timeZone='{}'",
+                    event.start != null ? event.start.dateTime : null, event.start != null ? event.start.timeZone : null,
+                    event.end != null ? event.end.dateTime : null, event.end != null ? event.end.timeZone : null);
 
             Event newEvent = getCalendarRequestBuilder().events()
                     .buildRequest()
                     .post(event);
             LOGGER.debug("→ Posted event to Graph API, received ID: {}", newEvent.id);
+            // TZ-TRACE [4-response] what Graph stored and returned for the event (before local re-formatting).
+            LOGGER.info("TZ-TRACE [4-response] Graph stored -> id={} start.dateTime='{}' start.timeZone='{}' | end.dateTime='{}' end.timeZone='{}'",
+                    newEvent.id,
+                    newEvent.start != null ? newEvent.start.dateTime : null, newEvent.start != null ? newEvent.start.timeZone : null,
+                    newEvent.end != null ? newEvent.end.dateTime : null, newEvent.end != null ? newEvent.end.timeZone : null);
 
             setDateTimeTimeZone(selectedTimeZone, newEvent);
             LOGGER.debug("→ Set timezone for event");
@@ -1024,7 +1166,7 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ Meeting ID validation passed");
 
         try {
-            Event event = clientProvider.getUserRequestBuilder(false, null).events(id).buildRequest().get();
+            Event event = resolveClientProvider().getUserRequestBuilder(false, null).events(id).buildRequest().get();
             LOGGER.debug("→ Retrieved event to decline: {}", event.subject);
 
             boolean sendResponse = isSendResponse(id);
@@ -1087,7 +1229,7 @@ public class MeetingDaoImpl implements MeetingDao {
             Event event = getCalendarRequestBuilder().events(id).buildRequest().get();
             LOGGER.debug("→ Retrieved event to cancel: {}", event.subject);
 
-            clientProvider.getUserRequestBuilder(false, null).events(id).buildRequest().delete();
+            resolveClientProvider().getUserRequestBuilder(false, null).events(id).buildRequest().delete();
             LOGGER.debug("→ Deleted event via Graph API");
 
             LOGGER.info("→ cancelMeeting: Successfully cancelled meeting: {}", event.subject);
@@ -1233,7 +1375,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
     private CalendarRequestBuilder getCalendarRequestBuilder() throws IOException {
         LOGGER.debug("→ getCalendarRequestBuilder: Creating calendar request builder");
-        CalendarRequestBuilder builder = clientProvider.getUserRequestBuilder(false, null).calendar();
+        CalendarRequestBuilder builder = resolveClientProvider().getUserRequestBuilder(false, null).calendar();
         LOGGER.debug("→ getCalendarRequestBuilder: Calendar request builder created successfully");
         return builder;
     }
@@ -1251,7 +1393,7 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ getCalendarRequestBuilderDelegated: Creating delegated calendar request builder for: {}", delegateEmail);
 
         // Use the 3-parameter getUserRequestBuilder method to match reference implementation pattern
-        CalendarRequestBuilder builder = clientProvider.getUserRequestBuilder(false, null, delegateEmail).calendar();
+        CalendarRequestBuilder builder = resolveClientProvider().getUserRequestBuilder(false, null, delegateEmail).calendar();
         LOGGER.debug("→ getCalendarRequestBuilderDelegated: Calendar request builder created successfully for delegate: {}", delegateEmail);
         return builder;
     }
@@ -1266,7 +1408,7 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ Parsed date in UTC: {}", date);
 
             SimpleDateFormat customFormat = new SimpleDateFormat(Constants.YYYY_MM_DD_T_HH_MM_SS);
-            String userTimeZone = office365CalendarAttributes.getTimeZone();
+            String userTimeZone = resolveAttributes().getTimeZone();
             String effectiveTimeZone = (userTimeZone != null && !userTimeZone.trim().isEmpty()) ? userTimeZone : "UTC";
             customFormat.setTimeZone(TimeZone.getTimeZone(effectiveTimeZone));
             Date newDate = customFormat.parse(customFormat.format(date));
@@ -1430,12 +1572,12 @@ public class MeetingDaoImpl implements MeetingDao {
         LOGGER.debug("→ buildAttachmentCollectionRequest: Building request for event: {}, userEmail: {}, isAuthenticatedUser: {}",
                 eventId, userEmail, isAuthenticatedUser);
 
-        if (isAuthenticatedUser) {
+        if (isAuthenticatedUser && !Constants.PRIVATE.equals(resolveAttributes().getAuthType())) {
             LOGGER.debug("→ Using authenticated user context");
-            return clientProvider.getGraphServiceClient().me().events(eventId).attachments().buildRequest().get();
+            return resolveClientProvider().getGraphServiceClient().me().events(eventId).attachments().buildRequest().get();
         } else {
             LOGGER.debug("→ Using system context for user: {}", userEmail);
-            return clientProvider.getGraphServiceClientForSystem().users(userEmail).events(eventId).attachments().buildRequest().get();
+            return resolveClientProvider().getGraphServiceClientForSystem().users(userEmail).events(eventId).attachments().buildRequest().get();
         }
     }
 
@@ -1451,7 +1593,7 @@ public class MeetingDaoImpl implements MeetingDao {
 
         try {
             // Use ZonedDateTime for consistent date/time handling
-            String userTimeZoneStr = office365CalendarAttributes.getTimeZone();
+            String userTimeZoneStr = resolveAttributes().getTimeZone();
             String effectiveTimeZone = (userTimeZoneStr != null && !userTimeZoneStr.trim().isEmpty()) ? userTimeZoneStr : "UTC";
             ZoneId userTimeZone = ZoneId.of(effectiveTimeZone);
             ZonedDateTime now = ZonedDateTime.now(userTimeZone);
@@ -1484,9 +1626,9 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ Retrieved event collection from Graph API");
 
             if (eventCollection != null) {
-                User currentUser = clientProvider.getUserRequestBuilder(false, null).buildRequest().get();
-                LOGGER.debug("→ Retrieved current user: {}", currentUser != null ? currentUser.mail : "null");
-                processEventPages(eventCollection, currentUser, eventDetails);
+                String currentUserMail = resolveCurrentUserMail();
+                LOGGER.debug("→ Resolved current user mail: {}", currentUserMail);
+                processEventPages(eventCollection, currentUserMail, eventDetails);
             } else {
                 LOGGER.debug("→ No event collection returned");
             }
@@ -1506,7 +1648,7 @@ public class MeetingDaoImpl implements MeetingDao {
      * @param currentUser     The current user
      * @param eventDetails    The list to populate with meeting details
      */
-    private void processEventPages(EventCollectionPage eventCollection, User currentUser, List<Meeting> eventDetails) {
+    private void processEventPages(EventCollectionPage eventCollection, String userMail, List<Meeting> eventDetails) {
         if (eventCollection == null) {
             LOGGER.debug("→ processEventPages: Event collection is null, returning");
             return;
@@ -1515,9 +1657,9 @@ public class MeetingDaoImpl implements MeetingDao {
         // Process current page
         LOGGER.debug("→ processEventPages: Processing page with {} events", eventCollection.getCurrentPage().size());
         for (Event event : eventCollection.getCurrentPage()) {
-            if (currentUser != null &&
+            if (userMail != null &&
                     MeetingDaoHelper.isUpcomingEvent(event) &&
-                    MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, currentUser.mail)) {
+                    MeetingDaoHelper.isEventNeitherAcceptedNorDeclined(event, userMail)) {
                 eventDetails.add(new MeetingImpl(event));
                 LOGGER.debug("→ Added unaccepted event: {}", event.subject);
             }
@@ -1529,7 +1671,7 @@ public class MeetingDaoImpl implements MeetingDao {
             LOGGER.debug("→ processEventPages: Processing next page");
             try {
                 EventCollectionPage nextPage = nextPageRequest.buildRequest().get();
-                processEventPages(nextPage, currentUser, eventDetails);
+                processEventPages(nextPage, userMail, eventDetails);
             } catch (GraphServiceException e) {
                 LOGGER.error("→ processEventPages: Failed to process next page - {}", e.getMessage(), e);
                 throw new IllegalStateException("Unable to retrieve the next page of events. Please try again or contact support if the issue persists. " + e.getMessage(), e);
@@ -1537,6 +1679,20 @@ public class MeetingDaoImpl implements MeetingDao {
         } else {
             LOGGER.debug("→ processEventPages: No more pages to process");
         }
+    }
+
+    /**
+     * Resolves the current user's mail address.
+     * For PRIVATE (client credentials) auth, uses the configured email directly —
+     * GET /users/{email} requires User.Read.All which may not be granted.
+     * For delegated auth, fetches the user object from Graph.
+     */
+    private String resolveCurrentUserMail() {
+        if (Constants.PRIVATE.equals(resolveAttributes().getAuthType())) {
+            return resolveAttributes().getEmail();
+        }
+        User user = resolveClientProvider().getUserRequestBuilder(false, null).buildRequest().get();
+        return user != null ? user.mail : null;
     }
 
     public String loadPublicConfig() {

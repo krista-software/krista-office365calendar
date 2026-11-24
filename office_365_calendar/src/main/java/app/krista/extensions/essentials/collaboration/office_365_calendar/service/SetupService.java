@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Map;
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.*;
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.TelemetryConstants.*;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Service class for handling Office 365 Calendar extension setup operations.
@@ -80,6 +81,8 @@ public class SetupService {
             telemetryMetrics.incrementCounter(HEALTH_CHECK_REQUEST_COUNT);
             Map<String, Object> response = healthCheckData(startTime);
             return new ExtensionResponseBuilder().success(response).build();
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
             telemetryMetrics.incrementCounter(HEALTH_CHECK_FAILURE_COUNT);
@@ -220,6 +223,8 @@ public class SetupService {
             double usage = (load / processors) * 100;
             return Math.min(Math.round(usage * 100.0) / 100.0, 100.0); // Cap at 100%
 
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             LOGGER.error("CPU monitoring failed", e);
             throw new RuntimeException("CPU monitoring unavailable: " + e.getMessage(), e);
@@ -237,6 +242,8 @@ public class SetupService {
             }
 
             return true;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             LOGGER.error("Configuration validation failed: {}", e.getMessage(), e);
             return false;

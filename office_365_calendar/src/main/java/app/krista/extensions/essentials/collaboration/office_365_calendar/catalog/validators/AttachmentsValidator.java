@@ -26,6 +26,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Validator implementation for validating attachments within the Office 365 calendar extension.
@@ -101,6 +102,8 @@ public class AttachmentsValidator implements Validator {
             }
 
             return true;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             return false;
         }

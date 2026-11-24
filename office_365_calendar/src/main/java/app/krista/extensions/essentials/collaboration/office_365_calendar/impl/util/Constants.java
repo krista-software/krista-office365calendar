@@ -82,6 +82,8 @@ public final class Constants {
     public static final String HASH = "#";
     public static final String UNDER_SCORE = "_";
     public static final String AUTH_CONTEXT_ID = "authContextId";
+    public static final String CLIENT_USER_ID = "clientUserId";
+    public static final String USER_ID = "userId";
     public static final String UNSUPPORTED_AUTH = "Invalid authentication type. Please choose either 'Public' or 'Private' authentication mode.";
     public static final String LOCAL_EXTN_URL = "https://extension.local.eng.krista.app";
     public static final String LOCAL_EXTN_REPLACE_URL = "http://localhost:8765";

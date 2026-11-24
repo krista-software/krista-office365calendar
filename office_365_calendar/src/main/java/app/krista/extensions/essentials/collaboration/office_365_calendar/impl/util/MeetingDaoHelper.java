@@ -21,6 +21,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 import com.microsoft.graph.core.DateOnly;
 import com.microsoft.graph.models.*;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,6 +38,8 @@ import java.util.List;
 import java.util.*;
 
 public final class MeetingDaoHelper {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingDaoHelper.class);
 
     public static final String UNEXPECTED_RECURRENCE_VALUE = "Unexpected recurrence value: ";
     public static final String END_DATE = "End date";
@@ -524,11 +528,28 @@ public final class MeetingDaoHelper {
      * @return {@link DateTimeTimeZone} object
      */
     public static DateTimeTimeZone buildDateTimeTimeZone(Long timeStamp, String timeZone, String clientTimeZone) {
+        // The dateTime string must be formatted in the SAME zone it is labelled with, otherwise Microsoft
+        // Graph interprets the wall-clock time against the wrong offset (e.g. a UTC clock time tagged as
+        // America/Chicago), shifting the meeting by the zones' offset. Resolve the event zone once and use
+        // it for both formatting and the timeZone label.
+        String eventTimeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
         SimpleDateFormat sfd = new SimpleDateFormat(YYYY_MM_DD_T_HH_MM_SS);
-        sfd.setTimeZone(TimeZone.getTimeZone(clientTimeZone));
+        sfd.setTimeZone(TimeZone.getTimeZone(eventTimeZone));
         DateTimeTimeZone dateTimeTimeZone = new DateTimeTimeZone();
         dateTimeTimeZone.dateTime = sfd.format(timeStamp);
-        dateTimeTimeZone.timeZone = (timeZone != null && !timeZone.isEmpty()) ? timeZone : clientTimeZone;
+        dateTimeTimeZone.timeZone = eventTimeZone;
+        // TZ-TRACE [3a-build] (KE-3527): the single point where an epoch becomes a Graph date. Shows the
+        // absolute instant that arrived and the exact Graph values produced. The epoch's meaning is fixed by
+        // whoever created it (Evette / the date picker); this method only renders it. "epochAsEventZone" is
+        // the true local meeting time - compare it with the time you intended; "dateTime" must equal its
+        // wall-clock. (Under the old bug, dateTime equalled epochAsClientZone instead.)
+        LOGGER.info("TZ-TRACE [3a-build] epoch={} eventTimeZone='{}' clientTimeZone='{}' => dateTime='{}' timeZone='{}' | " +
+                        "epochAsUTC={} epochAsEventZone={} epochAsClientZone={}",
+                timeStamp, eventTimeZone, clientTimeZone,
+                dateTimeTimeZone.dateTime, dateTimeTimeZone.timeZone,
+                java.time.Instant.ofEpochMilli(timeStamp).atZone(ZoneId.of("UTC")),
+                java.time.Instant.ofEpochMilli(timeStamp).atZone(ZoneId.of(eventTimeZone)),
+                java.time.Instant.ofEpochMilli(timeStamp).atZone(ZoneId.of(clientTimeZone)));
         return dateTimeTimeZone;
     }
 

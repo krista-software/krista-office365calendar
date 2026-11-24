@@ -16,11 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+
+
 package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
+import app.krista.extension.authorization.MustAuthorizeException;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
+import com.microsoft.graph.http.GraphError;
+import com.microsoft.graph.http.GraphErrorResponse;
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.requests.*;
@@ -28,6 +35,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -209,6 +217,138 @@ public class MeetingDaoImplTest {
         dao.getMeetingById("");
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetMeetingById_nullId_throws() {
+        dao.getMeetingById(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetMeetingById_blankId_throws() {
+        dao.getMeetingById("   ");
+    }
+
+    @Test
+    public void testGetMeetingById_graphServiceException_withErrorMessage_returnsNull() throws IOException {
+        // Arrange
+        String eventId = "event-123";
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        GraphServiceException graphException = Mockito.mock(GraphServiceException.class);
+        GraphErrorResponse errorResponse = new GraphErrorResponse();
+        GraphError graphError = new GraphError();
+        graphError.message = "The event was not found.";
+        errorResponse.error = graphError;
+        Mockito.when(graphException.getError()).thenReturn(errorResponse);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenThrow(graphException);
+
+        // Act
+        Meeting result = dao.getMeetingById(eventId);
+
+        // Assert
+        Assert.assertNull(result);
+    }
+
+    @Test
+    public void testGetMeetingById_graphServiceException_withNullError_returnsNull() throws IOException {
+        // Arrange
+        String eventId = "event-456";
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        GraphServiceException graphException = Mockito.mock(GraphServiceException.class);
+        Mockito.when(graphException.getError()).thenReturn(null);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenThrow(graphException);
+
+        // Act
+        Meeting result = dao.getMeetingById(eventId);
+
+        // Assert
+        Assert.assertNull(result);
+    }
+
+    @Test
+    public void testGetMeetingById_graphServiceException_withNullErrorBody_returnsNull() throws IOException {
+        // Arrange: getError() returns a response but with null inner error object
+        String eventId = "event-789";
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        GraphServiceException graphException = Mockito.mock(GraphServiceException.class);
+        GraphErrorResponse errorResponse = new GraphErrorResponse();
+        errorResponse.error = null;
+        Mockito.when(graphException.getError()).thenReturn(errorResponse);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenThrow(graphException);
+
+        // Act
+        Meeting result = dao.getMeetingById(eventId);
+
+        // Assert
+        Assert.assertNull(result);
+    }
+
+    @Test(expected = MustAuthorizeException.class)
+    public void testGetMeetingById_mustAuthorizeException_rethrows() throws IOException {
+        // Arrange
+        String eventId = "event-auth";
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenThrow(new MustAuthorizeException("No credentials configured. Please authenticate via the checkbox."));
+
+        // Act – must re-throw MustAuthorizeException
+        dao.getMeetingById(eventId);
+    }
+
+    @Test
+    public void testGetMeetingById_genericException_returnsNull() throws IOException {
+        // Arrange
+        String eventId = "event-generic";
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenThrow(new RuntimeException("Unexpected error"));
+
+        // Act
+        Meeting result = dao.getMeetingById(eventId);
+
+        // Assert
+        Assert.assertNull(result);
+    }
+
     @Test
     public void testGetSchedules_success() throws IOException {
         // Arrange
@@ -253,9 +393,151 @@ public class MeetingDaoImplTest {
 
     // Note: testGetQueryResults_success removed due to missing SearchRequestBuilder class in test environment
 
+    @Test
+    public void testGetQueryResults_emptyQuery_returnsEmptyList() {
+        // When query is empty/blank and no dates are provided, should return empty list (optional field behavior)
+        List<Map<String, Object>> results = dao.getQueryResults("", null, null);
+        Assert.assertNotNull(results);
+        Assert.assertTrue(results.isEmpty());
+    }
+
+    @Test
+    public void testGetQueryResults_nullQuery_returnsEmptyList() {
+        // When query is null and no dates are provided, should return empty list (optional field behavior)
+        List<Map<String, Object>> results = dao.getQueryResults(null, null, null);
+        Assert.assertNotNull(results);
+        Assert.assertTrue(results.isEmpty());
+    }
+
+    // ========== KE-3244: getQueryResults date-bounded path (calendarView) ==========
+
     @Test(expected = IllegalArgumentException.class)
-    public void testGetQueryResults_emptyQuery_throws() {
-        dao.getQueryResults("");
+    public void testGetQueryResults_fromAfterTo_throws() throws Exception {
+        long now = System.currentTimeMillis();
+        dao.getQueryResults("anything", now + 86_400_000L, now);
+    }
+
+    @Test
+    public void testGetQueryResults_withDateRange_filtersBySubject() throws Exception {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+        Mockito.when(ecReq.select(ArgumentMatchers.anyString())).thenReturn(ecReq);
+        Mockito.when(ecReq.get()).thenReturn(ecPage);
+
+        Event matching = buildEvent("Jennitri OOO", "Out of office", 1);
+        Event nonMatching = buildEvent("MBL Sync", "Sprint planning", 2);
+        Event nullSubject = new Event(); // null subject + null bodyPreview must not NPE
+        nullSubject.start = matching.start;
+        nullSubject.end = matching.end;
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Arrays.asList(matching, nonMatching, nullSubject));
+
+        long now = System.currentTimeMillis();
+        List<Map<String, Object>> results = dao.getQueryResults("jennitri", now, now + 30L * 86_400_000L);
+
+        Assert.assertEquals(1, results.size());
+        Assert.assertEquals("Jennitri OOO", results.get(0).get("Event Title"));
+    }
+
+    @Test
+    public void testGetQueryResults_withDateRange_blankQuery_returnsAllInWindow() throws Exception {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+        Mockito.when(ecReq.select(ArgumentMatchers.anyString())).thenReturn(ecReq);
+        Mockito.when(ecReq.get()).thenReturn(ecPage);
+
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Arrays.asList(
+                buildEvent("Standup", "Daily sync", 1),
+                buildEvent("Review", "Quarterly review", 2)));
+
+        long now = System.currentTimeMillis();
+        List<Map<String, Object>> results = dao.getQueryResults("", now, now + 7L * 86_400_000L);
+
+        Assert.assertEquals(2, results.size());
+    }
+
+    @Test
+    public void testGetQueryResults_withDateRange_matchesBodyPreview() throws Exception {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+        Mockito.when(ecReq.select(ArgumentMatchers.anyString())).thenReturn(ecReq);
+        Mockito.when(ecReq.get()).thenReturn(ecPage);
+
+        Event subjectHit = buildEvent("Allevio Sync", "agenda", 1);
+        Event bodyHit = buildEvent("Random meeting", "We will discuss Allevio next steps", 2);
+        Event noHit = buildEvent("Coffee chat", "informal", 3);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Arrays.asList(subjectHit, bodyHit, noHit));
+
+        long now = System.currentTimeMillis();
+        List<Map<String, Object>> results = dao.getQueryResults("ALLEVIO", now, now + 86_400_000L);
+
+        Assert.assertEquals(2, results.size());
+    }
+
+    @Test
+    public void testGetQueryResults_onlyFromProvided_appliesOneYearWindow() throws Exception {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+        Mockito.when(ecReq.select(ArgumentMatchers.anyString())).thenReturn(ecReq);
+        Mockito.when(ecReq.get()).thenReturn(ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        long now = System.currentTimeMillis();
+        List<Map<String, Object>> results = dao.getQueryResults(null, now, null);
+
+        Assert.assertNotNull(results);
+        Assert.assertTrue(results.isEmpty());
+        // calendarView path was taken (not /search/query)
+        Mockito.verify(crb).calendarView();
+    }
+
+    private Event buildEvent(String subject, String bodyPreview, int daysAhead) {
+        Event e = new Event();
+        e.id = "id-" + subject;
+        e.subject = subject;
+        e.bodyPreview = bodyPreview;
+        e.start = new DateTimeTimeZone();
+        e.end = new DateTimeTimeZone();
+        e.start.timeZone = "UTC";
+        e.end.timeZone = "UTC";
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.add(Calendar.DAY_OF_YEAR, daysAhead);
+        e.start.dateTime = fmt.format(cal.getTime());
+        cal.add(Calendar.HOUR_OF_DAY, 1);
+        e.end.dateTime = fmt.format(cal.getTime());
+        return e;
     }
 
     @Test
@@ -888,6 +1170,233 @@ public class MeetingDaoImplTest {
     @Test(expected = IllegalArgumentException.class)
     public void testGetMeetings_negativeNumber_throws() {
         dao.getMeetings(-1);
+    }
+
+    // ========== getMeetings(int) — calendarView fix tests ==========
+
+    private void setupCalendarViewMockChain(
+            UserRequestBuilder urb,
+            CalendarRequestBuilder crb,
+            EventCollectionRequestBuilder ecrb,
+            EventCollectionRequest ecReq,
+            EventCollectionPage ecPage) {
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+        Mockito.when(ecReq.get()).thenReturn(ecPage);
+    }
+
+    private Event buildFutureEvent(String subject, int daysAhead) {
+        Event e = new Event();
+        e.subject = subject;
+        e.start = new DateTimeTimeZone();
+        e.end = new DateTimeTimeZone();
+        e.start.timeZone = "UTC";
+        e.end.timeZone = "UTC";
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.add(Calendar.DAY_OF_YEAR, daysAhead);
+        e.start.dateTime = fmt.format(cal.getTime());
+        cal.add(Calendar.HOUR_OF_DAY, 1);
+        e.end.dateTime = fmt.format(cal.getTime());
+        return e;
+    }
+
+    @Test
+    public void testGetMeetings_success_returnsOrganizerEvent() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+
+        Event e = buildFutureEvent("Team Sync", 1);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.singletonList(e));
+
+        List<Meeting> result = dao.getMeetings(5);
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals("Team Sync", result.get(0).getTitle());
+    }
+
+    @Test
+    public void testGetMeetings_success_returnsAttendeeOnlyEvent() {
+        // Bug-fix regression: calendarView must surface events where the user is an attendee, not organizer
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+
+        Event e = buildFutureEvent("Budget Review", 3);
+        e.organizer = new Recipient();
+        e.organizer.emailAddress = new EmailAddress();
+        e.organizer.emailAddress.address = "organizer@contoso.com";
+        Attendee attendee = new Attendee();
+        attendee.emailAddress = new EmailAddress();
+        attendee.emailAddress.address = "me@example.com";
+        attendee.status = new ResponseStatus();
+        attendee.status.response = ResponseType.ACCEPTED;
+        e.attendees = new LinkedList<>();
+        e.attendees.add(attendee);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.singletonList(e));
+
+        List<Meeting> result = dao.getMeetings(5);
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals("Budget Review", result.get(0).getTitle());
+    }
+
+    @Test
+    public void testGetMeetings_emptyCalendar_returnsEmptyList() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        List<Meeting> result = dao.getMeetings(5);
+
+        Assert.assertNotNull(result);
+        Assert.assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testGetMeetings_multipleEvents_returnsAllInOrder() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+
+        Event e1 = buildFutureEvent("Standup", 1);
+        Event e2 = buildFutureEvent("Sprint Planning", 2);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Arrays.asList(e1, e2));
+
+        List<Meeting> result = dao.getMeetings(2);
+
+        Assert.assertEquals(2, result.size());
+        Assert.assertEquals("Standup", result.get(0).getTitle());
+        Assert.assertEquals("Sprint Planning", result.get(1).getTitle());
+    }
+
+    @Test
+    public void testGetMeetings_usesCalendarView_notEventsFilter() {
+        // calendarView() must be used; events() + $filter would miss attendee events
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        dao.getMeetings(3);
+
+        Mockito.verify(crb).calendarView();
+        Mockito.verify(crb, Mockito.never()).events(ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetMeetings_queryOptions_hasAllFourRequiredKeys() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        ArgumentCaptor<List<com.microsoft.graph.options.Option>> captor =
+                ArgumentCaptor.forClass(List.class);
+
+        dao.getMeetings(5);
+
+        Mockito.verify(ecrb).buildRequest(captor.capture());
+        Set<String> names = new HashSet<>();
+        captor.getValue().forEach(o -> names.add(o.getName()));
+        Assert.assertTrue("Missing startDateTime", names.contains("startDateTime"));
+        Assert.assertTrue("Missing endDateTime", names.contains("endDateTime"));
+        Assert.assertTrue("Missing $orderby", names.contains("$orderby"));
+        Assert.assertTrue("Missing $top", names.contains("$top"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetMeetings_queryOptions_topValueMatchesRequested() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        ArgumentCaptor<List<com.microsoft.graph.options.Option>> captor =
+                ArgumentCaptor.forClass(List.class);
+
+        dao.getMeetings(7);
+
+        Mockito.verify(ecrb).buildRequest(captor.capture());
+        String topValue = captor.getValue().stream()
+                .filter(o -> "$top".equals(o.getName()))
+                .findFirst()
+                .map(o -> o.getValue().toString())
+                .orElse(null);
+        Assert.assertEquals("7", topValue);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetMeetings_queryOptions_startDateTimeHasUtcOffset() {
+        // startDateTime must carry a UTC offset so Graph API boundary comparisons are timezone-unambiguous
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+        EventCollectionPage ecPage = Mockito.mock(EventCollectionPage.class);
+        setupCalendarViewMockChain(urb, crb, ecrb, ecReq, ecPage);
+        Mockito.when(ecPage.getCurrentPage()).thenReturn(Collections.emptyList());
+
+        ArgumentCaptor<List<com.microsoft.graph.options.Option>> captor =
+                ArgumentCaptor.forClass(List.class);
+
+        dao.getMeetings(3);
+
+        Mockito.verify(ecrb).buildRequest(captor.capture());
+        String startVal = captor.getValue().stream()
+                .filter(o -> "startDateTime".equals(o.getName()))
+                .findFirst()
+                .map(o -> o.getValue().toString())
+                .orElse(null);
+        Assert.assertNotNull("startDateTime option missing", startVal);
+        Assert.assertTrue("startDateTime must include UTC offset (+00:00 or Z)",
+                startVal.contains("+00:00") || startVal.endsWith("Z"));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testGetMeetings_graphServiceException_wrapsInIllegalState() {
+        UserRequestBuilder urb = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder crb = Mockito.mock(CalendarRequestBuilder.class);
+        EventCollectionRequestBuilder ecrb = Mockito.mock(EventCollectionRequestBuilder.class);
+        EventCollectionRequest ecReq = Mockito.mock(EventCollectionRequest.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(urb);
+        Mockito.when(urb.calendar()).thenReturn(crb);
+        Mockito.when(crb.calendarView()).thenReturn(ecrb);
+        Mockito.when(ecrb.buildRequest(ArgumentMatchers.anyList())).thenReturn(ecReq);
+
+        GraphServiceException gse = Mockito.mock(GraphServiceException.class);
+        Mockito.when(ecReq.get()).thenThrow(gse);
+
+        dao.getMeetings(5);
     }
 
     @Test
@@ -1727,5 +2236,140 @@ public class MeetingDaoImplTest {
 
     // Removed testGetUnAcceptedMeetings_withMultipleEvents_success due to complex mocking requirements
     // The existing testGetUnAcceptedMeetings_returnsExpectedMeeting test already covers this functionality
+
+    // ── Factory-constructor tests (regression guard + bug fix) ────────────────
+    // Root cause: the @Inject constructor called factory.create() eagerly.
+    // That threw MustAuthorizeException before HK2 finished constructing the
+    // singleton, which HK2 then wrapped as
+    //   IllegalStateException: Unable to perform operation: create on MeetingDaoImpl
+    // producing the double-exception seen in the logs.
+    // Fix: defer factory.create() to each method call via resolveClientProvider().
+
+    @Test
+    public void testFactoryConstructor_doesNotEagerlyCallCreate() {
+        // Constructing via the @Inject factory constructor must NOT call factory.create().
+        GraphServiceClientProviderFactory mockFactory =
+                Mockito.mock(GraphServiceClientProviderFactory.class);
+
+        new MeetingDaoImpl(mockFactory); // must not throw
+
+        Mockito.verify(mockFactory, Mockito.never()).create();
+    }
+
+    @Test(expected = MustAuthorizeException.class)
+    public void testFactoryConstructor_unauthenticated_throwsCleanMustAuthorizeOnMethodCall() {
+        // When no credentials are configured, a method call must throw MustAuthorizeException
+        // directly — not wrapped inside IllegalStateException from HK2 construction.
+        GraphServiceClientProviderFactory mockFactory =
+                Mockito.mock(GraphServiceClientProviderFactory.class);
+        Mockito.when(mockFactory.create())
+               .thenThrow(new MustAuthorizeException("No credentials configured. Please authenticate via the checkbox."));
+
+        MeetingDaoImpl factoryDao = new MeetingDaoImpl(mockFactory); // must succeed
+
+        factoryDao.getMeetingById("any-event-id"); // throws MustAuthorizeException here, not above
+    }
+
+    @Test
+    public void testFactoryConstructor_authenticated_methodCallSucceeds() {
+        // When credentials are present the factory-constructor path must work
+        // identically to the test-constructor path.
+        GraphServiceClientProviderFactory mockFactory =
+                Mockito.mock(GraphServiceClientProviderFactory.class);
+        GraphServiceClientProvider mockProvider =
+                Mockito.mock(GraphServiceClientProvider.class);
+        Mockito.when(mockFactory.create()).thenReturn(mockProvider);
+
+        String eventId = "event-factory-123";
+        Event mockEvent = new Event();
+        mockEvent.id = eventId;
+        mockEvent.subject = "Factory Authenticated Meeting";
+
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        Mockito.when(mockProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenReturn(mockEvent);
+
+        MeetingDaoImpl factoryDao = new MeetingDaoImpl(mockFactory);
+        Meeting result = factoryDao.getMeetingById(eventId);
+
+        Assert.assertNotNull(result);
+        Assert.assertEquals("Factory Authenticated Meeting", result.getTitle());
+    }
+
+    @Test
+    public void testTestConstructor_noRegression_resolveClientProviderUsesInjectedMock() {
+        // The two-arg test constructor must still work exactly as before — resolveClientProvider()
+        // returns the injected mock without touching any factory.
+        // All existing tests rely on this path; this test makes the contract explicit.
+        String eventId = "regression-event";
+        Event mockEvent = new Event();
+        mockEvent.id = eventId;
+        mockEvent.subject = "Regression Meeting";
+
+        UserRequestBuilder userRequestBuilder = Mockito.mock(UserRequestBuilder.class);
+        CalendarRequestBuilder calendarRequestBuilder = Mockito.mock(CalendarRequestBuilder.class);
+        EventRequestBuilder eventRequestBuilder = Mockito.mock(EventRequestBuilder.class);
+        EventRequest eventRequest = Mockito.mock(EventRequest.class);
+
+        Mockito.when(clientProvider.getUserRequestBuilder(false, null)).thenReturn(userRequestBuilder);
+        Mockito.when(userRequestBuilder.calendar()).thenReturn(calendarRequestBuilder);
+        Mockito.when(calendarRequestBuilder.events(eventId)).thenReturn(eventRequestBuilder);
+        Mockito.when(eventRequestBuilder.buildRequest()).thenReturn(eventRequest);
+        Mockito.when(eventRequest.get()).thenReturn(mockEvent);
+
+        // dao is constructed in @Before with the test constructor — no factory involved
+        Meeting result = dao.getMeetingById(eventId);
+
+        Assert.assertNotNull(result);
+        Assert.assertEquals("Regression Meeting", result.getTitle());
+    }
+
+    // ========================================================================
+    // getQueryResults: auth checked before input validation
+    // ========================================================================
+
+    @Test
+    public void testGetQueryResults_NullQuery_NoCredentials_ThrowsMustAuthorize() {
+        // When no credentials are configured the factory throws MustAuthorizeException.
+        // That must be raised BEFORE the null-query IllegalArgumentException so that
+        // the MCP/agent caller receives the OAuth redirect rather than an input error.
+        GraphServiceClientProviderFactory mockFactory = Mockito.mock(GraphServiceClientProviderFactory.class);
+        Mockito.when(mockFactory.create()).thenThrow(new MustAuthorizeException("No credentials configured. Please authenticate via the checkbox."));
+
+        MeetingDaoImpl daoWithFactory = new MeetingDaoImpl(mockFactory);
+
+        try {
+            daoWithFactory.getQueryResults(null, null, null);
+            Assert.fail("Expected MustAuthorizeException");
+        } catch (MustAuthorizeException e) {
+            Assert.assertEquals("No credentials configured. Please authenticate via the checkbox.", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            Assert.fail("IllegalArgumentException fired before MustAuthorizeException — auth must be checked first");
+        }
+    }
+
+    @Test
+    public void testGetQueryResults_EmptyQuery_NoCredentials_ThrowsMustAuthorize() {
+        GraphServiceClientProviderFactory mockFactory = Mockito.mock(GraphServiceClientProviderFactory.class);
+        Mockito.when(mockFactory.create()).thenThrow(new MustAuthorizeException("No credentials configured. Please authenticate via the checkbox."));
+
+        MeetingDaoImpl daoWithFactory = new MeetingDaoImpl(mockFactory);
+
+        try {
+            daoWithFactory.getQueryResults("", null, null);
+            Assert.fail("Expected MustAuthorizeException");
+        } catch (MustAuthorizeException e) {
+            Assert.assertEquals("No credentials configured. Please authenticate via the checkbox.", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            Assert.fail("IllegalArgumentException fired before MustAuthorizeException — auth must be checked first");
+        }
+    }
 }
 

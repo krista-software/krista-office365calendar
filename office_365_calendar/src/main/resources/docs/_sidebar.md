@@ -5,7 +5,9 @@
 * **Getting Started**
   * [Extension Configuration](pages/ExtensionConfiguration.md)
   * [Authentication](pages/Authentication.md)
+  * [Audit Dashboard](pages/AuditDashboard.md)
   * [Creating Office 365 App](pages/CreatingOffice365App.md)
+  * [SDK Integration Guide](pages/SDKIntegrationGuide.md)
 
 * **Event Management**
   * [Schedule Meeting](pages/ScheduleMeeting.md)
@@ -34,6 +36,9 @@
 * **Attachment Operations**
   * [Get Attachments](pages/GetAttachments.md)
   * [Get Attachments For A Given User](pages/GetAttachmentsForAGivenUser.md)
+
+* **AI Assistant**
+  * [AI Assistant (MCP)](pages/AiAssistant.md)
 
 * **Additional Resources**
   * [Error Messages](pages/ErrorMessages.md)

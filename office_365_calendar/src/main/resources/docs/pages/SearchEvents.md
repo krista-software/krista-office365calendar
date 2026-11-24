@@ -19,7 +19,8 @@ Searches for calendar events that match the given search keywords. Returns a lis
 ### Parameter Details
 
 #### Search Terms
-- **Required**: No - If omitted, may return recent events
+- **Required**: No
+- **Behavior when empty/null**: Returns empty list (no events)
 - **Search Scope**: Searches event titles, descriptions, locations, and attendee names
 - **Case Insensitive**: Search is not case-sensitive
 - **Partial Matching**: Matches partial words and phrases
@@ -46,7 +47,7 @@ Each result contains:
 | Validation | Error Message | Resolution |
 |------------|---------------|------------|
 | Search returns no results | Empty list returned | Try different search terms |
-| Invalid search terms | System error | Provide valid text input |
+| Empty/null search terms | Empty list returned | Provide search terms to find events |
 
 ## Error Handling
 
@@ -119,12 +120,26 @@ Search Terms: "nonexistent meeting"
 []
 ```
 
+### Example 4: Empty Search Terms
+
+**Input**:
+```
+Search Terms: (empty)
+```
+
+**Output**:
+```json
+[]
+```
+
+**Note**: When search terms are not provided (null or blank), an empty list is returned. Use [Get Next Upcoming Meetings](pages/GetNextUpcomingMeetings.md) or [Get Events for a given User](pages/GetEventsForAGivenUser.md) to retrieve events without search terms.
+
 ## Business Rules
 
 1. **Maximum Results**: Returns up to 25 matching events
 2. **Current User Calendar**: Searches only the current user's accessible calendars
 3. **No Validation**: Does not validate search terms
-4. **Empty Search**: May return recent events if search terms are empty
+4. **Empty Search**: Returns empty list if search terms are null or blank
 5. **Chronological Order**: Results are typically ordered by event start time
 
 ## Limitations

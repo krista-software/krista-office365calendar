@@ -18,6 +18,7 @@
 
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog;
 
+import app.krista.extension.authorization.MustAuthorizeException;
 import app.krista.extension.executor.ExtensionResponse;
 import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extension.impl.anno.CatalogRequest;
@@ -26,11 +27,10 @@ import app.krista.extension.impl.anno.SubCatalogRequest;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.entity.EventDetails;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ErrorHandlingStateManager;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.errorhandlers.ExtensionResponseGenerator;
-import app.krista.extension.executor.ExtensionResponseBuilder;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators.ValidationOrchestrator;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.MeetingDaoImpl;
-import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import app.krista.model.base.File;
 import com.microsoft.graph.models.FileAttachment;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -69,10 +68,10 @@ public class MeetingsAreaSubCatalogRequestHelper {
     /**
      * Constructs a new MeetingsAreaSubCatalogRequestHelper with required dependencies.
      *
-     * @param meetingDao the meeting DAO for event operations
-     * @param catalogTypes the catalog types utility
+     * @param meetingDao           the meeting DAO for event operations
+     * @param catalogTypes         the catalog types utility
      * @param internalStateManager the error handling state manager
-     * @param responseGenerator the extension response generator
+     * @param responseGenerator    the extension response generator
      */
     @Inject
     public MeetingsAreaSubCatalogRequestHelper(MeetingDaoImpl meetingDao, CatalogTypes catalogTypes, ErrorHandlingStateManager internalStateManager, ExtensionResponseGenerator responseGenerator) {
@@ -90,7 +89,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterGetAttachmentsForAGivenUser", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, Event Id: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetAttachmentsForAGivenUser(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, email: Text, Event Id: Text}", description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get attachments for a given user re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterGetAttachmentsForAGivenUser: Starting confirmation for re-entering attachment details");
         LOGGER.debug("→ confirmReenterGetAttachmentsForAGivenUser: Input map: {}", map);
 
@@ -123,8 +122,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response containing the attachments or an error response
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_ATTACHMENT_FOR_GIVEN_USER, description = "Handle re-enter email and event id", type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
-    public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, Event Id: Text}") Map<String, Object> map) {
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false, description = "List of file attachment objects retrieved from the calendar event. Each file contains the attachment name, content type, size, and downloadable content bytes.")
+    public ExtensionResponse handleReEnterGetAttachmentForGivenUser(@Field.Desc(name = "inputMap", type = "{ email: Text, Event Id: Text}", description = "Structured input map containing the re-entered user email address and event identifier used to retrieve attachments for the specified calendar event.") Map<String, Object> map) {
         LOGGER.info("→ handleReEnterGetAttachmentForGivenUser: Starting attachment retrieval for given user");
         LOGGER.debug("→ handleReEnterGetAttachmentForGivenUser: Input map: {}", map);
 
@@ -143,15 +142,14 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of(Constants.ATTACHMENTS, attachments)).build();
             LOGGER.info("→ handleReEnterGetAttachmentForGivenUser: Successfully retrieved attachments");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ handleReEnterGetAttachmentForGivenUser: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_EVENT_ATTACHMENTS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getAttachmentsForAGivenUser ");
             return new ExtensionResponseBuilder().failure(error).build();
         }
     }
-
-
-
 
 
     /**
@@ -162,7 +160,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = CONFIRM_RE_ENTER_CANCEL_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.CHANGE_SYSTEM)
-    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text , Delegate Email: Text }") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterCancelEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event Id: Text , Delegate Email: Text }", description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the cancel event re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterCancelEvent: Starting confirmation for re-entering cancel event details");
         LOGGER.debug("→ confirmReenterCancelEvent: Input map: {}", map);
 
@@ -197,7 +195,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = "confirmReenterGetUpcomingMeetings", description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, numberOfMeetings: Number}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, numberOfMeetings: Number}", description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get upcoming meetings re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterGetUpcomingMeetings: Starting confirmation for re-entering upcoming meetings details");
         LOGGER.debug("→ confirmReenterGetUpcomingMeetings: Input map: {}", map);
 
@@ -230,8 +228,8 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response containing the upcoming meetings or an error response
      */
     @SubCatalogRequest(name = Constants.HANDLE_RE_ENTER_GET_UPCOMING_MEETINGS, description = "Handle re-enter number of meetings", type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
-    public ExtensionResponse handleReEnterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{numberOfMeetings: Number}") Map<String, Object> map) {
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false, description = "List of upcoming calendar event metadata objects returned after a successful retrieval. Each entity contains the event title, location, date range, attendees, and other meeting details.")
+    public ExtensionResponse handleReEnterGetUpcomingMeetings(@Field.Desc(name = "inputMap", type = "{numberOfMeetings: Number}", description = "Structured input map containing the re-entered number of upcoming meetings to retrieve from the calendar.") Map<String, Object> map) {
         LOGGER.info("→ handleReEnterGetUpcomingMeetings: Starting upcoming meetings retrieval");
         LOGGER.debug("→ handleReEnterGetUpcomingMeetings: Input map: {}", map);
 
@@ -263,7 +261,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", events)).build();
             LOGGER.info("→ handleReEnterGetUpcomingMeetings: Successfully retrieved upcoming meetings");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ handleReEnterGetUpcomingMeetings: Exception occurred - {}", cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(Constants.FAILED_TO_GET_UPCOMING_MEETINGS, System.currentTimeMillis(), ExtensionResponse.Error.ExceptionType.INPUT_ERROR, " MeetingsArea -> getNextUpcomingMeetings ");
             return new ExtensionResponseBuilder().failure(error).build();
@@ -278,7 +278,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
      * @return an extension response prompting for re-entry or indicating failure
      */
     @SubCatalogRequest(name = Constants.CONFIRM_REENTER_GET_EVENT, description = "Checks if user wants to re-enter details and if yes, sends prompt to do so", type = CatalogRequest.Type.QUERY_SYSTEM)
-    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event ID: Text}") Map<String, Object> map) {
+    public ExtensionResponse confirmReenterGetEvent(@Field.Desc(name = "inputMap", type = "{ re-enter: Boolean, stateId: Text, Event ID: Text}", description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get event re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterGetEvent: Starting confirmation for re-entering get event details");
         LOGGER.debug("→ confirmReenterGetEvent: Input map: {}", map);
 
@@ -305,7 +305,6 @@ public class MeetingsAreaSubCatalogRequestHelper {
     }
 
 
-
     /**
      * Processes the provided state map and performs validations, returning a list of validation results.
      *
@@ -326,7 +325,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterDeclineInvitation(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the decline invitation re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         Boolean reenter = (Boolean) map.get(Constants.RE_ENTER);
         String stateId = (String) map.get(Constants.STATE_ID);
         Map<String, Object> state = internalStateManager.get(stateId);
@@ -341,7 +340,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
         return responseGenerator.generateFetchResponse(ExtensionResponse.Error.ExceptionType.INPUT_ERROR,
                 validationResults, Constants.HANDLE_REENTER_DECLINE_INVITATION,
                 Map.of(Constants.STATE_ID, stateId,
-                      Constants.EVENT_ID, map.get(Constants.EVENT_ID) != null ? map.get(Constants.EVENT_ID) : ""));
+                        Constants.EVENT_ID, map.get(Constants.EVENT_ID) != null ? map.get(Constants.EVENT_ID) : ""));
     }
 
     /**
@@ -354,9 +353,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_DECLINE_INVITATION,
             description = "Handle re-entered event ID for declining invitation",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the declined calendar event returned after a successful operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterDeclineInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }", description = "Structured input map containing the validation state identifier and re-entered event identifier used to decline the meeting invitation.") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterDeclineInvitation start: {}", map);
 
         // Extract parameters from the map
@@ -367,7 +366,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             Meeting declinedMeeting = meetingDao.declineMeetingInvitation(eventId);
             EventDetails eventDetails = CatalogTypes.fromEvent(declinedMeeting);
             return new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("Error occurred in handleReenterDeclineInvitation: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_DECLINE_INVITATION + cause.getMessage(),
@@ -393,7 +394,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetSchedules(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get schedules re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET SCHEDULES START");
         LOGGER.info("→ Input map: {}", map);
 
@@ -454,9 +455,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_SCHEDULES,
             description = "Handle re-entered details for getting schedules",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false)
+    @Field.Desc(name = "List of Meetings", type = "[ { Attendee: Email, Schedules: [ { Scheduled Time: DateTimeRange, Status: Text } ] } ]", required = false, description = "List of attendee schedule entries, each containing an attendee email and their scheduled time blocks with availability status. Used to view busy/free information across multiple calendars.")
     public ExtensionResponse handleReenterGetSchedules(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, attendees: [ Text ], Time Zone: Text }", description = "Structured input map containing the validation state identifier and re-entered schedule query parameters including date range, attendee email list, and time zone.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET SCHEDULES START");
         LOGGER.info("→ Input map: {}", map);
 
@@ -517,7 +518,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Meetings", schedules)).build();
             LOGGER.info("→ HANDLE REENTER GET SCHEDULES SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET SCHEDULES EXCEPTION: {} - {}", cause.getClass().getSimpleName(), cause.getMessage(), cause);
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_SCHEDULES_VALIDATION + cause.getMessage(),
@@ -570,7 +573,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetFreeSlots(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get free slots re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET FREE SLOTS START");
         LOGGER.info("→ Input map: {}", map);
 
@@ -634,9 +637,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_FREE_SLOTS,
             description = "Handle re-entered details for getting free slots",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false)
+    @Field.Desc(name = "List of Free Slots", type = "[ { Time Slot: DateTimeRange, Attendee Availability: [ { Attendee: Text, Availability: Text } ], Confidence: Percentage, Organizer Availability: Text, Suggestion Reason: Text } ]", required = false, description = "List of suggested meeting time slots where attendees are available, including per-attendee availability details, confidence score, organizer availability status, and the reason for the suggestion.")
     public ExtensionResponse handleReenterGetFreeSlots(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Date From: Number, Date To: Number, Is Organizer Optional: Boolean, Required Attendee: [ Text ], Optional Attendee: [ Text ], Time Zone: Text, Meeting Duration: Text }", description = "Structured input map containing the validation state identifier and re-entered free slot query parameters including date range, organizer optionality flag, required and optional attendee lists, time zone, and meeting duration.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET FREE SLOTS START");
         LOGGER.info("→ Input map: {}", map);
         LOGGER.info("SubCatalogRequest handleReenterGetFreeSlots start: {}", map);
@@ -730,11 +733,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("List of Free Slots", freeSlots)).build();
             LOGGER.info("→ HANDLE REENTER GET FREE SLOTS SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET FREE SLOTS EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetFreeSlots: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_FREE_SLOTS_VALIDATION + cause.getMessage(),
@@ -762,7 +767,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterForwardEvent(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the forward event re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterForwardEvent: Starting confirmation for re-entering forward event details");
         LOGGER.debug("→ confirmReenterForwardEvent: Input map: {}", map);
 
@@ -799,9 +804,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_FORWARD_EVENT,
             description = "Handle re-entered event ID and attendee emails for forwarding event",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field(name = "IsForwarded", type = "Switch", required = false)
+    @Field(name = "IsForwarded", type = "Switch", required = false, description = "Boolean switch indicating whether the event was successfully forwarded to the specified attendees. Returns true when the forward operation completes successfully.")
     public ExtensionResponse handleReenterForwardEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", description = "Structured input map containing the validation state identifier, re-entered event identifier, and list of attendee email addresses to forward the calendar event to.") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterForwardEvent start: {}", map);
 
         try {
@@ -817,7 +822,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("IsForwarded", true)).build();
             LOGGER.info("SubCatalogRequest handleReenterForwardEvent success");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("Error occurred in handleReenterForwardEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_FORWARD_EVENT_VALIDATION + cause.getMessage(),
@@ -843,7 +850,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAcceptInvitation(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the accept invitation re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterAcceptInvitation: Starting confirmation for re-entering accept invitation details");
         LOGGER.debug("→ confirmReenterAcceptInvitation: Input map: {}", map);
 
@@ -880,9 +887,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_ACCEPT_INVITATION,
             description = "Handle re-entered event ID for accepting invitation",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the accepted calendar event returned after a successful operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterAcceptInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }", description = "Structured input map containing the validation state identifier and re-entered event identifier used to accept the meeting invitation.") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterAcceptInvitation start: {}", map);
 
         try {
@@ -896,7 +903,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             LOGGER.info("SubCatalogRequest handleReenterAcceptInvitation success");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("Error occurred in handleReenterAcceptInvitation: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_ACCEPT_INVITATION_VALIDATION + cause.getMessage(),
@@ -922,7 +931,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterTentativeInvitation(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the tentative invitation re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ confirmReenterTentativeInvitation: Starting confirmation for re-entering tentative invitation details");
         LOGGER.debug("→ confirmReenterTentativeInvitation: Input map: {}", map);
 
@@ -959,9 +968,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_TENTATIVE_INVITATION,
             description = "Handle re-entered event ID for tentative invitation",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the tentatively accepted calendar event returned after a successful operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterTentativeInvitation(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text }", description = "Structured input map containing the validation state identifier and re-entered event identifier used to tentatively accept the meeting invitation.") Map<String, Object> map) {
         LOGGER.info("SubCatalogRequest handleReenterTentativeInvitation start: {}", map);
 
         try {
@@ -975,7 +984,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             ExtensionResponse response = new ExtensionResponseBuilder().success(Map.of("Event Details", eventDetails)).build();
             LOGGER.info("SubCatalogRequest handleReenterTentativeInvitation success");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("Error occurred in handleReenterTentativeInvitation: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_TENTATIVE_INVITATION_VALIDATION + cause.getMessage(),
@@ -1001,7 +1012,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterScheduleMeeting(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean, Organizer Email: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean, Organizer Email: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the schedule meeting re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER SCHEDULE MEETING START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterScheduleMeeting");
         LOGGER.info("  → Input map: {}", map);
@@ -1045,9 +1056,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_SCHEDULE_MEETING,
             description = "Handle re-entered meeting details for scheduling meeting",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the newly scheduled calendar event returned after a successful operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterScheduleMeeting(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean , Organizer Email: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Title: Text, Location: Text, Date From: Number, Date to: Number, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Time Zone: Text, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Attachments: File , Details: Text, Is Teams Meeting: Boolean , Organizer Email: Text }", description = "Structured input map containing the validation state identifier and re-entered meeting parameters including title, location, date range, attendees, recurrence settings, attachments, and organizer email used to schedule the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterScheduleMeeting");
         LOGGER.debug("  → Input map: {}", map);
@@ -1140,11 +1151,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterScheduleMeeting success");
             LOGGER.info("→ HANDLE REENTER SCHEDULE MEETING SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER SCHEDULE MEETING EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterScheduleMeeting: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_SCHEDULE_MEETING_VALIDATION + cause.getMessage(),
@@ -1173,7 +1186,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterAddAttendees(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the add attendees re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER ADD ATTENDEES START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterAddAttendees");
         LOGGER.debug("  → Input map: {}", map);
@@ -1215,9 +1228,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_ADD_ATTENDEES,
             description = "Handle re-entered details for adding attendees",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the updated calendar event returned after successfully adding attendees. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterAddAttendees(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ] }", description = "Structured input map containing the validation state identifier, re-entered event identifier, and lists of required and optional attendee email addresses to add to the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER ADD ATTENDEES START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterAddAttendees");
         LOGGER.debug("  → Input map: {}", map);
@@ -1249,11 +1262,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterAddAttendees success");
             LOGGER.info("→ HANDLE REENTER ADD ATTENDEES SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER ADD ATTENDEES EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterAddAttendees: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_ADD_ATTENDEES_VALIDATION + cause.getMessage(),
@@ -1282,7 +1297,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterRemoveAttendee(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the remove attendee re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER REMOVE ATTENDEE START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterRemoveAttendee");
         LOGGER.debug("  → Input map: {}", map);
@@ -1324,9 +1339,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_REMOVE_ATTENDEE,
             description = "Handle re-entered details for removing attendee",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the updated calendar event returned after successfully removing an attendee. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterRemoveAttendee(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Attendee Email: [ Email ] }", description = "Structured input map containing the validation state identifier, re-entered event identifier, and list of attendee email addresses to remove from the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER REMOVE ATTENDEE START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterRemoveAttendee");
         LOGGER.debug("  → Input map: {}", map);
@@ -1355,11 +1370,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterRemoveAttendee success");
             LOGGER.info("→ HANDLE REENTER REMOVE ATTENDEE SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER REMOVE ATTENDEE EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterRemoveAttendee: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_REMOVE_ATTENDEE_VALIDATION + cause.getMessage(),
@@ -1388,7 +1405,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterUpdateEvent(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the update event re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER UPDATE EVENT START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterUpdateEvent");
         LOGGER.info("  → Input map: {}", map);
@@ -1430,9 +1447,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_UPDATE_EVENT,
             description = "Handle re-entered event details for updating event",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the updated calendar event returned after a successful update operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterUpdateEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text, Title: Text, Location: Text, Date From: Number, Date To: Number, Details: Text, Time Zone: Text, Required Attendee Email: [ Email ], Optional Attendee Email: [ Email ], Is All Day: Boolean, Reminder: Text, Recurrence: Text, Recurrence Interval: Number, Days Of Week: [ Text ], Recurrence Type: Text, Day Of Month: Number, Repeat Index: Text, Repeat Day: Text, Repeat Month: Text, End Recurrence: Text, End Date: Number, Numbered Occurrences: Number, Is Teams Meeting: Boolean ,Organizer Email: Text }", description = "Structured input map containing the validation state identifier and re-entered event parameters including event ID, title, location, date range, attendees, recurrence settings, and organizer email used to update the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER UPDATE EVENT START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterUpdateEvent");
         LOGGER.debug("  → Input map: {}", map);
@@ -1510,11 +1527,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterUpdateEvent success");
             LOGGER.info("→ HANDLE REENTER UPDATE EVENT SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER UPDATE EVENT EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterUpdateEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_UPDATE_EVENT_VALIDATION + cause.getMessage(),
@@ -1530,7 +1549,6 @@ public class MeetingsAreaSubCatalogRequestHelper {
     }
 
 
-
     /**
      * Handles the actual cancel event operation after the user has re-entered the event ID.
      */
@@ -1538,9 +1556,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_RE_ENTER_CANCEL_EVENT,
             description = "Handle re-entered event ID for cancelling event",
             type = CatalogRequest.Type.CHANGE_SYSTEM)
-    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = Constants.EVENT_DETAILS, type = "Entity(Event Details)", required = false, description = "Metadata of the cancelled calendar event returned after a successful cancellation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterCancelEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text , Delegate Email: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event Id: Text , Delegate Email: Text }", description = "Structured input map containing the validation state identifier, re-entered event identifier, and delegate email address used to cancel the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER CANCEL EVENT START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterCancelEvent");
         LOGGER.info("  → Input map: {}", map);
@@ -1586,11 +1604,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterCancelEvent success");
             LOGGER.info("→ HANDLE REENTER CANCEL EVENT SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER CANCEL EVENT EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterCancelEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_CANCEL_EVENT_VALIDATION + cause.getMessage(),
@@ -1619,7 +1639,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetNextUpcomingMeetings(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Number of meeting: Number }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Number of meeting: Number }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get next upcoming meetings re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET NEXT UPCOMING MEETINGS START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterGetNextUpcomingMeetings");
         LOGGER.debug("  → Input map: {}", map);
@@ -1661,9 +1681,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_NEXT_UPCOMING_MEETINGS,
             description = "Handle re-entered number of meetings for getting next upcoming meetings",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false)
+    @Field.Desc(name = "Event Details", type = "[ Entity(Event Details) ]", required = false, description = "List of next upcoming calendar event metadata objects returned after a successful retrieval. Each entity contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterGetNextUpcomingMeetings(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Number of meeting: Number }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Number of meeting: Number }", description = "Structured input map containing the validation state identifier and re-entered number of upcoming meetings to retrieve from the calendar.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterGetNextUpcomingMeetings");
         LOGGER.debug("  → Input map: {}", map);
@@ -1690,11 +1710,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterGetNextUpcomingMeetings success");
             LOGGER.info("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET NEXT UPCOMING MEETINGS EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetNextUpcomingMeetings: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_NEXT_UPCOMING_MEETINGS_VALIDATION + cause.getMessage(),
@@ -1710,7 +1732,6 @@ public class MeetingsAreaSubCatalogRequestHelper {
     }
 
 
-
     /**
      * Handles the actual get event operation after the user has re-entered the event ID.
      */
@@ -1718,9 +1739,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_EVENT,
             description = "Handle re-entered event ID for getting event",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false)
+    @Field.Desc(name = "Event Details", type = "Entity(Event Details)", required = false, description = "Metadata of the retrieved calendar event returned after a successful get event operation. Contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterGetEvent(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }", description = "Structured input map containing the validation state identifier and re-entered event identifier used to retrieve the calendar event details.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET EVENT START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterGetEvent");
         LOGGER.debug("  → Input map: {}", map);
@@ -1747,11 +1768,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterGetEvent success");
             LOGGER.info("→ HANDLE REENTER GET EVENT SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET EVENT EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetEvent: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_EVENT_VALIDATION + cause.getMessage(),
@@ -1776,7 +1799,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetEventsForUser(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, User Email: Email, From: Number, To: Number }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get events for user re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET EVENTS FOR USER START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterGetEventsForUser");
         LOGGER.debug("  → Input map: {}", map);
@@ -1815,9 +1838,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_EVENTS_FOR_USER,
             description = "Handle re-entered details for getting events for user",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false)
+    @Field.Desc(name = Constants.EVENTS, type = "[ Entity(Event Details) ]", required = false, description = "List of calendar event metadata objects for the specified user returned after a successful retrieval. Each entity contains the event title, location, date range, attendees, and other meeting details.")
     public ExtensionResponse handleReenterGetEventsForUser(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Email, From: Number, To: Number }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Email, From: Number, To: Number }", description = "Structured input map containing the validation state identifier and re-entered parameters including user email address and date range used to retrieve calendar events for the specified user.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET EVENTS FOR USER START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterGetEventsForUser");
         LOGGER.debug("  → Input map: {}", map);
@@ -1848,11 +1871,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterGetEventsForUser success");
             LOGGER.info("→ HANDLE REENTER GET EVENTS FOR USER SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET EVENTS FOR USER EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetEventsForUser: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_EVENTS_FOR_USER_VALIDATION + cause.getMessage(),
@@ -1877,7 +1902,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachmentsForUser(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, User Email: Text, Event ID: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get attachments for user re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS FOR USER START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterGetAttachmentsForUser");
         LOGGER.debug("  → Input map: {}", map);
@@ -1916,9 +1941,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_ATTACHMENTS_FOR_USER,
             description = "Handle re-entered details for getting attachments for user",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false)
+    @Field.Desc(name = Constants.ATTACHMENTS, type = "[ File ]", required = false, description = "List of file attachment objects retrieved from the calendar event for the specified user. Each file contains the attachment name, content type, size, and downloadable content bytes.")
     public ExtensionResponse handleReenterGetAttachmentsForUser(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Text, Event ID: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, User Email: Text, Event ID: Text }", description = "Structured input map containing the validation state identifier and re-entered parameters including user email address and event identifier used to retrieve attachments for the specified user's calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS FOR USER START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterGetAttachmentsForUser");
         LOGGER.debug("  → Input map: {}", map);
@@ -1947,11 +1972,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterGetAttachmentsForUser success");
             LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS FOR USER SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET ATTACHMENTS FOR USER EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetAttachmentsForUser: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_ATTACHMENTS_FOR_USER_VALIDATION + cause.getMessage(),
@@ -1976,7 +2003,7 @@ public class MeetingsAreaSubCatalogRequestHelper {
     )
     @SuppressWarnings("unchecked")
     public ExtensionResponse confirmReenterGetAttachments(@Field.Desc(name = "inputMap",
-            type = "{ re-enter: Boolean, stateId: Text, Event ID: Text }", required = true) Map<String, Object> map) {
+            type = "{ re-enter: Boolean, stateId: Text, Event ID: Text }", required = true, description = "Structured input map containing the re-entry decision flag, validation state identifier, and original field values for the get attachments re-entry flow. The 're-enter' boolean indicates whether the user wants to correct their input; 'stateId' references the stored validation state.") Map<String, Object> map) {
         LOGGER.info("→ CONFIRM REENTER GET ATTACHMENTS START");
         LOGGER.debug("→ SubCatalogRequest: confirmReenterGetAttachments");
         LOGGER.debug("  → Input map: {}", map);
@@ -2015,9 +2042,9 @@ public class MeetingsAreaSubCatalogRequestHelper {
             name = Constants.HANDLE_REENTER_GET_ATTACHMENTS,
             description = "Handle re-entered event ID for getting attachments",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Desc(name = "Attachments", type = "[ File ]", required = false)
+    @Field.Desc(name = "Attachments", type = "[ File ]", required = false, description = "List of file attachment objects retrieved from the calendar event. Each file contains the attachment name, content type, size, and downloadable content bytes.")
     public ExtensionResponse handleReenterGetAttachments(
-            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }") Map<String, Object> map) {
+            @Field.Desc(name = "inputMap", type = "{ stateId: Text, Event ID: Text }", description = "Structured input map containing the validation state identifier and re-entered event identifier used to retrieve attachments from the calendar event.") Map<String, Object> map) {
         LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS START");
         LOGGER.debug("→ SubCatalogRequest: handleReenterGetAttachments");
         LOGGER.debug("  → Input map: {}", map);
@@ -2048,11 +2075,13 @@ public class MeetingsAreaSubCatalogRequestHelper {
             LOGGER.info("SubCatalogRequest handleReenterGetAttachments success");
             LOGGER.info("→ HANDLE REENTER GET ATTACHMENTS SUCCESS END");
             return response;
-        } catch (Exception cause) {
+        } catch (MustAuthorizeException cause) {
+            throw cause;
+                } catch (Exception cause) {
             LOGGER.error("→ HANDLE REENTER GET ATTACHMENTS EXCEPTION");
             LOGGER.error("  → Exception: {}", cause.getClass().getSimpleName());
             LOGGER.error("  → Message: {}", cause.getMessage());
-            
+
             LOGGER.error("Error occurred in handleReenterGetAttachments: {}", cause.getMessage());
             ExtensionResponse.Error error = new ExtensionResponse.Error(
                     Constants.FAILED_TO_GET_ATTACHMENTS_VALIDATION + cause.getMessage(),

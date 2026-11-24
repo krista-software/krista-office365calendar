@@ -51,17 +51,6 @@ if (rootProject.file('builder.txt').canRead()) {
     ext.builder = "0"
 }
 
-node {
-    version = '24.2.0'
-    npmVersion = '7.0.8'
-    yarnVersion = '1.22.17'
-    download = true
-    workDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/nodejs")
-    npmWorkDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/npm")
-    yarnWorkDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/yarn")
-    nodeModulesDir = file("${project.projectDir}/src/main/ui/office365calendaroauth/")
-}
-
 task updateVersion {
     doFirst {
         def currentBuilder = rootProject.file('builder.txt').canRead() ?
@@ -150,8 +139,11 @@ test {
 }
 
 dependencies {
-    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.121'
-    implementation 'app.krista:krista-apis:1.0.121'
+    annotationProcessor 'app.krista:extension-impl-anno-processors:1.0.125-sp1'
+    implementation 'app.krista:krista-apis:1.0.125-sp1'
+
+    // Microsoft Auth SDK — core auth + extension API (base classes, annotations, registry)
+    implementation 'app.krista.sdk:microsoft-auth-sdk:1.0.5'
 
     implementation 'commons-validator:commons-validator:1.7'
     implementation 'com.microsoft.graph:microsoft-graph:5.80.0'
@@ -356,34 +348,34 @@ def extractAnnotationInfo(File file, String annotationName, Pattern keyValuePatt
         }
     }
 }
-tasks.register('bundleUI', YarnTask) {
-    dependsOn(tasks.named('nodeSetup'))
-    dependsOn(tasks.named('yarnSetup'))
-    dependsOn(tasks.named('yarn'))
-    execOverrides {
-        it.workingDir = file("src/main/ui/office365calendaroauth")
+// Extract pre-built auth + audit HTML from SDK JAR into build resources.
+// No React build, no Node/Yarn — the SDK JAR contains ready-to-serve HTML.
+configurations {
+    sdkUi {
+        canBeResolved = true
+        transitive = false
     }
-    args.set(['build'])
+}
+dependencies {
+    sdkUi 'app.krista.sdk:microsoft-auth-sdk:1.0.5'
+}
+tasks.register('extractSDKResources', Copy) {
+    def sdkJar = configurations.sdkUi.singleFile
+    from(zipTree(sdkJar)) {
+        include 'auth/index.html'
+        include 'audit/index.html'
+    }
+    into("${project.buildDir}/resources/main")
+    includeEmptyDirs = false
 }
 
-tasks.register('filepermission', Exec) {
-    commandLine('chmod', '-R', '755', "${project.projectDir}/src/main/ui/office365calendaroauth")
-}
-
-tasks.register('buildAndCopyUI', Copy) {
-    dependsOn(tasks.named("bundleUI"))
-    from("${project.projectDir}/src/main/ui/office365calendaroauth/build")
-    into("${project.buildDir}/resources/main/ui/office365calendaroauth")
+// Legacy task names kept for backward compatibility with CI/build scripts
+tasks.register('buildAndCopyUI') {
+    dependsOn(tasks.named('extractSDKResources'))
 }
 
 tasks.register('buildUI') {
-    dependsOn(tasks.named('buildAndCopyUI'))
-    dependsOn(tasks.named('filepermission'))
-}
-
-tasks.register('cleanDir', Delete) {
-    delete("${project.projectDir}/main/ui/office365calendaroauth/build")
-    delete("${project.buildDir}/resources/ui/office365calendaroauth")
+    dependsOn(tasks.named('extractSDKResources'))
 }
 
 tasks.withType(Test).configureEach {

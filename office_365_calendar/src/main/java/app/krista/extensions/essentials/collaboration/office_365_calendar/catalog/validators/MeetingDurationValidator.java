@@ -19,9 +19,12 @@
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.validators;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.regex.Pattern;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Validator for meeting duration field.
@@ -36,6 +39,8 @@ import java.util.regex.Pattern;
  */
 public class MeetingDurationValidator implements Validator {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingDurationValidator.class);
+
     // Pattern to match valid duration formats: [number]H[number]M, [number]H, or [number]M
     private static final Pattern DURATION_PATTERN = Pattern.compile("^(?:(\\d+)H)?(?:(\\d+)M)?$");
     
@@ -47,45 +52,47 @@ public class MeetingDurationValidator implements Validator {
 
     @Override
     public Boolean validate(String meetingDuration, Map<ValidationResource, String> context) {
-        System.out.println("→ MeetingDurationValidator.validate()");
-        System.out.println("  → Input meeting duration: '" + meetingDuration + "'");
-        
+        LOGGER.debug("→ MeetingDurationValidator.validate()");
+        LOGGER.debug("  → Input meeting duration: '{}'", meetingDuration);
+
         // Meeting duration is optional, so null/empty is considered valid
         if (meetingDuration == null || meetingDuration.trim().isEmpty()) {
-            System.out.println("  → Meeting duration is null/empty - considered valid (optional field)");
+            LOGGER.debug("  → Meeting duration is null/empty - considered valid (optional field)");
             return true;
         }
-        
+
         String trimmedDuration = meetingDuration.trim();
-        System.out.println("  → Trimmed duration: '" + trimmedDuration + "'");
-        
+        LOGGER.debug("  → Trimmed duration: '{}'", trimmedDuration);
+
         // Check if the format matches the expected pattern
         if (!DURATION_PATTERN.matcher(trimmedDuration).matches()) {
-            System.out.println("  → Duration format is invalid - does not match pattern");
+            LOGGER.debug("  → Duration format is invalid - does not match pattern");
             return false;
         }
-        
+
         try {
             // Parse and validate the duration
             int totalMinutes = parseDurationToMinutes(trimmedDuration);
-            System.out.println("  → Parsed total minutes: " + totalMinutes);
-            
+            LOGGER.debug("  → Parsed total minutes: {}", totalMinutes);
+
             // Check if duration is within acceptable range
             if (totalMinutes < MIN_DURATION_MINUTES) {
-                System.out.println("  → Duration too short - minimum is " + MIN_DURATION_MINUTES + " minutes");
+                LOGGER.debug("  → Duration too short - minimum is {} minutes", MIN_DURATION_MINUTES);
                 return false;
             }
-            
+
             if (totalMinutes > MAX_DURATION_MINUTES) {
-                System.out.println("  → Duration too long - maximum is " + MAX_DURATION_MINUTES + " minutes");
+                LOGGER.debug("  → Duration too long - maximum is {} minutes", MAX_DURATION_MINUTES);
                 return false;
             }
-            
-            System.out.println("  → Meeting duration validation passed");
+
+            LOGGER.debug("  → Meeting duration validation passed");
             return true;
-            
+
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
-            System.out.println("  → Exception during duration parsing: " + e.getMessage());
+            LOGGER.warn("  → Exception during duration parsing: {}", e.getMessage());
             return false;
         }
     }
@@ -97,7 +104,7 @@ public class MeetingDurationValidator implements Validator {
      * @return total minutes
      */
     private int parseDurationToMinutes(String duration) {
-        System.out.println("    → Parsing duration to minutes: '" + duration + "'");
+        LOGGER.debug("    → Parsing duration to minutes: '{}'", duration);
         
         java.util.regex.Matcher matcher = DURATION_PATTERN.matcher(duration);
         if (!matcher.matches()) {
@@ -112,12 +119,12 @@ public class MeetingDurationValidator implements Validator {
         
         if (hoursStr != null && !hoursStr.isEmpty()) {
             hours = Integer.parseInt(hoursStr);
-            System.out.println("    → Parsed hours: " + hours);
+            LOGGER.debug("    → Parsed hours: {}", hours);
         }
         
         if (minutesStr != null && !minutesStr.isEmpty()) {
             minutes = Integer.parseInt(minutesStr);
-            System.out.println("    → Parsed minutes: " + minutes);
+            LOGGER.debug("    → Parsed minutes: {}", minutes);
         }
         
         // Must have at least hours or minutes
@@ -126,7 +133,7 @@ public class MeetingDurationValidator implements Validator {
         }
         
         int totalMinutes = (hours * 60) + minutes;
-        System.out.println("    → Total minutes calculated: " + totalMinutes);
+        LOGGER.debug("    → Total minutes calculated: {}", totalMinutes);
         
         return totalMinutes;
     }

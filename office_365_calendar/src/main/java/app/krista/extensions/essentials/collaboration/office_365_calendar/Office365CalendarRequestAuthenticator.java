@@ -47,16 +47,17 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
 
     public static final String EXTENSION_OAUTH_VERIFICATION_PATH_V3 = "/calendar/v3/oauth/callback";
     public static final String EXTENSION_OAUTH_VERIFICATION_PATH_V2 = "/calendar/callback";
-    private final AuthorizationContext authorizationContext;
     private final Office365CalendarAttributeStore attributeStore;
     private final String invokerId;
+    private final String routingUrl;
     private static final Logger LOGGER = LoggerFactory.getLogger(Office365CalendarRequestAuthenticator.class);
 
     @Inject
-    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId, AuthorizationContext authorizationContext) {
+    public Office365CalendarRequestAuthenticator(Office365CalendarAttributeStore attributeStore, String invokerId,
+            AuthorizationContext authorizationContext, String routingUrl) {
         this.attributeStore = attributeStore;
         this.invokerId = invokerId;
-        this.authorizationContext = authorizationContext;
+        this.routingUrl = routingUrl;
     }
 
     @Override
@@ -142,7 +143,18 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
 
         String state = userId;
         Office365CalendarAttributes attributes;
-        if (authContext.isPresent()) {
+
+        // Per-user MAE (wsContact-prefixed userId) → ALWAYS use default Public OAuth client,
+        // regardless of whether Setup → Public/Private is filled. Per the architectural rule
+        // (see docs/4.0.4-auth-recovery.md): invokeAsUser=true paths live in their own keyspace
+        // and must never bind to operator-supplied OAuth credentials. Without this short-circuit
+        // an operator who fills Setup → Private would corrupt every per-user MCP / Have-People-auth
+        // flow because the auth URL would be built with Private clientId while the callback
+        // (also per-user) would exchange against default Public, producing AADSTS7000215.
+        if (userId != null && userId.startsWith(Constants.WS_CONTACT)) {
+            LOGGER.debug("→ getMustAuthorizeResponse: Per-user MAE — using default Public OAuth client");
+            attributes = new Office365CalendarAttributes(null, null, null, "", null, Constants.PUBLIC, routingUrl);
+        } else if (authContext.isPresent()) {
             LOGGER.debug("→ getMustAuthorizeResponse: Using authContext for attribute loading");
             String authContextId = (String) authContext.get().getValue();
             LOGGER.debug("→ getMustAuthorizeResponse: AuthContextId: {}", authContextId);
@@ -154,7 +166,13 @@ public class Office365CalendarRequestAuthenticator implements RequestAuthenticat
         }
         LOGGER.debug("→ getMustAuthorizeResponse: Attributes loaded, current state: {}", state);
 
-        if (Constants.PUBLIC.equals(attributes.getAuthType())) {
+        // Defensive fallback: still null (operator-shared path with no Setup attrs at all).
+        if (attributes == null) {
+            LOGGER.info("→ getMustAuthorizeResponse: No attributes found, falling back to public config credentials");
+            attributes = new Office365CalendarAttributes(null, null, null, "", null, Constants.PUBLIC, routingUrl);
+        }
+
+        if (Constants.PUBLIC.equals(attributes.getAuthType()) && attributes.getForwardPath() != null) {
             LOGGER.debug("→ getMustAuthorizeResponse: PUBLIC auth type, adding forward path");
             state += Constants.HASH + attributes.getForwardPath();
         }

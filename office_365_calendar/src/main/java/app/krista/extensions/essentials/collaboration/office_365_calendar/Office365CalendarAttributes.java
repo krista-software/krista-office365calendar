@@ -70,6 +70,7 @@ public final class Office365CalendarAttributes {
     private String publicClientId;
     private String publicClientSecret;
     private OAuth20Service oAuth20Service;
+    private String privateAuthMode;
 
     public Office365CalendarAttributes(String clientId, String clientSecret, String tenantId, String email,
                                        String timeZone, String authType, String routingUrl) {
@@ -89,15 +90,29 @@ public final class Office365CalendarAttributes {
     public static Office365CalendarAttributes create(JsonObject authPayload, String baseurl) {
         String authType = authPayload.get("authType").getAsString();
         if (Constants.PUBLIC.equals(authType)) {
+            String publicAuthMode = authPayload.has("publicAuthMode") ? authPayload.get("publicAuthMode").getAsString() : "krista";
+            if ("own".equals(publicAuthMode)) {
+                return new Office365CalendarAttributes(
+                        authPayload.get(CLIENT_ID).getAsString(),
+                        authPayload.get(CLIENT_SECRET).getAsString(),
+                        authPayload.has(TENANT_ID) && !authPayload.get(TENANT_ID).getAsString().isBlank()
+                                ? authPayload.get(TENANT_ID).getAsString() : null,
+                        authPayload.get(EMAIL).getAsString(),
+                        authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "",
+                        authType, baseurl);
+            }
             return new Office365CalendarAttributes(null, null, null, authPayload.get(EMAIL).getAsString(),
                     authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "", authType, baseurl);
         } else if (Constants.PRIVATE.equals(authType)) {
-            return new Office365CalendarAttributes(authPayload.get(CLIENT_ID).getAsString(),
+            Office365CalendarAttributes result = new Office365CalendarAttributes(
+                    authPayload.get(CLIENT_ID).getAsString(),
                     authPayload.get(CLIENT_SECRET).getAsString(),
                     authPayload.get(TENANT_ID).getAsString(),
                     authPayload.get(EMAIL).getAsString(),
                     authPayload.has(TIMEZONE) ? authPayload.get(TIMEZONE).getAsString() : "",
                     authType, baseurl);
+            result.setPrivateAuthMode("own");
+            return result;
         } else {
             throw new IllegalArgumentException(UNSUPPORTED_AUTH);
         }
@@ -140,6 +155,14 @@ public final class Office365CalendarAttributes {
         return authType;
     }
 
+    public String getPrivateAuthMode() {
+        return privateAuthMode;
+    }
+
+    public void setPrivateAuthMode(String privateAuthMode) {
+        this.privateAuthMode = privateAuthMode;
+    }
+
     public String getCallbackEndPoint() {
         if (Constants.PUBLIC.equals(authType)) {
             LOGGER.debug("→ getCallbackEndPoint: Using PUBLIC routing URL: {}", routingUrl);
@@ -167,6 +190,13 @@ public final class Office365CalendarAttributes {
         addAttributeIfNotNull(attributesMap, EMAIL, getEmail());
         addAttributeIfNotNull(attributesMap, TIMEZONE, getTimeZone());
         addAttributeIfNotNull(attributesMap, AUTH_TYPE, getAuthType());
+        if (Constants.PUBLIC.equals(authType)) {
+            boolean isOwn = clientId != null && publicClientId != null && !clientId.equals(publicClientId);
+            attributesMap.put("publicAuthMode", isOwn ? "own" : "krista");
+        }
+        if (Constants.PRIVATE.equals(authType) && privateAuthMode != null) {
+            attributesMap.put("privateAuthMode", privateAuthMode);
+        }
         return attributesMap;
     }
 
@@ -174,12 +204,23 @@ public final class Office365CalendarAttributes {
 
     public synchronized OAuth20Service getOAuth20Service() {
         if (oAuth20Service == null) {
+            // Use tenant-specific endpoint when tenantId is available (even for PUBLIC auth
+            // with a single-tenant Azure AD app). Fall back to deriving tenant from email domain.
+            String effectiveTenant = tenantId;
+            if (effectiveTenant == null || effectiveTenant.isBlank()) {
+                if (email != null && email.contains("@")) {
+                    effectiveTenant = email.substring(email.indexOf("@") + 1);
+                    LOGGER.info("TenantId not configured, derived from email domain: {}", effectiveTenant);
+                }
+            }
+            boolean useTenantEndpoint = effectiveTenant != null && !effectiveTenant.isBlank();
             oAuth20Service = new ServiceBuilder(clientId)
                     .apiSecret(clientSecret)
                     .defaultScope(Constants.REQUIRED_SCOPE)
                     .callback(getCallbackEndPoint())
-                    .build(Constants.PUBLIC.equals(authType) ? MicrosoftAzureActiveDirectory20Api.instance()
-                            : MicrosoftAzureActiveDirectory20Api.custom(tenantId));
+                    .build(useTenantEndpoint
+                            ? MicrosoftAzureActiveDirectory20Api.custom(effectiveTenant)
+                            : MicrosoftAzureActiveDirectory20Api.instance());
         }
         return oAuth20Service;
     }

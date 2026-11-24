@@ -2,492 +2,366 @@
 
 ## Overview
 
-The Office 365 Calendar Extension uses OAuth 2.0 authentication with Microsoft Entra ID (formerly Azure AD) to securely access Office 365 Calendar services. This document explains the authentication modes, OAuth flows, token management, and security best practices.
+The Office 365 Calendar Extension uses Microsoft OAuth 2.0 and Azure AD authentication to securely connect with Microsoft Graph API. It supports three authentication configurations, each suited for different organizational needs:
 
-## Authentication Modes
+| # | Configuration | Auth Flow | User Sign-In | Best For |
+|---|--------------|-----------|--------------|----------|
+| 1 | **OAuth 2.0 — Krista Managed** | Authorization Code (Delegated) | Yes | Quick setup, testing, small teams |
+| 2 | **OAuth 2.0 — Your Own Credentials** | Authorization Code (Delegated) | Yes | Enterprise control, custom permissions |
+| 3 | **Server-Server Authentication** | Client Credentials (Application) | No | Automated workflows, no user interaction |
 
-The extension supports two authentication modes, each suited for different use cases.
+## Authentication Tab
 
-### Service Account Authentication
+The **Authentication** tab in the extension provides a unified interface for configuring all three types. It is divided into two selection steps:
 
-**Description**: Uses a single service account to authenticate and perform all calendar operations.
+- **Step 1** — Choose the auth flow: **User Authentication** (OAuth 2.0, user sign-in) or **Server-Server Authentication** (app-only)
+- **Step 2** — (User Authentication only) Choose credential mode: **Quick Setup** (Krista Managed) or **Advanced Setup** (Your Own Credentials)
 
-**When to Use**:
-- Automated workflows without user interaction
-- System-to-system integrations
-- Scheduled tasks and batch operations
-- Centralized calendar management
-- Backend processes
+After selecting the type, enter the required fields, click **Test Connection**, and then **Save Changes**.
 
-**How It Works**:
-1. Administrator authenticates once with a service account
-2. Extension stores refresh token for the service account
-3. All subsequent operations use the service account's credentials
-4. All calendar operations appear as performed by the service account
+---
 
-**Advantages**:
-- ✅ Simple setup - authenticate once
-- ✅ No user interaction required
-- ✅ Suitable for automation
-- ✅ Consistent permissions
-- ✅ Easier to maintain
+## Type 1: OAuth 2.0 — Krista Managed
 
-**Disadvantages**:
-- ❌ All operations performed as one user
-- ❌ Limited audit trail (all actions appear from service account)
-- ❌ Service account needs access to all calendars
-- ❌ Less suitable for user-specific operations
+![Quick Setup](../_media/Authentication_quick_setup.png)
 
-**Configuration**: Set "Authentication Type" to "Service Account" (Ask a System = Checked)
+### What It Is
 
-![Service Account Authentication](../_media/ExtensionConfiguration_askASystemChecked.png)
+Uses Krista's pre-registered Azure AD application for authentication. The user signs in via a browser popup and grants delegated permissions. No Azure portal configuration is required.
 
-### User Account Authentication
+### When to Use
 
-**Description**: Each user authenticates with their own Office 365 account.
+- Getting started quickly with minimal setup
+- Development and testing environments
+- Organizations where Azure AD app registration is not available
+- Small teams that don't need custom permission policies
 
-**When to Use**:
-- User-specific calendar operations
-- Each user manages their own calendar
-- Delegation scenarios
-- Personalized calendar access
-- Audit trail requirements
+### Required Fields
 
-**How It Works**:
-1. Each user authenticates individually with their Office 365 account
-2. Extension stores separate refresh tokens for each user
-3. Operations performed in the context of the authenticated user
-4. Calendar operations appear as performed by the actual user
+| Field | Required | Description |
+|-------|----------|-------------|
+| Email | Yes | Microsoft 365 work or school email address |
 
-**Advantages**:
-- ✅ User-specific operations
-- ✅ Better audit trail
-- ✅ Supports delegation
-- ✅ Personalized access
-- ✅ Follows principle of least privilege
+### How It Works
 
-**Disadvantages**:
-- ❌ Each user must authenticate
-- ❌ More complex setup
-- ❌ Requires user interaction
-- ❌ Multiple token management
+1. Select **User Authentication** in Step 1
+2. Select **Quick Setup** in Step 2
+3. Enter your Microsoft 365 email address
+4. Click **Test Connection** — a Microsoft sign-in popup opens
+5. Sign in with the email account and grant the requested permissions
+6. After the popup closes, the connection is verified automatically
+7. Click **Save Changes** to persist the configuration
 
-**Configuration**: Set "Authentication Type" to "User Account" (Ask a System = Unchecked)
-
-![User Account Authentication](../_media/ExtensionConfiguration_askASystemUnchecked.png)
-
-## OAuth 2.0 Scopes and Permissions
-
-The extension requires specific Microsoft Graph API permissions to access calendar data.
-
-### Required Delegated Permissions
-
-| Permission | Scope | Description | Required For |
-|------------|-------|-------------|--------------|
-| Calendars.ReadWrite | `https://graph.microsoft.com/Calendars.ReadWrite` | Read and write user calendars | All calendar operations |
-| Calendars.ReadWrite.Shared | `https://graph.microsoft.com/Calendars.ReadWrite.Shared` | Read and write user and shared calendars | Delegation, shared calendars |
-| offline_access | `https://graph.microsoft.com/offline_access` | Maintain access to data | Token refresh |
-| openid | `https://graph.microsoft.com/openid` | Sign users in | Authentication |
-| profile | `https://graph.microsoft.com/profile` | View users' basic profile | User identification |
-
-### Optional Application Permissions
-
-| Permission | Scope | Description | Required For |
-|------------|-------|-------------|--------------|
-| Calendars.ReadBasic.All | `https://graph.microsoft.com/Calendars.ReadBasic.All` | Read basic details of calendars in all mailboxes | System-level queries (optional) |
-
-### Permission Levels Explained
-
-**Calendars.ReadWrite**:
-- Allows reading and writing to the user's calendar
-- Required for: Schedule Meeting, Update Event, Cancel Event, Get Event
-- Scope: User's own calendar only
-
-**Calendars.ReadWrite.Shared**:
-- Allows reading and writing to shared calendars
-- Required for: Delegation scenarios, shared calendar access
-- Scope: User's calendar and calendars shared with the user
-
-**offline_access**:
-- Allows the extension to refresh access tokens without user interaction
-- Critical for: Long-running sessions, automated workflows
-- Enables: Refresh token grant
-
-**Why Not Calendars.Read?**:
-The extension requires write permissions (Calendars.ReadWrite) because even query operations may need to update metadata or mark events as read. Using read-only permissions would limit functionality.
-
-## OAuth 2.0 Grant Types
-
-The extension uses two OAuth 2.0 grant types for authentication and token management.
-
-### Authorization Code Grant
-
-**Purpose**: Initial authentication to obtain access and refresh tokens
-
-**Grant Type**: `authorization_code`
-
-**Flow**:
-1. User clicks "Validate" or "Authenticate" in Krista
-2. User is redirected to Microsoft login page
-3. User signs in with Office 365 credentials
-4. User grants requested permissions (consent screen)
-5. Microsoft redirects back to Krista with authorization code
-6. Extension exchanges authorization code for tokens
-
-**Request Example**:
-```http
-POST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
-Content-Type: application/x-www-form-urlencoded
-
-client_id={client_id}
-&scope=https://graph.microsoft.com/Calendars.ReadWrite
-       https://graph.microsoft.com/Calendars.ReadWrite.Shared
-       https://graph.microsoft.com/offline_access
-       https://graph.microsoft.com/openid
-       https://graph.microsoft.com/profile
-&code={authorization_code}
-&redirect_uri={redirect_uri}
-&grant_type=authorization_code
-&client_secret={client_secret}
-```
-
-**Response Example**:
-```json
-{
-  "token_type": "Bearer",
-  "scope": "Calendars.ReadWrite Calendars.ReadWrite.Shared offline_access openid profile",
-  "expires_in": 3600,
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh_token": "0.AXoA1234567890abcdef..."
-}
-```
-
-**Key Points**:
-- Used only during initial authentication
-- Requires user interaction
-- Returns both access token and refresh token
-- Access token expires in 1 hour (3600 seconds)
-
-### Refresh Token Grant
-
-**Purpose**: Obtain new access tokens without user interaction
-
-**Grant Type**: `refresh_token`
-
-**Flow**:
-1. Access token expires (after 1 hour)
-2. Extension automatically uses refresh token
-3. Microsoft issues new access token
-4. Extension continues operations seamlessly
-
-**Request Example**:
-```http
-POST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
-Content-Type: application/x-www-form-urlencoded
-
-client_id={client_id}
-&scope=https://graph.microsoft.com/Calendars.ReadWrite
-       https://graph.microsoft.com/Calendars.ReadWrite.Shared
-       https://graph.microsoft.com/offline_access
-&refresh_token={refresh_token}
-&grant_type=refresh_token
-&client_secret={client_secret}
-```
-
-**Response Example**:
-```json
-{
-  "token_type": "Bearer",
-  "scope": "Calendars.ReadWrite Calendars.ReadWrite.Shared offline_access",
-  "expires_in": 3600,
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh_token": "0.AXoA0987654321fedcba..."
-}
-```
-
-**Key Points**:
-- Used automatically by the extension
-- No user interaction required
-- Returns new access token and new refresh token
-- Enables seamless long-running operations
-
-
-## Authentication Flow
-
-### Initial Authentication Flow
+### Authentication Flow
 
 ```
-1. User initiates authentication in Krista
-   ↓
-2. Krista redirects to Microsoft login
-   URL: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize
-   ↓
-3. User signs in with Office 365 credentials
-   ↓
-4. Microsoft shows consent screen (first time only)
-   User grants requested permissions
-   ↓
-5. Microsoft redirects back to Krista with authorization code
-   Private Auth URL: https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback?code={code}
-   Public Auth URL: https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback?code={code}
-   ↓
-6. Extension exchanges authorization code for tokens
-   POST to: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
-   ↓
-7. Extension receives access token and refresh token
-   ↓
-8. Extension stores tokens securely
-   ↓
-9. Authentication complete - Extension ready to use
+User clicks Test Connection
+  → Browser popup opens Microsoft login page
+  → User signs in and grants consent to Krista's Azure AD app
+  → Microsoft returns authorization code to callback URL
+  → Extension exchanges code for access + refresh tokens
+  → Tokens stored securely under the invoker ID
+  → Subsequent API calls use stored tokens with automatic refresh
 ```
 
-### Token Refresh Flow
+### Scopes
+
+All scopes are enabled automatically with Krista Managed credentials:
+
+| Scope | Purpose |
+|-------|---------|
+| `openid` | User authentication and identity |
+| `offline_access` | Refresh token for long-term access |
+| `Calendars.ReadWrite` | Read and write user calendars |
+| `Calendars.ReadWrite.Shared` | Read and write shared and delegated calendars |
+| `User.Read` | Read basic user profile |
+
+### Supported Features
+
+When Quick Setup is selected, the extension UI shows which operations are available with Krista Managed credentials. All 18 calendar operations are supported (0 not supported):
+
+| Supported Operations |
+|----------------------|
+| Schedule Meeting |
+| Cancel Event |
+| Update Event |
+| Get Event |
+| Get Upcoming Meetings |
+| Search Events |
+| Accept Invitation |
+| Decline Invitation |
+| Tentative Invitation |
+| Forward Event |
+| Get Attachments |
+| Get Attachments For A Given User |
+| Get Events For A Given User |
+| Get Free Slots |
+| Get Next Upcoming Meetings |
+| Get Schedules |
+| Add Attendees |
+| Remove Attendee |
+
+All operations are available because `Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, and `User.Read` cover the full scope of calendar actions.
+
+### Limitations
+
+- Cannot customize which scopes are requested
+- Cannot apply organization-specific conditional access policies
+- Cannot restrict to a single tenant
+- Krista's Azure AD app is shared across all Krista Managed users
+
+---
+
+## Type 2: OAuth 2.0 — Your Own Credentials
+
+![User Authentication](../_media/Authentication_user_auth.png)
+
+### What It Is
+
+Uses your own Azure AD application for delegated authentication. The user still signs in via a browser popup, but authentication flows through your organization's Azure AD tenant. This provides full control over permissions, conditional access policies, and audit logging.
+
+### When to Use
+
+- Production environments requiring enterprise-grade security
+- Organizations with conditional access or MFA policies
+- When you need full audit trails through Azure AD logs
+- When you need to restrict authentication to your tenant only
+
+### Prerequisites
+
+- A registered Azure AD application (see [Creating Office 365 App](pages/CreatingOffice365App.md))
+- Application (Client) ID, Client Secret, and Directory (Tenant) ID
+- Delegated permissions granted with admin consent
+- Redirect URI configured: `{extension-base-url}/rest/calendar/callback`
+
+### Required Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Email | Yes | Microsoft 365 work or school email address |
+| Client ID | Yes | Application (Client) ID from Azure AD app registration |
+| Client Secret | Yes | Client secret value (not the secret ID) |
+| Tenant ID | No | Directory (Tenant) ID from Azure AD (optional — leave blank for multi-tenant) |
+
+### How It Works
+
+1. Select **User Authentication** in Step 1
+2. Select **Advanced Setup** in Step 2
+3. Enter email, Client ID, Client Secret, and optionally Tenant ID
+4. Click **Test Connection** — a Microsoft sign-in popup opens
+5. Sign in and grant consent to your Azure AD app
+6. After the popup closes, the connection is verified
+7. Click **Save Changes** to persist the configuration
+
+### Authentication Flow
 
 ```
-1. Extension makes API call with access token
-   ↓
-2. Access token expired (after 1 hour)
-   ↓
-3. Microsoft returns 401 Unauthorized
-   ↓
-4. Extension automatically uses refresh token
-   POST to: https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
-   ↓
-5. Microsoft validates refresh token
-   ↓
-6. Microsoft issues new access token and refresh token
-   ↓
-7. Extension retries original API call with new access token
-   ↓
-8. Operation completes successfully
+User clicks Test Connection
+  → Browser popup opens: https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize
+  → User authenticates against your Azure AD tenant
+  → Conditional access policies and MFA are enforced
+  → User grants consent to your Azure AD application
+  → Microsoft returns authorization code to callback URL
+  → Extension exchanges code + client_secret for access + refresh tokens
+  → Tokens stored securely under the invoker ID
 ```
+
+### Redirect URI
+
+Your Azure AD application must have the following redirect URI configured:
+
+```
+{extension-base-url}/rest/calendar/callback
+```
+
+To find the extension base URL:
+1. Go to the extension's **Details** tab in Krista
+2. Copy the base URL
+3. Append `/rest/calendar/callback`
+
+Example: `https://extension.solution.eng.krista.app/extension/api/HU2iSsKQfxylhTLYbASL_pw_e_e/rest/calendar/callback`
+
+---
+
+## Type 3: Server-Server Authentication
+
+![Server-Server Authentication](../_media/Authentication_server_server.png)
+
+### What It Is
+
+Uses the OAuth 2.0 Client Credentials flow for app-only authentication. No user sign-in is required. The extension authenticates directly as the application using Client ID and Client Secret, and accesses the Calendar API via the `/users/{email}` endpoint instead of `/me`.
+
+### When to Use
+
+- Fully automated workflows where no user is present to sign in
+- Background processing and scheduled tasks
+- Server-to-server integrations
+- When the application needs to access calendars on behalf of the organization
+
+### Prerequisites
+
+- A registered Azure AD application (see [Creating Office 365 App](pages/CreatingOffice365App.md))
+- Application (Client) ID, Client Secret, and Directory (Tenant) ID
+- **Application permissions** (not delegated) granted with admin consent
+- Redirect URI is **not required** for this flow
+
+### Required Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Email | Yes | The target account email address to access the calendar as |
+| Client ID | Yes | Application (Client) ID from Azure AD app registration |
+| Client Secret | Yes | Client secret value (not the secret ID) |
+| Tenant ID | Yes | Directory (Tenant) ID from Azure AD |
+
+### How It Works
+
+1. Select **Server-Server Authentication** in Step 1
+2. Enter email, Client ID, Client Secret, and Tenant ID
+3. Click **Test Connection** — no browser popup; the extension authenticates directly
+4. If successful, click **Save Changes** to persist the configuration
+
+### Authentication Flow
+
+```
+Extension sends POST to:
+  https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token
+
+  client_id={your_client_id}
+  &client_secret={your_client_secret}
+  &grant_type=client_credentials
+  &scope=https://graph.microsoft.com/.default
+
+  → Microsoft validates client credentials
+  → Returns access token (no refresh token)
+  → Extension uses /users/{email}/... endpoints (not /me)
+  → Token cached and refreshed automatically before expiry
+```
+
+### Key Differences from OAuth 2.0
+
+| Aspect | OAuth 2.0 (Types 1 & 2) | Server-Server Authentication (Type 3) |
+|--------|--------------------------|-------------------------------|
+| User sign-in | Required | Not required |
+| Token type | Delegated (user + app) | Application-only |
+| Graph API path | `/me/...` | `/users/{email}/...` |
+| Refresh token | Yes | No (new token requested on expiry) |
+| Permissions type | Delegated | Application |
+
+### Azure AD Application Permissions
+
+For Server-Server Authentication, you need **Application permissions** (not delegated):
+
+1. Go to Azure AD > App registrations > your app > API permissions
+2. Click **Add a permission** > **Microsoft Graph** > **Application permissions**
+3. Add required permissions:
+   - `Calendars.ReadWrite` — Read and write calendars for all users
+4. Click **Grant admin consent for [Your Organization]**
+
+---
 
 ## Token Management
 
-### Access Token
+### Access Tokens
 
-**Lifetime**: 1 hour (3600 seconds)
+| Property | OAuth 2.0 (Types 1 & 2) | Server-Server Authentication (Type 3) |
+|----------|--------------------------|-------------------------------|
+| Lifetime | ~1 hour | ~1 hour |
+| Refresh | Via refresh token | New client_credentials request |
+| Storage | Encrypted, per-invoker | Encrypted, per-invoker |
+| Key format | `email_clientId_Public` | `clientId_tenantId_Private` |
 
-**Purpose**: Authorizes API requests to Microsoft Graph
+### Automatic Token Handling
 
-**Storage**: In-memory during active session
+The extension automatically handles:
+- Token expiration detection before API calls
+- Token refresh (or re-acquisition for Server-Server Authentication)
+- Retry logic for transient failures
+- Secure token storage and encryption
+- Token cleanup on disconnection
 
-**Expiration Handling**: Automatic refresh using refresh token
+### Token Errors
 
-**Format**: JWT (JSON Web Token)
+When a token-related error occurs, the extension classifies it and takes appropriate action:
 
-**Usage**: Included in Authorization header of API requests
-```http
-Authorization: Bearer {access_token}
-```
+| Error | Action | Re-auth Required |
+|-------|--------|-----------------|
+| Token expired | Remove stored token, prompt re-authentication | Yes |
+| Password changed | Remove stored token, prompt re-authentication | Yes |
+| Permissions revoked | Remove stored token, prompt re-consent | Yes |
+| Invalid client secret | Surface error, keep token | No |
+| User not found | Surface error, keep token | No |
+| Service unavailable | Retry, keep token | No |
 
-### Refresh Token
+---
 
-**Lifetime**:
-- **90 days of inactivity** (default for most apps)
-- **No expiration** if used regularly (within 90 days)
+## Audit Dashboard
 
-**Purpose**: Obtain new access tokens without user interaction
+The **Calendar Audit** tab provides visibility into authentication events and catalog request activity. Every catalog request is automatically tracked:
 
-**Storage**: Securely stored by Krista extension
+| Event | When Recorded |
+|-------|---------------|
+| `CATALOG_REQUEST_TRIGGERED` | When a catalog request starts execution |
+| `CATALOG_REQUEST_SUCCESS` | When a catalog request completes successfully |
+| `CATALOG_REQUEST_FAILURE` | When a catalog request fails (validation error, exception, or auth error) |
+| `TOKEN_REFRESHED` | When an access token is successfully refreshed |
+| `TOKEN_EXPIRY_DETECTED` | When a token expiration error is caught |
+| `INVALID_CLIENT_SECRET_DETECTED` | When a client secret error is caught |
+| `PASSWORD_CHANGE_DETECTED` | When a user password change is detected |
 
-**Expiration Handling**: Requires re-authentication if expired
+The audit dashboard shows:
+- **Credential Health** — current status of stored authentication credentials
+- **Event Timeline** — chronological list of all audit events
+- **Request Tracking** — each TRIGGERED event is paired with its SUCCESS or FAILURE outcome, including duration and execution logs
 
-**Security**: More sensitive than access token - stored securely
+---
 
-### Token Expiration Scenarios
+## Troubleshooting
 
-#### Scenario 1: Access Token Expiration (Normal)
+### Test Connection Fails with No Popup (OAuth 2.0)
 
-**Frequency**: Every 1 hour
+**Cause**: Browser popup blocked or redirect URI mismatch.
+**Fix**: Allow popups for the Krista domain. Verify the redirect URI in Azure AD matches exactly: `{base-url}/rest/calendar/callback`.
 
-**Handling**: Automatic refresh using refresh token
+### Test Connection Fails Immediately (Server-Server Authentication)
 
-**User Impact**: None - seamless
+**Cause**: Invalid Client ID, Client Secret, or Tenant ID.
+**Fix**: Verify all three values are copied correctly from Azure AD. Check that the client secret has not expired.
 
-**Extension Behavior**:
-1. Detects 401 Unauthorized response
-2. Uses refresh token to get new access token
-3. Retries original request
-4. Operation continues normally
+### Standard Users Cannot Sign In (OAuth 2.0 — Your Own Credentials)
 
-#### Scenario 2: Refresh Token Expiration (Inactivity)
+**Cause**: Missing delegated scopes or incorrect permission types.
+**Fix**: Ensure all required delegated scopes are granted with admin consent. See [Creating Office 365 App](pages/CreatingOffice365App.md) for details.
 
-**Frequency**: After 90 days of no use
+### Token Refresh Fails After Password Change
 
-**Handling**: Requires re-authentication
+**Cause**: The stored refresh token is invalidated when the user changes their password.
+**Fix**: Re-authenticate by clicking **Test Connection** and signing in again.
 
-**User Impact**: Must authenticate again
+### AADSTS Error Codes
 
-**Extension Behavior**:
-1. Refresh token request fails
-2. Extension prompts for re-authentication
-3. User must sign in again
-4. New tokens issued
+| Error Code | Meaning | Fix |
+|-----------|---------|-----|
+| AADSTS70002 | Invalid credentials | Verify Client ID, Secret, and Tenant ID |
+| AADSTS65001 | Consent not granted | Request admin consent in Azure AD |
+| AADSTS50011 | Redirect URI mismatch | Add the exact redirect URI from the extension Details tab to Azure AD |
+| AADSTS70008 | Refresh token expired | Re-authenticate via Test Connection |
+| AADSTS7000222 | Client secret expired | Generate a new client secret in Azure AD |
 
-**Prevention**: Use the extension at least once every 90 days
-
-#### Scenario 3: Token Revocation (User Action)
-
-**Cause**: User revokes app permissions in Office 365
-
-**Handling**: Requires re-authentication
-
-**User Impact**: Must authenticate again
-
-**Extension Behavior**:
-1. API requests fail with 401 Unauthorized
-2. Refresh token also invalid
-3. Extension prompts for re-authentication
-
-#### Scenario 4: Token Revocation (Password Change)
-
-**Cause**: User changes Office 365 password
-
-**Handling**: Tokens may be revoked, requires re-authentication
-
-**User Impact**: Must authenticate again
-
-**Extension Behavior**:
-1. Existing tokens become invalid
-2. Extension prompts for re-authentication
-3. User signs in with new password
-
-#### Scenario 5: Token Revocation (Security Event)
-
-**Cause**: Microsoft detects suspicious activity
-
-**Handling**: Tokens revoked immediately
-
-**User Impact**: Must authenticate again
-
-**Extension Behavior**:
-1. All tokens invalidated
-2. Extension prompts for re-authentication
-3. May require additional security verification
-
-#### Scenario 6: Token Limit Exceeded
-
-**Cause**: Too many refresh tokens issued (Microsoft limit: ~50 per user per app)
-
-**Handling**: Oldest tokens automatically revoked
-
-**User Impact**: May need to re-authenticate
-
-**Prevention**: Use Service Account mode for automated workflows
-
+---
 
 ## Security Best Practices
 
-### 1. Protect Client Secret
+1. **Use Server-Server Authentication for automated workflows** — avoids dependency on user tokens that can expire when passwords change
+2. **Rotate client secrets regularly** — set a reminder before the expiration date shown in Azure AD
+3. **Use Your Own Credentials for production** — provides full control and audit trails
+4. **Grant minimal permissions** — only add the scopes your workflows actually need
+5. **Monitor the Audit Dashboard** — watch for `TOKEN_EXPIRY_DETECTED` and `INVALID_CLIENT_SECRET_DETECTED` events
 
-- ✅ Store in secured parameters
-- ✅ Never expose in client-side code
-- ✅ Rotate regularly (every 12-24 months)
-- ✅ Use Azure Key Vault for additional security
-- ❌ Never commit to source control
-- ❌ Never log or display in error messages
-
-### 2. Use HTTPS Only
-
-- ✅ Always use HTTPS for Extension Base URL
-- ✅ Ensure redirect URI uses HTTPS
-- ✅ Verify SSL certificates are valid
-- ❌ Never use HTTP for OAuth flows
-
-### 3. Validate Redirect URI
-
-- ✅ Configure exact redirect URI in Microsoft Entra ID
-- ✅ Verify redirect URI matches extension configuration
-- ✅ Use specific URIs, not wildcards
-- ❌ Never use localhost in production
-
-### 4. Implement Least Privilege
-
-- ✅ Request only required permissions
-- ✅ Use delegated permissions when possible
-- ✅ Review permissions regularly
-- ❌ Don't request unnecessary scopes
-
-### 5. Monitor Authentication
-
-- ✅ Review sign-in logs in Microsoft Entra ID
-- ✅ Monitor for unusual activity
-- ✅ Set up alerts for failed authentications
-- ✅ Audit token usage
-
-### 6. Handle Token Expiration
-
-- ✅ Implement automatic token refresh
-- ✅ Handle refresh token expiration gracefully
-- ✅ Provide clear re-authentication prompts
-- ✅ Log token refresh failures
-
-### 7. Secure Token Storage
-
-- ✅ Store tokens encrypted
-- ✅ Use secure storage mechanisms
-- ✅ Never log tokens
-- ✅ Clear tokens on logout
-
-## Troubleshooting Authentication
-
-### Issue: "Redirect URI Mismatch"
-
-**Cause**: Redirect URI doesn't match Microsoft Entra ID configuration
-
-**Solution**:
-1. Verify authentication type (Private or Public) in Krista configuration
-2. Check redirect URI in Microsoft Entra ID:
-   - **Private Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/{ROUTING_ID}/rest/calendar/callback`
-   - **Public Authentication**: `https://extension.qa-in.eng.krista.app/extension/api/rest/v3/oauth/callback`
-3. Ensure exact match (case-sensitive, no trailing slash)
-4. Verify the routing ID is correct (for Private Authentication)
-5. Update Microsoft Entra ID if needed
-
-### Issue: "Invalid Client"
-
-**Cause**: Client ID or Client Secret is incorrect
-
-**Solution**:
-1. Verify Client ID from Microsoft Entra ID app registration
-2. Verify Client Secret (create new if needed)
-3. Check for extra spaces or characters
-4. Ensure client secret hasn't expired
-
-### Issue: "Consent Required"
-
-**Cause**: User hasn't granted permissions or admin consent missing
-
-**Solution**:
-1. User must complete consent screen during authentication
-2. For organization-wide: Admin must grant consent in Microsoft Entra ID
-3. Verify all required permissions are configured
-4. Re-authenticate to trigger consent screen
-
-### Issue: "Token Expired"
-
-**Cause**: Refresh token expired or revoked
-
-**Solution**:
-1. Re-authenticate the extension
-2. Ensure offline_access permission is granted
-3. Use extension regularly (within 90 days)
-4. Check if user changed password or revoked access
-
-### Issue: "Insufficient Permissions"
-
-**Cause**: Required API permissions not granted
-
-**Solution**:
-1. Verify all required permissions in Microsoft Entra ID
-2. Ensure admin consent has been granted
-3. Wait a few minutes for permissions to propagate
-4. Re-authenticate after adding permissions
+---
 
 ## See Also
 
-- [Extension Configuration](pages/ExtensionConfiguration.md) - Configure the extension
-- [Creating Office 365 App](pages/CreatingOffice365App.md) - Microsoft Entra ID app registration
-- [Microsoft Identity Platform Documentation](https://learn.microsoft.com/en-us/azure/active-directory/develop/) - Official OAuth documentation
-- [Microsoft Graph Permissions Reference](https://learn.microsoft.com/en-us/graph/permissions-reference) - Complete permissions list
+- [Extension Configuration](pages/ExtensionConfiguration.md) — Step-by-step setup for each auth type
+- [Creating Office 365 App](pages/CreatingOffice365App.md) — Azure AD application registration guide
+- [Audit Dashboard](pages/AuditDashboard.md) — Audit trail and health monitoring

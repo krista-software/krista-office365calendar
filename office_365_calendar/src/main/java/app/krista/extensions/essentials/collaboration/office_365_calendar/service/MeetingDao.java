@@ -221,10 +221,18 @@ public interface MeetingDao {
     List<Map<String, Object>> getSchedules(Long dateFrom, Long dateTo, List<String> attendees, String timeZone) throws IOException;
 
     /**
-     * @param query search terms to match the events data
-     * @return {@link List<>} the list of Multi filed objects with event ID, event title and meeting slot
+     * @param query    search terms to match the events data; may be null or blank when a date range is provided
+     * @param fromDate optional lower bound of the search window (epoch millis). When provided, results
+     *                 are sourced from {@code /me/calendar/calendarView} (recurring instances expanded)
+     *                 and filtered in-memory by {@code query} on subject and body preview.
+     * @param toDate   optional upper bound of the search window (epoch millis).
+     *                 If only one of {@code fromDate}/{@code toDate} is provided, a 1-year window is
+     *                 assumed from the supplied bound.
+     *                 If neither is provided, falls back to {@code /search/query} which is hard-capped
+     *                 at 25 results per page by Microsoft Graph for the EVENT entity.
+     * @return list of maps containing event ID, event title and scheduled time
      */
-    List<Map<String, Object>> getQueryResults(String query) throws IOException;
+    List<Map<String, Object>> getQueryResults(String query, Long fromDate, Long toDate) throws IOException;
 
     /**
      * This request will return the list of events scheduled for the given user.

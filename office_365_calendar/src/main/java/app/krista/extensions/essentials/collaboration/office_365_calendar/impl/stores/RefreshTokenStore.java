@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.Set;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 @Service
 public final class RefreshTokenStore {
@@ -57,12 +58,16 @@ public final class RefreshTokenStore {
         try {
             String result = keyValueStore.get(key, String.class);
             return result;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             // Fallback to raw object and convert to string
             try {
                 Object rawValue = keyValueStore.get(key);
                 String result = rawValue != null ? rawValue.toString() : null;
                 return result;
+            } catch (MustAuthorizeException fallbackException) {
+                throw fallbackException;
             } catch (Exception fallbackException) {
                 return null;
             }

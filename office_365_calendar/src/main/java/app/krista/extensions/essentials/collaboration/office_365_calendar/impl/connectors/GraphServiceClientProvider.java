@@ -42,6 +42,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static app.krista.extensions.essentials.collaboration.office_365_calendar.impl.util.Constants.PRIVATE;
@@ -60,11 +61,22 @@ public final class GraphServiceClientProvider {
     public static final String AUTHORITY = "https://login.microsoftonline.com/";
     public static final String FAILED_TO_GET_ACCOUNT = "Failed to get account";
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphServiceClientProvider.class);
+    /**
+     * Token lifetime margin: refresh the cached system client 5 minutes before the token expires.
+     * Microsoft Graph tokens typically last 60-75 minutes; this margin avoids using a nearly-expired token.
+     */
+    private static final long TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000L;
+
     private final RefreshTokenStore refreshTokenStore;
     private final Office365CalendarAttributes office365CalendarAttributes;
     private final RequestContext requestContext;
     private final AuthorizationContext authorizationContext;
     private final String authContextId;
+
+    /** Cached system-level (client_credentials) GraphServiceClient to avoid per-request token acquisition. */
+    private final AtomicReference<GraphServiceClient<Request>> cachedSystemClient = new AtomicReference<>();
+    /** Timestamp (epoch ms) when the cached system client's token expires. */
+    private volatile long cachedSystemClientExpiresAt = 0;
 
     /**
      * Constructs a new GraphServiceClientProvider with required dependencies.
@@ -111,7 +123,7 @@ public final class GraphServiceClientProvider {
      */
     public Office365CalendarAttributes getOffice365CalendarAttributes() {
         LOGGER.debug("→ getOffice365CalendarAttributes: Returning calendar attributes for tenant: {}",
-                office365CalendarAttributes.getTenantId());
+                office365CalendarAttributes != null ? office365CalendarAttributes.getTenantId() : "null");
         return office365CalendarAttributes;
     }
 
@@ -133,27 +145,42 @@ public final class GraphServiceClientProvider {
 
     /**
      * Returns a GraphServiceClient for system-level (application) authentication.
+     * Uses a cached client to avoid redundant token acquisition on every call.
+     * The cache is invalidated 5 minutes before the token is expected to expire.
      *
      * @return a configured GraphServiceClient instance for system operations
      */
     public GraphServiceClient<Request> getGraphServiceClientForSystem() {
-        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials");
 
-        GraphServiceClient<Request> client = getGraphServiceClientWithClientCredentials();
+        GraphServiceClient<Request> existing = cachedSystemClient.get();
+        if (existing != null && System.currentTimeMillis() < cachedSystemClientExpiresAt) {
+            LOGGER.info("→ getGraphServiceClientForSystem: Returning cached system GraphServiceClient (expires in {} sec)", (cachedSystemClientExpiresAt - System.currentTimeMillis()) / 1000);
+            return existing;
+        }
+
+        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials");
+        GraphServiceClient<Request> client = createAndCacheSystemClient(RetryConfiguration.defaultConfiguration());
         LOGGER.info("→ getGraphServiceClientForSystem: Successfully created system GraphServiceClient");
         return client;
     }
 
     /**
      * Returns a GraphServiceClient for system-level (application) authentication with custom retry configuration.
+     * Uses the same cached client as {@link #getGraphServiceClientForSystem()}.
      *
      * @param retryConfig the retry configuration to use
      * @return a configured GraphServiceClient instance for system operations
      */
     public GraphServiceClient<Request> getGraphServiceClientForSystem(RetryConfiguration retryConfig) {
-        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
 
-        GraphServiceClient<Request> client = getGraphServiceClientWithClientCredentials(retryConfig);
+        GraphServiceClient<Request> existing = cachedSystemClient.get();
+        if (existing != null && System.currentTimeMillis() < cachedSystemClientExpiresAt) {
+            LOGGER.info("→ getGraphServiceClientForSystem: Returning cached system GraphServiceClient (expires in {} sec)", (cachedSystemClientExpiresAt - System.currentTimeMillis()) / 1000);
+            return existing;
+        }
+
+        LOGGER.info("→ getGraphServiceClientForSystem: Creating system-level GraphServiceClient with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
+        GraphServiceClient<Request> client = createAndCacheSystemClient(retryConfig);
         LOGGER.info("→ getGraphServiceClientForSystem: Successfully created system GraphServiceClient with custom retry config");
         return client;
     }
@@ -172,51 +199,88 @@ public final class GraphServiceClientProvider {
     }
 
 
-    private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials() {
-        GraphServiceClient<Request> result = getGraphServiceClientWithClientCredentials(RetryConfiguration.defaultConfiguration());
-        return result;
-    }
+    /**
+     * Creates a new system-level GraphServiceClient using client credentials,
+     * caches it, and records the token expiry time.
+     *
+     * @param retryConfig the retry configuration to use for token acquisition
+     * @return the newly created and cached GraphServiceClient
+     */
+    private synchronized GraphServiceClient<Request> createAndCacheSystemClient(RetryConfiguration retryConfig) {
 
-    private GraphServiceClient<Request> getGraphServiceClientWithClientCredentials(RetryConfiguration retryConfig) {
-        LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Creating client with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
+        // Double-check: another thread may have refreshed while we waited for the lock
+        GraphServiceClient<Request> existing = cachedSystemClient.get();
+        if (existing != null && System.currentTimeMillis() < cachedSystemClientExpiresAt) {
+            return existing;
+        }
+
+        LOGGER.debug("→ createAndCacheSystemClient: Creating client with client credentials and retry config: maxRetries={}", retryConfig.maxRetryAttempts());
 
         try {
-            return ExponentialBackoffRetryExecutor.executeWithRetry(() -> {
-                LOGGER.debug("→ getGraphServiceClientWithClientCredentials: Executing client credentials token acquisition with retry");
+            GraphServiceClient<Request> client = ExponentialBackoffRetryExecutor.executeWithRetry(() -> {
+
+                LOGGER.debug("→ createAndCacheSystemClient: Executing client credentials token acquisition with retry");
 
                 IClientCredential clientCredential = ClientCredentialFactory
                         .createFromSecret(office365CalendarAttributes.getClientSecret());
-                LOGGER.debug("→ Created client credential from secret");
+                LOGGER.info("→ createAndCacheSystemClient: Acquiring client_credentials token for clientId={}, authType=system", office365CalendarAttributes.getClientId());
 
-                String authority = AUTHORITY + office365CalendarAttributes.getTenantId();
-                LOGGER.debug("→ Built authority URL: {}", authority);
+                String tenantId = office365CalendarAttributes.getTenantId();
+                if (tenantId == null || tenantId.isBlank()) {
+
+                    String email = office365CalendarAttributes.getEmail();
+                    if (email != null && email.contains("@")) {
+                        tenantId = email.substring(email.indexOf("@") + 1);
+                        LOGGER.info("→ TenantId not configured, derived from email domain: {}", tenantId);
+                    } else {
+                        LOGGER.error("→ TenantId is null and cannot be derived from email: {}", email);
+                        throw new IllegalStateException("Tenant ID is not configured and cannot be derived from email. Please use Private authentication with a tenant ID for system-level operations.");
+                    }
+                }
+                String authority = AUTHORITY + tenantId;
+                LOGGER.info("→ createAndCacheSystemClient: Using authority={}, scopes={}", authority, CLIENT_CREDENTIAL_SCOPES);
 
                 ConfidentialClientApplication cca = ConfidentialClientApplication.builder(
                                 office365CalendarAttributes.getClientId(),
                                 clientCredential)
                         .authority(authority)
                         .build();
-                LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
 
                 ClientCredentialParameters parameters = ClientCredentialParameters.builder(
                                 Collections.singleton(GraphServiceClientProvider.CLIENT_CREDENTIAL_SCOPES))
                         .build();
-                LOGGER.debug("→ Created client credential parameters with scopes: {}", CLIENT_CREDENTIAL_SCOPES);
 
                 // This is the critical network operation that may fail and needs retry
+                long tokenStart = System.currentTimeMillis();
                 IAuthenticationResult result = cca.acquireToken(parameters).get();
-                LOGGER.debug("→ Acquired access token successfully");
+                long tokenElapsed = System.currentTimeMillis() - tokenStart;
+                LOGGER.info("→ createAndCacheSystemClient: Token acquired in {}ms, expiresOn={}", tokenElapsed, result.expiresOnDate());
 
-                GraphServiceClient<Request> client = GraphServiceClient.builder()
+                // Record token expiry so we can refresh before it expires
+                if (result.expiresOnDate() != null) {
+                    cachedSystemClientExpiresAt = result.expiresOnDate().getTime() - TOKEN_REFRESH_MARGIN_MS;
+                } else {
+                    // Fallback: assume 55 minutes if expiry is not provided
+                    cachedSystemClientExpiresAt = System.currentTimeMillis() + 55 * 60 * 1000L;
+                }
+
+                GraphServiceClient<Request> newClient = GraphServiceClient.builder()
                         .authenticationProvider(new GraphServiceClientAuthenticationProvider(result.accessToken()))
                         .buildClient();
                 LOGGER.debug("→ Created GraphServiceClient with client credentials successfully");
 
-                return client;
+                return newClient;
             }, "GraphServiceClient creation with client credentials", retryConfig);
 
+            cachedSystemClient.set(client);
+            LOGGER.info("→ createAndCacheSystemClient: Cached system GraphServiceClient, expires at {}", cachedSystemClientExpiresAt);
+            return client;
+
+        } catch (MustAuthorizeException cause) {
+            throw cause;
         } catch (Exception cause) {
-            LOGGER.error("→ getGraphServiceClientWithClientCredentials: Error creating GraphServiceClient with client credentials - {}", cause.getMessage(), cause);
+
+            LOGGER.error("→ createAndCacheSystemClient: Error creating GraphServiceClient with client credentials - {}", cause.getMessage(), cause);
             throw new RuntimeException("Unable to connect to Office 365 using the provided credentials. Please verify your client ID and secret are correct.", cause);
         }
     }
@@ -229,6 +293,11 @@ public final class GraphServiceClientProvider {
     private GraphServiceClient<Request> getGraphServiceClient(boolean useEmail) {
         LOGGER.debug("→ getGraphServiceClient(useEmail={}): Creating GraphServiceClient", useEmail);
 
+        if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+            LOGGER.info("→ getGraphServiceClient: PRIVATE auth type detected, routing to system client (client credentials)");
+            return getGraphServiceClientForSystem();
+        }
+
         try {
             String userId = getUserId(useEmail);
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
@@ -236,7 +305,7 @@ public final class GraphServiceClientProvider {
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", refreshTokenStoreKey);
-                throw createMustAuthorizationException(refreshTokenStoreKey, false);
+                throw createMustAuthorizationException(userId, false);
             }
             LOGGER.debug("→ Retrieved refresh token for userId: {}", refreshTokenStoreKey);
 
@@ -256,6 +325,38 @@ public final class GraphServiceClientProvider {
         } else {
             return userId + Constants.UNDER_SCORE + office365CalendarAttributes.getClientId() + Constants.UNDER_SCORE + office365CalendarAttributes.getAuthType();
         }
+    }
+
+    /**
+     * Selects the OAuth client config for the current request.
+     *
+     * <p>Per-user paths ({@code invokeAsUser=true}: MCP tool calls and "Have People authenticate"
+     * workflow) ALWAYS use the default Public OAuth client baked into {@code config.properties}.
+     * This keeps per-user identity hermetically isolated from the operator's keyspace and avoids
+     * the identity-bleed bugs described in {@code docs/4.0.4-auth-recovery.md}.</p>
+     *
+     * <p>Operator-shared paths ({@code invokeAsUser=false}: Setup-tab Test Connection, workflow
+     * with "Have People authenticate" toggled off, scheduler) use the Setup-supplied attrs.</p>
+     */
+    private Office365CalendarAttributes chooseEffectiveAttributes() {
+        if (requestContext != null && requestContext.invokeAsUser()) {
+            // Default Public from config.properties — Office365CalendarAttributes constructor
+            // auto-loads public.clientId / public.clientSecret when clientId / clientSecret are null.
+            return new Office365CalendarAttributes(null, null, null, "", null, Constants.PUBLIC, "");
+        }
+        return office365CalendarAttributes;
+    }
+
+    private String extractPlainUserId(String compoundKey) {
+        if (compoundKey == null || compoundKey.startsWith(Constants.WS_CONTACT)) {
+            return compoundKey;
+        }
+        String suffix = Constants.UNDER_SCORE + office365CalendarAttributes.getClientId()
+                + Constants.UNDER_SCORE + office365CalendarAttributes.getAuthType();
+        if (compoundKey.endsWith(suffix)) {
+            return compoundKey.substring(0, compoundKey.length() - suffix.length());
+        }
+        return compoundKey;
     }
 
     /**
@@ -293,13 +394,19 @@ public final class GraphServiceClientProvider {
                 RefreshTokenParameters refreshTokenStoreParameters = RefreshTokenParameters.builder(scopeSet, refreshToken).build();
                 LOGGER.debug("→ Created refresh token parameters");
 
-                IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(office365CalendarAttributes.getClientSecret());
+                // Per the architectural rule (docs/4.0.4-auth-recovery.md):
+                //   invokeAsUser=true (per-user paths: MCP, Have-People-auth) → ALWAYS use the
+                //   default Public OAuth client baked into config.properties, regardless of
+                //   what Setup → Public/Private contains. This keeps the per-user keyspace
+                //   hermetically sealed from operator-supplied OAuth credentials.
+                Office365CalendarAttributes effectiveAttrs = chooseEffectiveAttributes();
+                IClientCredential clientCredential = ClientCredentialFactory.createFromSecret(effectiveAttrs.getClientSecret());
                 LOGGER.debug("→ Created client credential from secret");
 
                 String authority;
-                if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
-                    authority = Constants.AUTHORITY + office365CalendarAttributes.getTenantId();
-                } else if (PUBLIC.equals(office365CalendarAttributes.getAuthType())) {
+                if (PRIVATE.equals(effectiveAttrs.getAuthType())) {
+                    authority = Constants.AUTHORITY + effectiveAttrs.getTenantId();
+                } else if (PUBLIC.equals(effectiveAttrs.getAuthType())) {
                     authority = Constants.ORG_AUTHORITY;
                 } else {
                     throw new IllegalArgumentException(Constants.UNSUPPORTED_AUTH);
@@ -307,8 +414,8 @@ public final class GraphServiceClientProvider {
                 LOGGER.debug("→ Built authority URL: {}", authority);
 
                 ConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplication.builder(
-                        office365CalendarAttributes.getClientId(), clientCredential).authority(authority).build();
-                LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", office365CalendarAttributes.getClientId());
+                        effectiveAttrs.getClientId(), clientCredential).authority(authority).build();
+                LOGGER.debug("→ Created ConfidentialClientApplication for client ID: {}", effectiveAttrs.getClientId());
 
                 // This is the critical network operation that may fail and needs retry
                 IAuthenticationResult authenticationResult = confidentialClientApplication.acquireToken(refreshTokenStoreParameters).get();
@@ -328,14 +435,16 @@ public final class GraphServiceClientProvider {
 
         } catch (IOException | ExecutionException cause) {
             LOGGER.error("→ getGraphServiceClient: IOException/ExecutionException for userId: {} - {}", userId, cause.getMessage(), cause);
-            throw createMustAuthorizationException(userId, true);
+            throw createMustAuthorizationException(extractPlainUserId(userId), true);
         } catch (InterruptedException interruptedException) {
             LOGGER.error("→ getGraphServiceClient: InterruptedException for userId: {} - {}", userId, interruptedException.getMessage(), interruptedException);
             Thread.currentThread().interrupt();
-            throw createMustAuthorizationException(userId, true);
+            throw createMustAuthorizationException(extractPlainUserId(userId), true);
+        } catch (MustAuthorizeException cause) {
+            throw cause;
         } catch (Exception cause) {
             LOGGER.error("→ getGraphServiceClient: Unexpected exception for userId: {} - {}", userId, cause.getMessage(), cause);
-            throw createMustAuthorizationException(userId, true);
+            throw createMustAuthorizationException(extractPlainUserId(userId), true);
         }
     }
 
@@ -429,6 +538,12 @@ public final class GraphServiceClientProvider {
     public UserRequestBuilder getUserRequestBuilder(Boolean useEmail, String accountID) {
         LOGGER.debug("→ getUserRequestBuilder: Creating UserRequestBuilder with useEmail: {}, accountID: {}", useEmail, accountID);
 
+        // Client credentials tokens have no /me identity — always use /users/{email}
+        if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+            LOGGER.info("→ getUserRequestBuilder: PRIVATE auth type, using users({}) instead of /me", office365CalendarAttributes.getEmail());
+            return getGraphServiceClientForSystem().users(office365CalendarAttributes.getEmail());
+        }
+
         try {
             if (useEmail != null) {
                 if (useEmail) {
@@ -471,6 +586,10 @@ public final class GraphServiceClientProvider {
             // Check for delegated operation first (matches reference implementation pattern)
             if (delegateEmail != null && !delegateEmail.trim().isEmpty()) {
                 LOGGER.debug("→ Using delegated mode - creating users() request for delegate: {}", delegateEmail);
+                // For PRIVATE auth, use system client since /me is not valid for client credentials
+                if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                    return getGraphServiceClientForSystem().users(delegateEmail);
+                }
                 return getGraphServiceClientForUser(false, null).users(delegateEmail);
             }
 
@@ -518,6 +637,11 @@ public final class GraphServiceClientProvider {
     private GraphServiceClient<Request> getGraphServiceClientForUsers(boolean useEmail, String accountID) {
         LOGGER.debug("→ getGraphServiceClientForUsers: Creating client with useEmail: {}, accountID: {}", useEmail, accountID);
 
+        if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+            LOGGER.info("→ getGraphServiceClientForUsers: PRIVATE auth type detected, routing to system client (client credentials)");
+            return getGraphServiceClientForSystem();
+        }
+
         try {
             String userId = getUserId(useEmail);
             String refreshTokenStoreKey = getRefTokenStoreKey(userId);
@@ -526,7 +650,7 @@ public final class GraphServiceClientProvider {
             String refreshToken = refreshTokenStore.get(refreshTokenStoreKey);
             if (refreshToken == null) {
                 LOGGER.warn("→ No refresh token found for userId: {}, creating authorization exception", refreshTokenStoreKey);
-                throw createMustAuthorizationException(refreshTokenStoreKey, false);
+                throw createMustAuthorizationException(userId, false);
             }
             LOGGER.debug("→ Retrieved refresh token for userId: {}", refreshTokenStoreKey);
 

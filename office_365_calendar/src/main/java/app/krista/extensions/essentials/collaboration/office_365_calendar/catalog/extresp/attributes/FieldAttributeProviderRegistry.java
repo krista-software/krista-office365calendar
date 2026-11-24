@@ -18,6 +18,9 @@
 
 package app.krista.extensions.essentials.collaboration.office_365_calendar.catalog.extresp.attributes;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,7 +30,8 @@ import java.util.Map;
  * access default attributes for different field types.
  */
 public class FieldAttributeProviderRegistry {
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FieldAttributeProviderRegistry.class);
     private static final Map<String, FieldAttributeProvider> providers = new HashMap<>();
     private static final FieldAttributeProvider defaultProvider = new DefaultFieldAttributeProvider();
     
@@ -45,7 +49,7 @@ public class FieldAttributeProviderRegistry {
      * @param provider the provider to register
      */
     private static void registerProvider(FieldAttributeProvider provider) {
-        System.out.println("→ Registering field attribute provider for type: " + provider.getFieldType());
+        LOGGER.debug("→ Registering field attribute provider for type: {}", provider.getFieldType());
         providers.put(provider.getFieldType().toLowerCase(), provider);
     }
     
@@ -56,14 +60,14 @@ public class FieldAttributeProviderRegistry {
      * @return a map containing the default attributes for the field type
      */
     public static Map<String, Object> getDefaultAttributes(String fieldType) {
-        System.out.println("→ Getting default attributes for field type: " + fieldType);
+        LOGGER.debug("→ Getting default attributes for field type: {}", fieldType);
         
         FieldAttributeProvider provider = providers.get(fieldType.toLowerCase());
         if (provider != null) {
-            System.out.println("  → Found specific provider for: " + fieldType);
+            LOGGER.debug("  → Found specific provider for: {}", fieldType);
             return provider.getDefaultAttributes();
         } else {
-            System.out.println("  → Using default provider for: " + fieldType);
+            LOGGER.debug("  → Using default provider for: {}", fieldType);
             return defaultProvider.getDefaultAttributes();
         }
     }

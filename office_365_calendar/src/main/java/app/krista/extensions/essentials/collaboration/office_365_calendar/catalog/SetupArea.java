@@ -20,6 +20,7 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.catal
 
 import app.krista.extension.executor.ExtensionResponse;
 import app.krista.extension.impl.anno.*;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.audit.Office365CalendarAuditService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.SetupService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,10 +41,14 @@ public class SetupArea {
     private static final Logger LOGGER = LoggerFactory.getLogger(SetupArea.class);
 
     private final SetupService setupService;
+    private final Office365CalendarAuditService auditService;
+    private final String invokerId;
 
     @Inject
-    public SetupArea(SetupService setupService) {
+    public SetupArea(SetupService setupService, Office365CalendarAuditService auditService, app.krista.extension.executor.Invoker invoker) {
         this.setupService = setupService;
+        this.auditService = auditService;
+        this.invokerId = invoker.getInvokerId();
     }
 
     /**
@@ -60,12 +65,23 @@ public class SetupArea {
             description = "This 'Health Check' request verifies the health status of Office 365 Calendar by calling the health check API.",
             area = "Setup",
             type = CatalogRequest.Type.QUERY_SYSTEM)
-    @Field.Boolean(name = "Is Healthy", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")})
-    @Field.Desc(name = "Health Status", type = "Entity(Health Status)",required = false)
-    @Field.Desc(name = "Extension Response", type = "Entity(Extension Response)",required = false)
+    @Field.Boolean(name = "Is Healthy", required = false, attributes = {@Attribute(name = "visualWidth", value = "S")},
+            description = "Boolean flag indicating whether the Office 365 Calendar extension is operating normally. Returns true if all health checks pass (API connectivity, memory, CPU within thresholds); returns false if any critical check fails.")
+    @Field.Desc(name = "Health Status", type = "Entity(Health Status)", required = false,
+            description = "Detailed health metrics entity containing system resource utilization data including memory usage, CPU percentage, active threads, uptime, and database connection status for the Office 365 Calendar extension.")
+    @Field.Desc(name = "Extension Response", type = "Entity(Extension Response)", required = false,
+            description = "Standardized response wrapper containing the operation outcome message, response type classification, technical error details (if any), and execution duration for the health check operation.")
     public ExtensionResponse healthCheck() {
         LOGGER.info("→ Health Check request initiated");
-        return setupService.checkHealth();
+        auditService.record(invokerId, "CATALOG_REQUEST_TRIGGERED", "triggered", "Health Check", null, null, null);
+        try {
+            ExtensionResponse response = setupService.checkHealth();
+            auditService.record(invokerId, "CATALOG_REQUEST_SUCCESS", "success", "Health Check", null, null, null);
+            return response;
+        } catch (Exception e) {
+            auditService.record(invokerId, "CATALOG_REQUEST_FAILURE", "failure", "Health Check", e.getMessage(), e.getClass().getSimpleName(), null);
+            throw e;
+        }
     }
 }
 

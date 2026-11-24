@@ -26,6 +26,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Utility class for executing operations with exponential backoff retry mechanism.
@@ -146,6 +147,8 @@ public final class ExponentialBackoffRetryExecutor {
             } catch (InterruptedException e) {
                 LOGGER.warn("→ executeWithRetry: Operation '{}' interrupted on attempt {}", operationName, attempt);
                 Thread.currentThread().interrupt();
+                throw e;
+            } catch (MustAuthorizeException e) {
                 throw e;
             } catch (Exception e) {
                 lastException = e;

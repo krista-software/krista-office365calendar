@@ -23,6 +23,7 @@ import app.krista.extension.request.RoutingInfo;
 import app.krista.extension.request.protos.http.HttpProtocol;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.TestConnectionServiceImpl;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.audit.Office365CalendarAuditService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProvider;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
@@ -45,6 +46,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * REST resource for handling authentication with Office 365 Calendar integration.
@@ -76,6 +78,7 @@ public final class AuthenticationResource {
     private final AuthorizationContext context;
     private final AuthorizationListener authorizationListener;
     private final TestConnectionServiceImpl testConnectionService;
+    private final Office365CalendarAuditService auditService;
     private final String baseRoutingUrl;
     private final String invokerId;
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationResource.class);
@@ -87,24 +90,19 @@ public final class AuthenticationResource {
                                 AuthorizationContext context,
                                 AuthorizationListener authorizationListener,
                                 TestConnectionServiceImpl testConnectionService,
+                                Office365CalendarAuditService auditService,
                                 Invoker invoker) {
         LOGGER.info("→ AuthenticationResource: Initializing with injected dependencies");
 
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
-
         this.refreshTokenStore = refreshTokenStore;
-
         this.providerFactory = providerFactory;
-
         this.context = context;
-
         this.authorizationListener = authorizationListener;
-
         this.testConnectionService = testConnectionService;
-
+        this.auditService = auditService;
         this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
         this.invokerId = invoker.getInvokerId();
-
     }
 
     /**
@@ -152,23 +150,37 @@ public final class AuthenticationResource {
         LOGGER.debug("→ Parsed key: [{}] from state. AuthContextId resolved: [{}]", key, authContextId);
 
         try {
-            LOGGER.info("Retrieving GraphServiceClientProvider using AuthContextId: {}", authContextId);
-            GraphServiceClientProvider clientProvider = getGraphServiceClientProvider(authContextId);
+            LOGGER.info("Retrieving GraphServiceClientProvider using key='{}' authContextId='{}'", key, authContextId);
+            // Per the architectural rule (docs/4.0.4-auth-recovery.md):
+            //   key.startsWith(WS_CONTACT) → per-user OAuth callback, force default Public.
+            //   The token exchange MUST use the same OAuth client that built the auth URL,
+            //   otherwise Microsoft rejects with AADSTS7000215.
+            GraphServiceClientProvider clientProvider = getGraphServiceClientProvider(authContextId, key);
 
             LOGGER.debug("Fetching Office 365 Calendar attributes for authentication...");
             Office365CalendarAttributes office365CalendarAttributes = clientProvider.getOffice365CalendarAttributes();
+
+            // Construct compound key for token storage (matches lookup in getRefTokenStoreKey)
+            String refreshTokenKey;
+            if (key.startsWith(Constants.WS_CONTACT)) {
+                refreshTokenKey = key;
+            } else {
+                refreshTokenKey = key + UNDER_SCORE
+                        + office365CalendarAttributes.getClientId() + UNDER_SCORE
+                        + office365CalendarAttributes.getAuthType();
+            }
 
             LOGGER.debug("Initializing OAuth20Service for token exchange...");
             OAuth2AccessToken accessToken = office365CalendarAttributes.getOAuth20Service().getAccessToken(code);
             LOGGER.info("Access token retrieved successfully.");
 
-            refreshTokenStore.put(key, accessToken.getRefreshToken());
-            LOGGER.debug("Refresh token stored for key: {}", key);
+            refreshTokenStore.put(refreshTokenKey, accessToken.getRefreshToken());
+            LOGGER.debug("Refresh token stored for key: {}", refreshTokenKey);
 
             if (!key.startsWith(Constants.WS_CONTACT) && !hasUserAccess(clientProvider)) {
                 LOGGER.debug("User access check failed. Authenticated user does not match setup user.");
-                refreshTokenStore.remove(key);
-                return Constants.UNAUTHORISED_USER + " User email '" + key.split(UNDER_SCORE)[0] + "' configured in the setup does not match with authenticated user.";
+                refreshTokenStore.remove(refreshTokenKey);
+                return Constants.UNAUTHORISED_USER + " User email '" + key + "' configured in the setup does not match with authenticated user.";
             }
 
             if (context.isAuthenticated()) {
@@ -196,20 +208,47 @@ public final class AuthenticationResource {
 
     private String getAuthContextId(String state) {
         LOGGER.debug("→ getAuthContextId: Extracting authContextId from state: {}", state);
+        // Simplified state encoding (4.0.4 recovery): max 3 parts —
+        //   <userId>#<authContextId>#<forwardPath>   where forwardPath is optional and only
+        //                                            present for Setup-tab Public flows.
+        // The 4-part "MCP" encoding (wsContact#INV_..#tempUUID#forwardPath) introduced by
+        // 4.0.2/4.0.3 was reverted per docs/4.0.4-auth-recovery.md.
         String[] parts = state.split(Constants.HASH);
-        String result = parts.length > 1 ? parts[1] : null;
-        LOGGER.debug("→ getAuthContextId: Extracted authContextId: {}", result);
-        return result;
+        if (parts.length <= 1) {
+            LOGGER.debug("→ getAuthContextId: No authContextId in state (single part)");
+            return null;
+        }
+        // For PUBLIC auth without authContext, state is "userId#forwardPath" where forwardPath
+        // is a URL (e.g. https://...). Distinguish from a real authContextId (UUID).
+        String candidate = parts[1];
+        if (candidate.startsWith("http://") || candidate.startsWith("https://") || candidate.startsWith("/")) {
+            LOGGER.debug("→ getAuthContextId: parts[1] is a forward path URL, not an authContextId: {}", candidate);
+            return null;
+        }
+        LOGGER.debug("→ getAuthContextId: Extracted authContextId: {}", candidate);
+        return candidate;
     }
 
-    private GraphServiceClientProvider getGraphServiceClientProvider(String authContextId) {
-        GraphServiceClientProvider provider;
-        if (authContextId == null) {
-            provider = providerFactory.create();
-        } else {
-            provider = providerFactory.create(authContextId);
+    /**
+     * Creates a GraphServiceClientProvider for the OAuth callback's token-exchange step.
+     *
+     * <p>Per the architectural rule (docs/4.0.4-auth-recovery.md): the token exchange MUST use
+     * the SAME OAuth client (clientId, clientSecret, redirect_uri) that built the auth URL.
+     * For per-user callbacks (state's parts[0] is wsContact-prefixed), the auth URL was built
+     * with default Public, so token exchange uses default Public too — irrespective of any
+     * stored Setup attrs.</p>
+     */
+    private GraphServiceClientProvider getGraphServiceClientProvider(String authContextId, String key) {
+        Office365CalendarAttributes attrs;
+        if (key != null && key.startsWith(Constants.WS_CONTACT)) {
+            // Per-user callback — same default-Public client that built the auth URL.
+            attrs = new Office365CalendarAttributes(null, null, null, "", null, Constants.PUBLIC, baseRoutingUrl);
+            return providerFactory.create(attrs);
         }
-        return provider;
+        if (authContextId != null) {
+            return providerFactory.create(authContextId);
+        }
+        return providerFactory.create();
     }
 
     /**
@@ -235,6 +274,8 @@ public final class AuthenticationResource {
                 } else {
                     LOGGER.debug("→ No error_description found in exception map");
                 }
+            } catch (MustAuthorizeException e) {
+                throw e;
             } catch (Exception e) {
                 LOGGER.warn("→ Failed to parse exception message as JSON: {}", e.getMessage());
             }
@@ -252,6 +293,26 @@ public final class AuthenticationResource {
      * @param graphServiceClientForAdmin The GraphServiceClientProvider instance configured for admin access.
      * @return {@code true} if the user has access; {@code false} otherwise.
      */
+    private String extractEmailFromAccessToken(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length >= 2) {
+                int mod = parts[1].length() % 4;
+                String padded = mod > 0 ? parts[1] + "=".repeat(4 - mod) : parts[1];
+                byte[] decoded = java.util.Base64.getUrlDecoder().decode(padded);
+                Map<?, ?> claims = Constants.GSON.fromJson(new String(decoded), Map.class);
+                if (claims.containsKey("preferred_username")) return (String) claims.get("preferred_username");
+                if (claims.containsKey("upn")) return (String) claims.get("upn");
+                if (claims.containsKey("email")) return (String) claims.get("email");
+            }
+        } catch (MustAuthorizeException e) {
+            throw e;
+        } catch (Exception e) {
+            LOGGER.warn("Failed to extract email from access token: {}", e.getMessage());
+        }
+        return null;
+    }
+
     private boolean hasUserAccess(GraphServiceClientProvider graphServiceClientForAdmin) {
         LOGGER.debug("→ hasUserAccess: Checking user access permissions");
 
@@ -280,27 +341,65 @@ public final class AuthenticationResource {
 
         Office365CalendarAttributes attributes = Office365CalendarAttributes.create(authPayload, baseRoutingUrl);
         String authContextId = providerFactory.createAttributes(attributes);
+        String authUrl = null;
 
         try {
             LOGGER.debug("→ Testing connection before saving credentials");
-            providerFactory.create(authContextId).getGraphServiceClientForAdmin()
-                    .users(attributes.getEmail())
-                    .calendars().buildRequest().get();
+            if (Constants.PRIVATE.equals(attributes.getAuthType())) {
+                // Server-Server (Client Credentials): acquire token directly, no user popup
+                providerFactory.create(authContextId).getGraphServiceClientForSystem()
+                        .users(attributes.getEmail())
+                        .calendars().buildRequest().get();
+            } else {
+                // OAuth 2.0 (delegated): uses stored refresh token
+                providerFactory.create(authContextId).getGraphServiceClientForAdmin()
+                        .users(attributes.getEmail())
+                        .calendars().buildRequest().get();
+            }
 
             boolean isSaved = office365CalendarAttributeStore.save(attributes, invokerId);
             LOGGER.info("→ saveCredentials: Credentials saved successfully: {}", isSaved);
+
+            if (isSaved) {
+                auditService.resetAuthCounters();
+            }
 
             String result = isSaved
                     ? Constants.GSON.toJson(new AuthenticationResponse(true, null, null))
                     : Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
             LOGGER.debug("→ saveCredentials: Returning result for save operation: {}", isSaved ? "success" : "failure");
             return result;
+        } catch (MustAuthorizeException cause) {
+            if (Constants.PRIVATE.equals(attributes.getAuthType())) {
+                LOGGER.warn("→ saveCredentials: Client credentials save failed: {}", cause.getMessage());
+                auditService.record(invokerId, "AUTH_CONFIG_FAILURE", "failure", "Save Credentials",
+                        cause.getMessage(), cause.getClass().getSimpleName(), null);
+                return Constants.GSON.toJson(new AuthenticationResponse(false,
+                        "Service to Service authentication failed. Please verify your credentials "
+                        + "and ensure the app has the required Application permissions with admin consent.", null));
+            }
+            LOGGER.info("→ saveCredentials: Authorization required for public auth, generating auth URL");
+            // Save credentials before OAuth redirect
+            office365CalendarAttributeStore.save(attributes, invokerId);
+            String state = attributes.getEmail() + Constants.HASH + authContextId;
+            authUrl = attributes.getOAuth20Service().getAuthorizationUrl(state) + Constants.AUTH_URL_QUERY_PARAMS;
+            return Constants.GSON.toJson(new AuthenticationResponse(false, Constants.AUTHORIZATION_PROMPT, authUrl));
         } catch (Exception cause) {
             LOGGER.error("→ saveCredentials: Failed to save credentials", cause);
+            if (Constants.PRIVATE.equals(attributes.getAuthType())) {
+                auditService.record(invokerId, "AUTH_CONFIG_FAILURE", "failure", "Save Credentials",
+                        cause.getMessage(), cause.getClass().getSimpleName(), null);
+                return Constants.GSON.toJson(new AuthenticationResponse(false,
+                        "Service to Service authentication failed. Please verify your credentials "
+                        + "and ensure the app has the required Application permissions with admin consent.", null));
+            }
             return Constants.GSON.toJson(new AuthenticationResponse(false, "Failed to save attributes", null));
         } finally {
-            LOGGER.debug("→ saveCredentials: Cleanup - removing temporary authContextId");
-            office365CalendarAttributeStore.remove(authContextId);
+            LOGGER.debug("→ saveCredentials: Cleanup phase");
+            if (authUrl == null) {
+                LOGGER.debug("→ saveCredentials: No auth URL generated, removing temporary authContextId");
+                office365CalendarAttributeStore.remove(authContextId);
+            }
         }
     }
 
@@ -323,21 +422,37 @@ public final class AuthenticationResource {
     /**
      * Retrieves stored credentials for a specific authentication type.
      *
+     * <p>Both Quick Setup (AUTH_CODE_PUBLIC) and User Authentication (AUTH_CODE_PRIVATE) share
+     * {@code authType="Public"}, so {@code authFlow} is used to distinguish them via the
+     * {@code publicAuthMode} field stored in attributes ("krista" vs "own").</p>
+     *
      * @param authType The authentication type (Public or Private)
-     * @return JSON representation of stored credentials
+     * @param authFlow The authentication flow (AUTH_CODE_PUBLIC, AUTH_CODE_PRIVATE, CLIENT_CREDENTIALS_SECRET)
+     * @return JSON representation of stored credentials, or empty string if not found
      */
     @GET
     @Path("/getCredentials")
     @Produces("text/plain")
-    public String getCredentials(@QueryParam("authType") String authType) {
-        LOGGER.info("→ getCredentials: Loading attributes for auth-type: {} for invoker {}", authType, invokerId);
+    public String getCredentials(@QueryParam("authType") String authType,
+                                 @QueryParam("authFlow") String authFlow) {
+        LOGGER.info("→ getCredentials: Loading attributes for auth-type: {}, auth-flow: {} for invoker {}", authType, authFlow, invokerId);
 
         final Office365CalendarAttributes loadedAttributes = office365CalendarAttributeStore.load(invokerId);
-        if (loadedAttributes != null && authType.equals(loadedAttributes.getAuthType())) {
-            return Constants.GSON.toJson(loadedAttributes.toMap());
-        } else {
+        if (loadedAttributes == null || !authType.equals(loadedAttributes.getAuthType())) {
             return "";
         }
+        // Both Quick Setup and User Authentication share authType="Public".
+        // Use authFlow to differentiate: AUTH_CODE_PUBLIC = krista-managed, AUTH_CODE_PRIVATE = own app.
+        if (Constants.PUBLIC.equals(authType) && authFlow != null) {
+            java.util.Map<String, Object> map = loadedAttributes.toMap();
+            String publicAuthMode = (String) map.get("publicAuthMode");
+            boolean savedIsKrista = "krista".equals(publicAuthMode);
+            boolean requestingQuickSetup = "AUTH_CODE_PUBLIC".equals(authFlow);
+            if (savedIsKrista != requestingQuickSetup) {
+                return "";
+            }
+        }
+        return Constants.GSON.toJson(loadedAttributes.toMap());
     }
 
     /**
@@ -354,15 +469,38 @@ public final class AuthenticationResource {
         final Office365CalendarAttributes attributes = office365CalendarAttributeStore.load(invokerId);
         if (attributes != null) {
             final String authType = attributes.getAuthType();
-            String result = Constants.GSON.toJson(Objects.requireNonNullElse(authType, Constants.PUBLIC));
-            return result;
+            return Constants.GSON.toJson(Objects.requireNonNullElse(authType, Constants.PUBLIC));
         } else {
             return "";
         }
     }
 
     /**
-     * Serves UI documentation files.
+     * Returns extension metadata JSON for the SDK auth/audit HTML pages.
+     */
+    @GET
+    @Path("/msauth/metadata/{extensionId}")
+    @javax.ws.rs.Produces(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+    public String getExtensionMetadata(@PathParam("extensionId") String extensionId) {
+        app.krista.sdk.msauth.extension.registry.ExtensionRegistry.initialize();
+        return app.krista.sdk.msauth.extension.registry.ExtensionRegistry.get(extensionId)
+                .map(m -> m.toUiJson())
+                .orElse("{\"error\":\"Extension not found: " + extensionId + "\"}");
+    }
+
+    /**
+     * Serves SDK auth tab HTML.
+     */
+    @GET
+    @Path("/authentication/{subPath:.*}")
+    public InputStream authenticationTab(@PathParam("subPath") String subPath) {
+        String filePath = "auth/" + (subPath.isEmpty() ? "index.html" : subPath);
+        return getClass().getClassLoader().getResourceAsStream(filePath);
+    }
+
+
+    /**
+     * Serves UI documentation files (legacy).
      *
      * @param subPath The sub-path for the requested file
      * @return InputStream of the requested file
@@ -371,7 +509,6 @@ public final class AuthenticationResource {
     @Path("/docs/{subPath:.*}")
     public InputStream customTabs(@PathParam("subPath") String subPath) {
         String filePath = "ui/office365calendaroauth/" + (subPath.isEmpty() ? "index.html" : subPath);
-        InputStream result = getClass().getClassLoader().getResourceAsStream(filePath);
-        return result;
+        return getClass().getClassLoader().getResourceAsStream(filePath);
     }
 }

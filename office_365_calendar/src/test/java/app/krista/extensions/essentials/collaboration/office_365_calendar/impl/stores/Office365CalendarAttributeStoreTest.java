@@ -135,6 +135,7 @@ public class Office365CalendarAttributeStoreTest {
         attributeMap.put(Office365CalendarAttributes.EMAIL, "test@example.com");
         attributeMap.put(Office365CalendarAttributes.TIMEZONE, "UTC");
         attributeMap.put(Office365CalendarAttributes.AUTH_TYPE, Constants.PRIVATE);
+        attributeMap.put("privateAuthMode", "own"); // marks this as a Server-Server config (not legacy migration)
 
         String jsonAttributes = GSON.toJson(attributeMap);
         when(keyValueStore.get(authContextId)).thenReturn(jsonAttributes);

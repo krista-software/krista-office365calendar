@@ -21,12 +21,15 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
 import com.microsoft.graph.models.Attendee;
 import com.microsoft.graph.models.AttendeeBase;
 import com.microsoft.graph.models.AttendeeType;
+import com.microsoft.graph.models.DateTimeTimeZone;
 import com.microsoft.graph.models.EmailAddress;
 import com.microsoft.graph.models.Event;
 import com.microsoft.graph.models.Recipient;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -299,6 +302,68 @@ public class MeetingDaoHelperTest {
         boolean hasEmptyEmail = result.stream()
             .anyMatch(attendee -> "".equals(attendee.emailAddress.address));
         assertTrue(hasEmptyEmail);
+    }
+
+    // Tests for buildDateTimeTimeZone method
+    //
+    // Regression coverage for KE-3527: the dateTime string must be formatted in the SAME zone it is
+    // labelled with. When the extension's effective/default zone (clientTimeZone) differs from the
+    // per-event zone, Microsoft Graph must still receive a wall-clock time that matches the event zone.
+    // Before the fix, the string was formatted in the effective zone (e.g. UTC) but labelled with the
+    // event zone, shifting the invite by the zones' offset.
+
+    @Test
+    public void buildDateTimeTimeZoneFormatsInEventZoneForCentralDaylightTime() {
+        // 9:00 AM America/Chicago on 2026-06-15 (CDT, UTC-5), effective zone misconfigured to UTC
+        long epoch = ZonedDateTime.of(2026, 6, 15, 9, 0, 0, 0, ZoneId.of("America/Chicago"))
+                .toInstant().toEpochMilli();
+
+        DateTimeTimeZone result = MeetingDaoHelper.buildDateTimeTimeZone(epoch, "America/Chicago", "UTC");
+
+        assertEquals("2026-06-15T09:00:00", result.dateTime);
+        assertEquals("America/Chicago", result.timeZone);
+    }
+
+    @Test
+    public void buildDateTimeTimeZoneFormatsInEventZoneForCentralStandardTime() {
+        // 9:00 AM America/Chicago on 2026-12-21 (CST, UTC-6), effective zone misconfigured to UTC
+        long epoch = ZonedDateTime.of(2026, 12, 21, 9, 0, 0, 0, ZoneId.of("America/Chicago"))
+                .toInstant().toEpochMilli();
+
+        DateTimeTimeZone result = MeetingDaoHelper.buildDateTimeTimeZone(epoch, "America/Chicago", "UTC");
+
+        assertEquals("2026-12-21T09:00:00", result.dateTime);
+        assertEquals("America/Chicago", result.timeZone);
+    }
+
+    @Test
+    public void buildDateTimeTimeZoneReproducesHudsonFloridaEasternShift() {
+        // Exact values from the ticket: 8:00 AM - 5:30 PM Eastern on 2026-09-23 (EDT), effective zone UTC
+        long dateFrom = 1790164800000L;
+        long dateTo = 1790199000000L;
+
+        DateTimeTimeZone start = MeetingDaoHelper.buildDateTimeTimeZone(dateFrom, "America/New_York", "UTC");
+        DateTimeTimeZone end = MeetingDaoHelper.buildDateTimeTimeZone(dateTo, "America/New_York", "UTC");
+
+        assertEquals("2026-09-23T08:00:00", start.dateTime);
+        assertEquals("America/New_York", start.timeZone);
+        assertEquals("2026-09-23T17:30:00", end.dateTime);
+        assertEquals("America/New_York", end.timeZone);
+    }
+
+    @Test
+    public void buildDateTimeTimeZoneFallsBackToClientZoneWhenEventZoneMissing() {
+        // 9:00 AM America/Chicago, no per-event zone supplied -> both format and label use the client zone
+        long epoch = ZonedDateTime.of(2026, 6, 15, 9, 0, 0, 0, ZoneId.of("America/Chicago"))
+                .toInstant().toEpochMilli();
+
+        DateTimeTimeZone nullZone = MeetingDaoHelper.buildDateTimeTimeZone(epoch, null, "America/Chicago");
+        DateTimeTimeZone emptyZone = MeetingDaoHelper.buildDateTimeTimeZone(epoch, "", "America/Chicago");
+
+        assertEquals("2026-06-15T09:00:00", nullZone.dateTime);
+        assertEquals("America/Chicago", nullZone.timeZone);
+        assertEquals("2026-06-15T09:00:00", emptyZone.dateTime);
+        assertEquals("America/Chicago", emptyZone.timeZone);
     }
 
     /**

@@ -31,37 +31,48 @@ public class HealthStatus {
     public HealthStatus() {
     }
 
-    @Field.Text(name = "Extension Name", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Name of the extension reporting health status'")}, options = {})
+    @Field.Text(name = "Extension Name", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Name of the extension reporting health status'")}, options = {},
+            description = "Registered name of the Krista extension instance reporting its health status. Used to identify which extension the health metrics belong to. Example: 'Office 365 Calendar'.")
     public String extensionName;
 
-    @Field(name = "Current Memory Usage MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current memory usage in megabytes'")}, options = {})
+    @Field(name = "Current Memory Usage MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current memory usage in megabytes'")}, options = {},
+            description = "Amount of heap memory currently consumed by the extension process, measured in megabytes (MB). Calculated as total memory minus available memory. Useful for detecting memory leaks or high consumption.")
     public Double currentMemoryUsageMB;
 
-    @Field(name = "Available Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Available memory in megabytes'")}, options = {})
+    @Field(name = "Available Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Available memory in megabytes'")}, options = {},
+            description = "Amount of free heap memory available to the extension process, measured in megabytes (MB). Low values may indicate the extension is under memory pressure and could experience performance degradation.")
     public Double availableMemoryMB;
 
-    @Field(name = "Total Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Total memory allocated in megabytes'")}, options = {})
+    @Field(name = "Total Memory MB", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Total memory allocated in megabytes'")}, options = {},
+            description = "Maximum heap memory allocated to the extension process by the JVM, measured in megabytes (MB). Represents the upper bound of memory the extension can use before triggering OutOfMemoryError.")
     public Double totalMemoryMB;
 
-    @Field(name = "CPU Usage Percentage", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current CPU usage as a percentage'")}, options = {})
+    @Field(name = "CPU Usage Percentage", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Current CPU usage as a percentage'")}, options = {},
+            description = "Current CPU utilization of the extension process expressed as a percentage (0.0 to 100.0). High values may indicate compute-intensive operations or potential performance bottlenecks.")
     public Double cPUUsagePercentage;
 
-    @Field(name = "Active Threads", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active threads'")}, options = {})
+    @Field(name = "Active Threads", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active threads'")}, options = {},
+            description = "Number of currently active threads in the extension's JVM thread pool. Includes both daemon and non-daemon threads. A sudden increase may indicate thread leaks or high concurrency load.")
     public Double activeThreads;
 
-    @Field(name = "Uptime Hours", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'System uptime in hours'")}, options = {})
+    @Field(name = "Uptime Hours", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'System uptime in hours'")}, options = {},
+            description = "Continuous running time of the extension process since its last restart, measured in hours as a decimal number. Example: 48.5 means the extension has been running for 48 hours and 30 minutes.")
     public Double uptimeHours;
 
-    @Field.Text(name = "System Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Overall system status (HEALTHY, DEGRADED, UNHEALTHY)'")}, options = {})
+    @Field.Text(name = "System Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Overall system status (HEALTHY, DEGRADED, UNHEALTHY)'")}, options = {},
+            description = "Overall operational health status of the extension. Valid values: 'HEALTHY' (all systems operational), 'DEGRADED' (partial functionality impaired), or 'UNHEALTHY' (critical failure detected requiring immediate attention).")
     public String systemStatus;
 
-    @Field.Text(name = "Database Connection Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Status of database connectivity'")}, options = {})
+    @Field.Text(name = "Database Connection Status", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Status of database connectivity'")}, options = {},
+            description = "Current connectivity status of the extension's database connection pool. Indicates whether the extension can successfully communicate with its backing data store. Null if no database is configured.")
     public String databaseConnectionStatus;
 
-    @Field(name = "Active Connections", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active database connections'")}, options = {})
+    @Field(name = "Active Connections", type = "Number", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Number of active database connections'")}, options = {},
+            description = "Number of currently active and in-use database connections in the connection pool. High values relative to the pool maximum may indicate connection exhaustion risk. Null if no database is configured.")
     public Double activeConnections;
 
-    @Field.Text(name = "Last Health Check Time", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Timestamp of the last health check'")}, options = {})
+    @Field.Text(name = "Last Health Check Time", required = false, attributes = {@Attribute(name = "visualWidth", value = "S"), @Attribute(name = "toolTip", value = "'Timestamp of the last health check'")}, options = {},
+            description = "Unix epoch timestamp in milliseconds indicating when the most recent health check was performed. Stored as a string representation of the millisecond value. Example: '1700000000000'.")
     public String lastHealthCheckTime;
 
     /**

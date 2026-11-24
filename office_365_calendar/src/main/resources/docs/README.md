@@ -15,6 +15,9 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 - **Delegation Support**: Perform operations on behalf of other users with proper permissions
 - **Teams Integration**: Create Microsoft Teams meetings directly from calendar events
 - **Recurrence Patterns**: Support for daily, weekly, monthly, and yearly recurring events
+- **MCP Support**: Model Context Protocol compatibility for AI assistant integration
+- **Authentication Tab**: SDK-powered authentication UI supporting Public, Private, and Service to Service flows with scope visibility and test connection
+- **Audit Dashboard**: Real-time monitoring of all catalog request activity, credential health, and authentication events with filtering, search, and CSV export
 
 ## Quick Start Guide
 
@@ -50,7 +53,8 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 ### Getting Started
 
 - [Extension Configuration](pages/ExtensionConfiguration.md) - Configure the extension with your Office 365 credentials
-- [Authentication](pages/Authentication.md) - Understanding OAuth 2.0 authentication modes
+- [Authentication](pages/Authentication.md) - Understanding OAuth 2.0 authentication modes and the Authentication Tab
+- [Audit Dashboard](pages/AuditDashboard.md) - Monitor catalog request activity and credential health
 - [Creating Office 365 App](pages/CreatingOffice365App.md) - Step-by-step guide for Microsoft Entra ID app registration
 
 ### Event Management
@@ -96,9 +100,9 @@ The Krista Office 365 Calendar Extension enables seamless integration with Micro
 
 ### Extension Information
 
-- **Version**: 2.0.21
-- **Krista Service APIs Java**: 1.0.115
-- **Global Catalog Version**: GC-2025.11.1
+- **Version**: 4.0.4
+- **Krista Service APIs Java**: 1.0.125-sp1
+- **Global Catalog Version**: GC-2026.4.4
 
 ### Microsoft Resources
 
@@ -151,6 +155,20 @@ Events can be created as Microsoft Teams meetings by setting the "Is Teams Meeti
 - **Token Management**: Access tokens expire after 1 hour; the extension handles automatic refresh
 - **Permissions**: Grant only the minimum required permissions for your use case
 - **Delegation**: Ensure proper authorization before performing operations on behalf of other users
+
+## What's New in Version 4.0.4
+
+- **Microsoft Auth SDK Integration**: Authentication and audit infrastructure powered by the shared Microsoft Auth SDK (`microsoft-auth-sdk:1.0.1`)
+- **Authentication Tab**: New SDK-powered authentication UI with support for Public, Private, and Service to Service flows, scope visibility, and in-tab test connection
+- **Audit Dashboard**: New Calendar Audit tab providing real-time visibility into all 19 catalog request executions with success/failure tracking, credential health monitoring, authentication event recording, filtering, and CSV export
+- **All Catalog Requests Audited**: Every catalog request records TRIGGERED, SUCCESS, and FAILURE events with duration, exception details, and the triggering user
+
+## What's New in Version 2.0.29
+
+- **MCP Support**: Added Model Context Protocol compatibility for AI assistant integration
+- **Search Events Fix**: Fixed `IllegalArgumentException` when search terms are null/blank - now returns empty list
+- **Authentication Flow**: Enhanced MCP authentication flow with proper state encoding
+- Updated krista-apis to version 1.0.125-sp1
 
 ## What's New in Version 2.0.16
 

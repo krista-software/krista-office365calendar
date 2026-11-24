@@ -23,6 +23,7 @@ import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.u
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.Set;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Validator implementation for validating time zone identifiers within the Office 365 calendar extension.
@@ -47,6 +48,8 @@ public class TimeZoneValidator implements Validator {
         try {
             ZoneId.of(timeZone.trim());
             return true;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             // If ZoneId.of() throws an exception, the time zone is invalid
             return false;
@@ -87,6 +90,8 @@ public class TimeZoneValidator implements Validator {
         try {
             ZoneId.of(timeZone.trim());
             return true;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             return false;
         }

@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import java.util.Map;
 import java.util.UUID;
+import app.krista.extension.authorization.MustAuthorizeException;
 
 /**
  * Service class for storing, loading, and removing Office 365 calendar authentication attributes.
@@ -88,31 +89,53 @@ public final class Office365CalendarAttributeStore {
                 String authType = (String) attributes.get(Office365CalendarAttributes.AUTH_TYPE);
                 LOGGER.debug("→ load: Authentication type: {}", authType);
 
-                if (Constants.PUBLIC.equals(authType)) {
+                // Normalize blank tenantId to null — old save() stored "" for null tenantId
+                String rawTenantId = (String) attributes.get(Office365CalendarAttributes.TENANT_ID);
+                String tenantId = (rawTenantId == null || rawTenantId.isBlank()) ? null : rawTenantId;
+
+                if (Constants.PUBLIC.equalsIgnoreCase(authType)) {
                     LOGGER.debug("→ load: Creating PUBLIC authentication attributes");
-                    Office365CalendarAttributes result = new Office365CalendarAttributes(
+                    return new Office365CalendarAttributes(
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
-                            null,
+                            tenantId,
                             (String) attributes.get(Office365CalendarAttributes.EMAIL),
                             (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
                             authType,
                             baseUrl);
-                    LOGGER.debug("→ load: Returning PUBLIC attributes");
-                    return result;
+                } else if (!attributes.containsKey("privateAuthMode")) {
+                    // ── Migration ────────────────────────────────────────────────────────
+                    // Old "Private" configs (delegated OAuth with own Azure AD app) stored
+                    // before Server-Server auth was added have no privateAuthMode key.
+                    // Migrate them to User Authentication (Public + own credentials) so
+                    // they go through the delegated path instead of Client Credentials.
+                    String shortKey = authContextId != null && authContextId.length() > 8
+                            ? authContextId.substring(0, 8) + "…" : authContextId;
+                    LOGGER.info("Migrating legacy Private auth → User Authentication (delegated) for key {}", shortKey);
+                    return new Office365CalendarAttributes(
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
+                            (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
+                            tenantId,
+                            (String) attributes.get(Office365CalendarAttributes.EMAIL),
+                            (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
+                            Constants.PUBLIC,
+                            baseUrl);
                 } else {
-                    LOGGER.debug("→ load: Creating PRIVATE authentication attributes with tenant ID");
+                    // New Server-Server (Client Credentials) — explicit privateAuthMode present
+                    LOGGER.debug("→ load: Creating PRIVATE (Server-Server) authentication attributes");
                     Office365CalendarAttributes result = new Office365CalendarAttributes(
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_ID),
                             (String) attributes.get(Office365CalendarAttributes.CLIENT_SECRET),
-                            (String) attributes.get(Office365CalendarAttributes.TENANT_ID),
+                            tenantId,
                             (String) attributes.get(Office365CalendarAttributes.EMAIL),
                             (String) attributes.get(Office365CalendarAttributes.TIMEZONE),
                             authType,
                             baseUrl);
-                    LOGGER.debug("→ load: Returning PRIVATE attributes");
+                    result.setPrivateAuthMode((String) attributes.get("privateAuthMode"));
                     return result;
                 }
+            } catch (MustAuthorizeException e) {
+                throw e;
             } catch (Exception e) {
                 LOGGER.error("→ load: Error parsing JSON attributes: {}", e.getMessage(), e);
                 return null;
@@ -124,13 +147,7 @@ public final class Office365CalendarAttributeStore {
         LOGGER.debug("→ save: Saving attributes with generated authContextId");
         String authContextId = UUID.randomUUID().toString();
         LOGGER.debug("→ save: Generated authContextId: {}", authContextId);
-        Map<String, Object> attributeMap = Map.of(
-                Office365CalendarAttributes.CLIENT_ID, office365CalendarAttributes.getClientId(),
-                Office365CalendarAttributes.CLIENT_SECRET, office365CalendarAttributes.getClientSecret(),
-                Office365CalendarAttributes.TENANT_ID, office365CalendarAttributes.getTenantId() != null ? office365CalendarAttributes.getTenantId() : "",
-                Office365CalendarAttributes.EMAIL, office365CalendarAttributes.getEmail(),
-                Office365CalendarAttributes.TIMEZONE, office365CalendarAttributes.getTimeZone() != null ? office365CalendarAttributes.getTimeZone() : "",
-                Office365CalendarAttributes.AUTH_TYPE, office365CalendarAttributes.getAuthType());
+        Map<String, Object> attributeMap = office365CalendarAttributes.toMap();
         LOGGER.debug("→ save: Created attribute map for storage");
         store.put(authContextId, Constants.GSON.toJson(attributeMap));
         LOGGER.info("→ save: Attributes saved successfully with authContextId: {}", authContextId);
@@ -141,17 +158,13 @@ public final class Office365CalendarAttributeStore {
         LOGGER.debug("→ save: Saving attributes with invokerId: {}", invokerId);
         try {
             LOGGER.debug("→ save: Creating attribute map for storage");
-            Map<String, Object> attributeMap = Map.of(
-                    Office365CalendarAttributes.CLIENT_ID, office365CalendarAttributes.getClientId(),
-                    Office365CalendarAttributes.CLIENT_SECRET, office365CalendarAttributes.getClientSecret(),
-                    Office365CalendarAttributes.TENANT_ID, office365CalendarAttributes.getTenantId() != null ? office365CalendarAttributes.getTenantId() : "",
-                    Office365CalendarAttributes.EMAIL, office365CalendarAttributes.getEmail(),
-                    Office365CalendarAttributes.TIMEZONE, office365CalendarAttributes.getTimeZone() != null ? office365CalendarAttributes.getTimeZone() : "",
-                    Office365CalendarAttributes.AUTH_TYPE, office365CalendarAttributes.getAuthType());
+            Map<String, Object> attributeMap = office365CalendarAttributes.toMap();
             LOGGER.debug("→ save: Storing attributes in KeyValueStore");
             store.put(invokerId, Constants.GSON.toJson(attributeMap));
             LOGGER.info("→ save: Attributes saved successfully for invokerId: {}", invokerId);
             return true;
+        } catch (MustAuthorizeException e) {
+            throw e;
         } catch (Exception e) {
             LOGGER.error("→ save: Failed to save attributes for invokerId: {}, error: {}", invokerId, e.getMessage(), e);
             return false;

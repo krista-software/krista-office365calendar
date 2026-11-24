@@ -23,6 +23,7 @@ import app.krista.extension.executor.Invoker;
 import app.krista.extension.impl.anno.*;
 import app.krista.extension.request.RoutingInfo;
 import app.krista.extension.request.protos.http.HttpProtocol;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.audit.Office365CalendarAuditService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
 import app.krista.ksdk.context.AuthorizationContext;
@@ -32,7 +33,8 @@ import javax.inject.Inject;
 import java.util.Map;
 
 @Java(version = Java.Version.JAVA_21)
-@Extension(version = "2.0.25", name = "Office 365 Calendar")
+@Extension(version = "4.0.7", name = "Office 365 Calendar", description = "Krista integration with Office 365 Calendar for scheduling meetings, viewing events, and finding free slots via Microsoft Graph", implementationModel = Extension.ImplementationModel.Krista_4_O)
+@Containerize(baseImageVersion = "3.6.2-sp3")
 @StaticResource(path = "docs", file = "docs")
 @ChangeLog(file = "resources/docs/pages/releaseNotes.md")
 public final class Office365CalendarExtension {
@@ -45,10 +47,11 @@ public final class Office365CalendarExtension {
     @Inject
     public Office365CalendarExtension(Invoker invoker, Office365CalendarAttributeStore attributeStore,
                                       GraphServiceClientProviderFactory providerFactory,
-                                      AuthorizationContext authorizationContext, TelemetryMetrics telemetryMetrics) {
-        this.requestAuthenticator = new Office365CalendarRequestAuthenticator(attributeStore, invoker.getInvokerId(), authorizationContext);
-        this.providerFactory = providerFactory;
+                                      AuthorizationContext authorizationContext, TelemetryMetrics telemetryMetrics,
+                                      Office365CalendarAuditService auditService) {
         this.routingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
+        this.requestAuthenticator = new Office365CalendarRequestAuthenticator(attributeStore, invoker.getInvokerId(), authorizationContext, routingUrl);
+        this.providerFactory = providerFactory;
         this.telemetryMetrics = telemetryMetrics;
     }
 
@@ -59,7 +62,9 @@ public final class Office365CalendarExtension {
 
     @InvokerRequest(InvokerRequest.Type.CUSTOM_TABS)
     public Map<String, String> customTabs() {
-        return Map.of("Authentication", "rest/calendar/docs/", "Documentation", "static/docs");
+        return Map.of("Authentication", "rest/calendar/authentication/",
+                "Documentation", "static/docs",
+                "Office 365 Calendar Audit", "rest/calendar/audit/", "AI Assistant", "rest/calendar/mcp-setup");
     }
 
     @InvokerRequest(InvokerRequest.Type.TEST_CONNECTION)

@@ -20,6 +20,8 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl;
 
 import app.krista.extensions.essentials.collaboration.office_365_calendar.service.Meeting;
 import com.microsoft.graph.models.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +39,7 @@ import java.util.Properties;
  */
 public class MeetingImpl implements Meeting {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MeetingImpl.class);
     private final Event event;
 
     public MeetingImpl(Event event) {
@@ -63,8 +66,11 @@ public class MeetingImpl implements Meeting {
         List<String> contacts = new ArrayList<>();
         if (event.attendees != null) {
             event.attendees.forEach(attendee -> {
-                if (attendee.emailAddress != null) {
+                if (attendee.emailAddress != null && attendee.emailAddress.address != null) {
                     contacts.add(attendee.emailAddress.address);
+                } else {
+                    LOGGER.info("Skipping attendee with no email address: name={}, eventId={}",
+                            attendee.emailAddress != null ? attendee.emailAddress.name : "unknown", event.id);
                 }
             });
         }

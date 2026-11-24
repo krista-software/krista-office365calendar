@@ -23,18 +23,18 @@ package app.krista.extensions.essentials.collaboration.office_365_calendar.impl.
  * Contains success status, error message, and optional authorization URL.
  */
 public class AuthenticationResponse {
-    private final boolean success;
+    private final boolean isSuccess;
     private final String errorMessage;
     private final String url;
 
-    public AuthenticationResponse(boolean success, String errorMessage, String url) {
-        this.success = success;
+    public AuthenticationResponse(boolean isSuccess, String errorMessage, String url) {
+        this.isSuccess = isSuccess;
         this.errorMessage = errorMessage;
         this.url = url;
     }
 
     public boolean isSuccess() {
-        return success;
+        return isSuccess;
     }
 
     public String getErrorMessage() {

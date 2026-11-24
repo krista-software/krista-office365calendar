@@ -23,6 +23,7 @@ import app.krista.extension.executor.Invoker;
 import app.krista.extension.request.RoutingInfo;
 import app.krista.extension.request.protos.http.HttpProtocol;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.Office365CalendarAttributes;
+import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.audit.Office365CalendarAuditService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.GraphServiceClientProviderFactory;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.connectors.OAuthService;
 import app.krista.extensions.essentials.collaboration.office_365_calendar.impl.stores.Office365CalendarAttributeStore;
@@ -45,17 +46,23 @@ import static app.krista.extensions.essentials.collaboration.office_365_calendar
 public class TestConnectionServiceImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestConnectionServiceImpl.class);
 
+    private static final String CATALOG_NAME_TEST_CONNECTION = "Test Connection";
     private final GraphServiceClientProviderFactory providerFactory;
     private final Office365CalendarAttributeStore office365CalendarAttributeStore;
+    private final Office365CalendarAuditService auditService;
     private final String baseRoutingUrl;
+    private final String invokerId;
 
     @Inject
     public TestConnectionServiceImpl(GraphServiceClientProviderFactory providerFactory,
                                    Office365CalendarAttributeStore office365CalendarAttributeStore,
+                                   Office365CalendarAuditService auditService,
                                    Invoker invoker) {
         this.providerFactory = providerFactory;
         this.office365CalendarAttributeStore = office365CalendarAttributeStore;
+        this.auditService = auditService;
         this.baseRoutingUrl = invoker.getRoutingInfo().getRoutingURL(HttpProtocol.PROTOCOL_NAME, RoutingInfo.Type.APPLIANCE);
+        this.invokerId = invoker.getInvokerId();
     }
 
     public String testConnection(Office365CalendarAttributes office365CalendarAttributes) {
@@ -68,7 +75,15 @@ public class TestConnectionServiceImpl {
         try {
             LOGGER.debug("→ testConnection: Attempting to verify API access");
             LOGGER.info("Verifying API access for email: {}", office365CalendarAttributes.getEmail());
-            providerFactory.create(authContextId).getGraphServiceClientForAdmin().me().calendars().buildRequest().get();
+            if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                // Server-Server (Client Credentials): acquire token directly, no user popup
+                providerFactory.create(authContextId).getGraphServiceClientForSystem()
+                        .users(office365CalendarAttributes.getEmail())
+                        .calendars().buildRequest().get();
+            } else {
+                // OAuth 2.0 (delegated): requires user sign-in via popup
+                providerFactory.create(authContextId).getGraphServiceClientForAdmin().me().calendars().buildRequest().get();
+            }
 
             LOGGER.debug("→ testConnection: API access verification successful");
             LOGGER.info("Test connection successful");
@@ -76,9 +91,20 @@ public class TestConnectionServiceImpl {
         } catch (GraphServiceException cause) {
             LOGGER.debug("→ testConnection: GraphServiceException occurred: {}", cause.getMessage());
             LOGGER.error("Graph API connection failed: {}", cause.getMessage());
+            auditService.record(invokerId, "AUTH_CONFIG_FAILURE", "failure", CATALOG_NAME_TEST_CONNECTION,
+                    cause.getMessage(), cause.getClass().getSimpleName(), null);
             return createTestConnectionResponse(false, "An error occurred during test connection.", null);
         } catch (MustAuthorizeException cause) {
             LOGGER.debug("→ testConnection: MustAuthorizeException - authorization required");
+            if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                LOGGER.warn("→ testConnection: Client credentials auth failed: {}", cause.getMessage());
+                auditService.record(invokerId, "AUTH_CONFIG_FAILURE", "failure", CATALOG_NAME_TEST_CONNECTION,
+                        cause.getMessage(), cause.getClass().getSimpleName(), null);
+                return createTestConnectionResponse(false,
+                        "Service to Service authentication failed. Please verify your Client ID, "
+                        + "Client Secret, and Tenant ID are correct, and that the app has the "
+                        + "required Application permissions with admin consent.", null);
+            }
             LOGGER.info("Authorization required, generating auth URL");
             String state = createStateParameter(cause, office365CalendarAttributes);
             LOGGER.debug("→ testConnection: Created state parameter: {}", state);
@@ -86,6 +112,17 @@ public class TestConnectionServiceImpl {
             authUrl = oAuth20Service.getAuthorizationUrl(state) + AUTH_URL_QUERY_PARAMS;
             LOGGER.debug("→ testConnection: Generated authorization URL");
             return createTestConnectionResponse(false, AUTHORIZATION_PROMPT, authUrl);
+        } catch (RuntimeException cause) {
+            LOGGER.error("→ testConnection: RuntimeException during test connection: {}", cause.getMessage(), cause);
+            if (PRIVATE.equals(office365CalendarAttributes.getAuthType())) {
+                auditService.record(invokerId, "AUTH_CONFIG_FAILURE", "failure", CATALOG_NAME_TEST_CONNECTION,
+                        cause.getMessage(), cause.getClass().getSimpleName(), null);
+                return createTestConnectionResponse(false,
+                        "Service to Service authentication failed. Please verify your Client ID, "
+                        + "Client Secret, and Tenant ID are correct, and that the app has the "
+                        + "required Application permissions with admin consent.", null);
+            }
+            return createTestConnectionResponse(false, "An error occurred during test connection.", null);
         } finally {
             LOGGER.debug("→ testConnection: Cleanup phase");
             if (authUrl == null) {
