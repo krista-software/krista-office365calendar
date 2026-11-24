@@ -751,7 +751,7 @@ public class GraphServiceClientProviderTest {
         refreshTokenObj.add("firstKey", tokenData);
         tokenCache.add("RefreshToken", refreshTokenObj);
 
-        provider.updateRefreshToken("userId-123", tokenCache);
+        provider.updateRefreshToken("REDACTED_SECRET", tokenCache);
 
         verify(refreshTokenStore).put("userId-123", "new-refresh-token");
     }
